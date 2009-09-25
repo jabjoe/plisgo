@@ -1,0 +1,26 @@
+HKCR
+{
+	Plisgo.PlisgoExtractIcon.1 = s 'PlisgoExtractIcon Class'
+	{
+		CLSID = s '{11E54957-7EED-4F3C-A4C1-46788757EC62}'
+	}
+	Plisgo.PlisgoExtractIcon = s 'PlisgoExtractIcon Class'
+	{
+		CLSID = s '{11E54957-7EED-4F3C-A4C1-46788757EC62}'
+		CurVer = s 'Plisgo.PlisgoExtractIcon.1'
+	}
+	NoRemove CLSID
+	{
+		ForceRemove {11E54957-7EED-4F3C-A4C1-46788757EC62} = s 'PlisgoExtractIcon Class'
+		{
+			ProgID = s 'Plisgo.PlisgoExtractIcon.1'
+			VersionIndependentProgID = s 'Plisgo.PlisgoExtractIcon'
+			ForceRemove 'Programmable'
+			InprocServer32 = s '%MODULE%'
+			{
+				val ThreadingModel = s 'Apartment'
+			}
+			'TypeLib' = s '{68DDD719-C3B0-48D0-B5BB-1351B3AE71E8}'
+		}
+	}
+}

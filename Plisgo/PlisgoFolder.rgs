@@ -1,0 +1,66 @@
+HKCR
+{
+	Plisgo.PlisgoFolder.1 = s 'PlisgoFolder Class'
+	{
+		CLSID = s '{ADA19F85-EEB6-46F2-B8B2-2BD977934A79}'
+	}
+	Plisgo.PlisgoFolder = s 'PlisgoFolder Class'
+	{
+		CLSID = s '{ADA19F85-EEB6-46F2-B8B2-2BD977934A79}'
+		CurVer = s 'Plisgo.PlisgoFolder.1'
+	}
+	NoRemove CLSID
+	{
+		ForceRemove {ADA19F85-EEB6-46F2-B8B2-2BD977934A79} = s 'PlisgoFolder Class'
+		{
+			ProgID = s 'Plisgo.PlisgoFolder.1'
+			VersionIndependentProgID = s 'Plisgo.PlisgoFolder'
+			ForceRemove 'Programmable'
+			InprocServer32 = s '%MODULE%'
+			{
+				val ThreadingModel = s 'Apartment'
+			}
+			'TypeLib' = s '{68DDD719-C3B0-48D0-B5BB-1351B3AE71E8}'
+			ForceRemove ShellFolder
+			{
+				val Attributes = d '42949672992'
+				val DefaultIcon = s '%MODULE%,-1'
+			}
+		}
+	}
+}
+
+
+HKLM
+{
+	NoRemove SOFTWARE
+	{
+		NoRemove Microsoft
+		{
+			NoRemove Windows
+			{
+				NoRemove CurrentVersion
+				{
+					NoRemove Explorer
+					{
+						ForceRemove PlisgoFolder
+						{
+							ForceRemove Namespace
+							{
+								ForceRemove {68DDD719-C3B0-48D0-B5BB-1351B3AE71E8} = s 'PlisgoFolder'
+							}
+						}
+					}
+
+					NoRemove 'Shell Extensions'
+					{
+						NoRemove Approved
+						{
+							val '{68DDD719-C3B0-48D0-B5BB-1351B3AE71E8}' = s 'PlisgoFolder'
+						}
+					}
+				}
+			}			
+		}
+	}
+}

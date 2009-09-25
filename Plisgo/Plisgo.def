@@ -1,0 +1,10 @@
+; Plisgo.def : Declares the module parameters.
+
+LIBRARY      "Plisgo.DLL"
+
+EXPORTS
+	DllCanUnloadNow		PRIVATE
+	DllGetClassObject	PRIVATE
+	DllRegisterServer	PRIVATE
+	DllUnregisterServer	PRIVATE
+	DllInstall		PRIVATE

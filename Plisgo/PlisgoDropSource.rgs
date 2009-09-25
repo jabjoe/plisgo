@@ -1,0 +1,26 @@
+HKCR
+{
+	Plisgo.PlisgoDropSource.1 = s 'PlisgoDropSource Class'
+	{
+		CLSID = s '{257BAE7D-AD3C-4F0F-9232-B9B18E546106}'
+	}
+	Plisgo.PlisgoDropSource = s 'PlisgoDropSource Class'
+	{
+		CLSID = s '{257BAE7D-AD3C-4F0F-9232-B9B18E546106}'
+		CurVer = s 'Plisgo.PlisgoDropSource.1'
+	}
+	NoRemove CLSID
+	{
+		ForceRemove {257BAE7D-AD3C-4F0F-9232-B9B18E546106} = s 'PlisgoDropSource Class'
+		{
+			ProgID = s 'Plisgo.PlisgoDropSource.1'
+			VersionIndependentProgID = s 'Plisgo.PlisgoDropSource'
+			ForceRemove 'Programmable'
+			InprocServer32 = s '%MODULE%'
+			{
+				val ThreadingModel = s 'Apartment'
+			}
+			'TypeLib' = s '{68DDD719-C3B0-48D0-B5BB-1351B3AE71E8}'
+		}
+	}
+}

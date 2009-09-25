@@ -1,0 +1,11 @@
+HKCR
+{
+	NoRemove AppID
+	{
+		'%APPID%' = s 'Plisgo'
+		'Plisgo.DLL'
+		{
+			val AppID = s '%APPID%'
+		}
+	}
+}

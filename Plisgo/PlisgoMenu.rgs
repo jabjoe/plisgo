@@ -1,0 +1,94 @@
+HKCR
+{
+	Plisgo.PlisgoMenu.1 = s 'PlisgoMenu Class'
+	{
+		CLSID = s '{BBF30838-6C39-4D2B-83FA-4654A3725674}'
+	}
+	Plisgo.PlisgoMenu = s 'PlisgoMenu Class'
+	{
+		CLSID = s '{BBF30838-6C39-4D2B-83FA-4654A3725674}'
+		CurVer = s 'Plisgo.PlisgoMenu.1'
+	}
+	NoRemove CLSID
+	{
+		ForceRemove {BBF30838-6C39-4D2B-83FA-4654A3725674} = s 'PlisgoMenu Class'
+		{
+			ProgID = s 'Plisgo.PlisgoMenu.1'
+			VersionIndependentProgID = s 'Plisgo.PlisgoMenu'
+			ForceRemove 'Programmable'
+			InprocServer32 = s '%MODULE%'
+			{
+				val ThreadingModel = s 'Apartment'
+			}
+			'TypeLib' = s '{68DDD719-C3B0-48D0-B5BB-1351B3AE71E8}'
+		}
+	}
+}
+HKCR
+{
+    NoRemove *
+    {
+        NoRemove shellex
+        {
+            NoRemove ContextMenuHandlers
+            {
+				ForceRemove PlisgoMenu = s '{BBF30838-6C39-4D2B-83FA-4654A3725674}'
+            }
+        }
+    }
+}
+HKCR
+{
+    NoRemove Folder
+    {
+        NoRemove shellex
+        {
+            NoRemove ContextMenuHandlers
+            {
+				ForceRemove PlisgoMenu = s '{BBF30838-6C39-4D2B-83FA-4654A3725674}'
+            }
+        }
+    }
+}
+HKCR
+{
+    NoRemove Directory
+    {
+		NoRemove Background
+		{
+			NoRemove shellex
+			{
+				NoRemove ContextMenuHandlers
+				{
+					ForceRemove PlisgoMenu = s '{BBF30838-6C39-4D2B-83FA-4654A3725674}'
+				}
+			}
+        }
+    }
+}
+HKCR
+{
+    NoRemove Directory
+    {
+		NoRemove shellex
+		{
+			NoRemove ContextMenuHandlers
+			{
+				ForceRemove PlisgoMenu = s '{BBF30838-6C39-4D2B-83FA-4654A3725674}'
+			}
+		}
+    }
+}
+HKCR
+{
+    NoRemove Drive
+    {
+		NoRemove shellex
+		{
+			NoRemove ContextMenuHandlers
+			{
+				ForceRemove PlisgoMenu = s '{BBF30838-6C39-4D2B-83FA-4654A3725674}'
+			}
+		}
+    }
+}

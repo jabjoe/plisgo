@@ -1,0 +1,29 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 10.00
+# Visual Studio 2008
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Plisgo_Dokan_Example", "Plisgo_Dokan_Example.vcproj", "{FA2E4B66-C98D-44DC-B32F-7B832ED581C3}"
+	ProjectSection(ProjectDependencies) = postProject
+		{7648522A-73FC-4B46-9B9C-EEA832ED96D1} = {7648522A-73FC-4B46-9B9C-EEA832ED96D1}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PlisgoFSLib", "..\PlisgoFSLib\PlisgoFSLib.vcproj", "{7648522A-73FC-4B46-9B9C-EEA832ED96D1}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{FA2E4B66-C98D-44DC-B32F-7B832ED581C3}.Debug|Win32.ActiveCfg = Debug|Win32
+		{FA2E4B66-C98D-44DC-B32F-7B832ED581C3}.Debug|Win32.Build.0 = Debug|Win32
+		{FA2E4B66-C98D-44DC-B32F-7B832ED581C3}.Release|Win32.ActiveCfg = Release|Win32
+		{FA2E4B66-C98D-44DC-B32F-7B832ED581C3}.Release|Win32.Build.0 = Release|Win32
+		{7648522A-73FC-4B46-9B9C-EEA832ED96D1}.Debug|Win32.ActiveCfg = Debug|Win32
+		{7648522A-73FC-4B46-9B9C-EEA832ED96D1}.Debug|Win32.Build.0 = Debug|Win32
+		{7648522A-73FC-4B46-9B9C-EEA832ED96D1}.Release|Win32.ActiveCfg = Release|Win32
+		{7648522A-73FC-4B46-9B9C-EEA832ED96D1}.Release|Win32.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

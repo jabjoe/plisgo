@@ -1,0 +1,26 @@
+HKCR
+{
+	Plisgo.PlisgoView.1 = s 'PlisgoView Class'
+	{
+		CLSID = s '{E8716A04-546B-4DB1-BB55-0A230E20A0C5}'
+	}
+	Plisgo.PlisgoView = s 'PlisgoView Class'
+	{
+		CLSID = s '{E8716A04-546B-4DB1-BB55-0A230E20A0C5}'
+		CurVer = s 'Plisgo.PlisgoView.1'
+	}
+	NoRemove CLSID
+	{
+		ForceRemove {E8716A04-546B-4DB1-BB55-0A230E20A0C5} = s 'PlisgoView Class'
+		{
+			ProgID = s 'Plisgo.PlisgoView.1'
+			VersionIndependentProgID = s 'Plisgo.PlisgoView'
+			ForceRemove 'Programmable'
+			InprocServer32 = s '%MODULE%'
+			{
+				val ThreadingModel = s 'Apartment'
+			}
+			'TypeLib' = s '{68DDD719-C3B0-48D0-B5BB-1351B3AE71E8}'
+		}
+	}
+}
