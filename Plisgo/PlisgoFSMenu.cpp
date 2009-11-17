@@ -67,31 +67,64 @@ PlisgoFSMenu::PlisgoFSMenu(IPtrFSIconRegistry FSIcons, const std::wstring& rsPat
 			}
 		
 			FlushFileBuffers(m_hSelectionFile); //Mark selection writing is finished
+		}
 
 
-			int nEnabled = 0;
+		int nEnabled = 0;
 
-			if (ReadIntFromFile(nEnabled, rsPath + L"\\.enabled"))
-				m_bEnabled = (nEnabled != 0);
-			else
-				m_bEnabled = true;
+		if (ReadIntFromFile(nEnabled, rsPath + L"\\.enabled"))
+			m_bEnabled = (nEnabled != 0);
+		else
+			m_bEnabled = true;
+	
+		
+		m_sClickCmd = m_sPath + L"\\click.*";
 
-			m_hIcon = NULL;
+		WIN32_FIND_DATAW	findData;
 
-			if (m_bEnabled)
+		HANDLE hFind = FindFirstFileW(m_sClickCmd.c_str(), &findData);
+
+		if (hFind != NULL && hFind != INVALID_HANDLE_VALUE)
+		{
+			m_sClickCmd = m_sPath + L"\\" + findData.cFileName;
+
+			FindClose(hFind);
+
+			m_sClickCmdArgs.empty();
+
+			const size_t nBase = rsPath.rfind(L".plisgo");
+
+			std::wstring sBase = rsPath.substr(0, nBase-1);
+
+			for(WStringList::const_iterator it = rSelection.begin(); it != rSelection.end(); ++it)
 			{
-				UINT nList = -1;
-				UINT nEntry = -1;
+				m_sClickCmdArgs += L"\"";
+				m_sClickCmdArgs += sBase;
+				m_sClickCmdArgs += *it;
+				m_sClickCmdArgs += L"\"";
 
-				if (FSIcons.get() != NULL && ReadIconIndices(rsPath + L"\\.icon", nList, nEntry))
-				{
-					const int nIconHeight = TOPOWEROFTWO(GetSystemMetrics(SM_CYMENUCHECK) + GetSystemMetrics(SM_CYEDGE));
-
-					FSIcons->GetFSIcon(m_hIcon, nList, nEntry, nIconHeight);
-				}
-
-				LoadMenus(m_children, FSIcons, rsPath+L"\\", rSelection);
+				if (it != rSelection.end()-1)
+					m_sClickCmdArgs+= L" ";
 			}
+		}
+		else m_sClickCmd.empty();
+			
+
+		m_hIcon = NULL;
+
+		if (m_bEnabled)
+		{
+			UINT nList = -1;
+			UINT nEntry = -1;
+
+			if (FSIcons.get() != NULL && ReadIconIndices(rsPath + L"\\.icon", nList, nEntry))
+			{
+				const int nIconHeight = TOPOWEROFTWO(GetSystemMetrics(SM_CYMENUCHECK) + GetSystemMetrics(SM_CYEDGE));
+
+				FSIcons->GetFSIcon(m_hIcon, nList, nEntry, nIconHeight);
+			}
+
+			LoadMenus(m_children, FSIcons, rsPath+L"\\", rSelection);
 		}
 	}
 	else
@@ -141,6 +174,10 @@ void		PlisgoFSMenu::Click()
 
 		CloseHandle(hClickFile);
 	}
+
+
+	if (m_sClickCmd.length())
+		ShellExecute(NULL, NULL, m_sClickCmd.c_str(), m_sClickCmdArgs.c_str(), NULL, SW_SHOWNORMAL);
 }
 
 

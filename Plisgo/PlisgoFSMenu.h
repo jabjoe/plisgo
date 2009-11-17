@@ -53,6 +53,8 @@ private:
 	HICON					m_hIcon;
 	std::wstring			m_sText;
 	HANDLE					m_hSelectionFile;
+	std::wstring			m_sClickCmd;
+	std::wstring			m_sClickCmdArgs;
 	IPtrPlisgoFSMenuList	m_children;
 };
 
