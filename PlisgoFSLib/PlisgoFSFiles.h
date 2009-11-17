@@ -494,7 +494,7 @@ typedef boost::shared_ptr<PlisgoFSCachedFileTree>	IPtrPlisgoFSCachedFileTree;
 
 
 
-inline IPtrPlisgoFSFile	GetPlisgoDesktopIniFile(const std::wstring& rsFolder)
+inline IPtrPlisgoFSFile	GetPlisgoDesktopIniFile(const std::wstring& rsFolder = std::wstring())
 {
 	std::string sData = "[.ShellClassInfo]\r\nCLSID={ADA19F85-EEB6-46F2-B8B2-2BD977934A79}\r\n";
 
