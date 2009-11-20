@@ -373,9 +373,7 @@ void __cdecl AsyncClickPacketCB( AsyncClickPacket* pPacket )
 	if (!SUCCEEDED(SHGetDesktopFolder(&pShellDesktop)))
 		return;
 
-	if (sBasePath.size() && *(sBasePath.end()-1) == L'\\')
-		sBasePath.resize(sBasePath.size()-1);
-
+	boost::trim_right_if(sBasePath, boost::is_any_of(L"\\"));
 
 	for(WStringList::const_iterator it = selection.begin(); it != selection.end(); ++it)
 	{

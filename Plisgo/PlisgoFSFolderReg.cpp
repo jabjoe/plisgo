@@ -94,10 +94,8 @@ IPtrPlisgoFSRoot	PlisgoFSFolderReg::GetPlisgoFSRoot(LPCWSTR sPathUnprocessed) co
 		std::transform(sPathUnprocessed, sPathUnprocessed+nLen, sPath.begin(), PrePathCharacter);
 	}
 
-	//Remove trailing slash for consistancy.
-	if (sPath[sPath.length()-1] == L'\\')
-		sPath.resize(sPath.length()-1);
-
+	
+	boost::trim_right_if(sPath, boost::is_any_of(L"\\"));
 
 	boost::upgrade_lock<boost::shared_mutex> lock(m_Mutex);
 
