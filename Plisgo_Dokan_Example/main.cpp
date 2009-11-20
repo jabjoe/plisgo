@@ -46,7 +46,7 @@
 #include <stdlib.h>
 #include <gdiplus.h>
 #include "dokan.h"
-#include "PlisgoFSHiddenFolders.h"
+#include "../PlisgoFSLib/PlisgoFSHiddenFolders.h"
 #include "resource.h"
 #include "ProcessesFolder.h"
 

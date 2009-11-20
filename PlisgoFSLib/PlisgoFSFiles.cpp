@@ -235,15 +235,15 @@ bool				PlisgoFSFileList::ForEachFile(PlisgoFSFolder::EachChild& rEachFile) cons
 }
 
 
-IPtrPlisgoFSFile	PlisgoFSFileList::GetFile(LPCWSTR sName) const
+IPtrPlisgoFSFile	PlisgoFSFileList::GetFile(LPCWSTR sNameUnknownCase) const
 {
-	std::wstring sKey = sName;
+	WCHAR sName[MAX_PATH];
 
-	std::transform(sKey.begin(),sKey.end(),sKey.begin(),tolower);
+	CopyToLower(sName, MAX_PATH, sNameUnknownCase);
 
 	boost::shared_lock<boost::shared_mutex> lock(m_Mutex);
 
-	std::map<std::wstring, IPtrPlisgoFSFile >::const_iterator it = m_files.find(sKey);
+	std::map<std::wstring, IPtrPlisgoFSFile >::const_iterator it = m_files.find(sName);
 	
 	if (it != m_files.end())
 		return it->second;
@@ -1125,8 +1125,7 @@ IPtrPlisgoFSFile	PlisgoFSCachedFileTree::TracePath(LPCWSTR sPath, bool* pbInTree
 
 	std::transform(sOrgPathLowerCase.begin(),sOrgPathLowerCase.end(),sOrgPathLowerCase.begin(),tolower);
 
-	if (sOrgPathLowerCase.length() && sOrgPathLowerCase[sOrgPathLowerCase.length()-1] == L'\\')
-		sOrgPathLowerCase.resize(sOrgPathLowerCase.length()-1);
+	boost::trim_right_if(sOrgPathLowerCase, boost::is_any_of(L"\\"));
 
 	assert(sPath != NULL);
 

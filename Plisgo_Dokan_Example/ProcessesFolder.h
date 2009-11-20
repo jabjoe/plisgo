@@ -54,8 +54,7 @@ public:
 
 	//IShellInfoFetcher Interface
 
-	virtual bool				IsShelledFolder(const std::wstring& rsFolderPath) const;
-	virtual bool				ReadShelled(const std::wstring& rsFolderPath, IShellInfoFetcher::BasicFolder& rResult) const;
+	virtual bool				ReadShelled(const std::wstring& rsFolderPath, IShellInfoFetcher::BasicFolder* pResult) const;
 
 	virtual bool				GetColumnEntry(const std::wstring& rsFilePath, const int nColumnIndex, std::wstring& rsResult) const;
 	virtual bool				GetOverlayIcon(const std::wstring& rsFilePath, IconLocation& rResult) const;

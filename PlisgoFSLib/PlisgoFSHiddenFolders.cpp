@@ -77,13 +77,13 @@ public:
 
 	virtual bool				ForEachChild(EachChild& rEachChild) const
 	{
-		IShellInfoFetcher::BasicFolder shelledFolders;
+		IShellInfoFetcher::BasicFolder shelledFiles;
 
-		if (!m_pRoot->GetShellInfoFetcher()->ReadShelled(m_sSubjectPath, shelledFolders) || shelledFolders.size() == 0)
+		if (!m_pRoot->GetShellInfoFetcher()->ReadShelled(m_sSubjectPath, &shelledFiles) || shelledFiles.size() == 0)
 			return true;
 
-		for(IShellInfoFetcher::BasicFolder::const_iterator it = shelledFolders.begin();
-			it != shelledFolders.end(); ++it)
+		for(IShellInfoFetcher::BasicFolder::const_iterator it = shelledFiles.begin();
+			it != shelledFiles.end(); ++it)
 		{
 			IPtrPlisgoFSFile file = InternalGetChild(it->sName.c_str());
 
@@ -97,15 +97,15 @@ public:
 
 	virtual UINT				GetChildNum() const
 	{
-		IShellInfoFetcher::BasicFolder shelledFolders;
+		IShellInfoFetcher::BasicFolder shelledFiles;
 
-		if (!m_pRoot->GetShellInfoFetcher()->ReadShelled(m_sSubjectPath, shelledFolders) || shelledFolders.size() == 0)
+		if (!m_pRoot->GetShellInfoFetcher()->ReadShelled(m_sSubjectPath, &shelledFiles) || shelledFiles.size() == 0)
 			return 0;
 
 		int nResult = 0;
 
-		for(IShellInfoFetcher::BasicFolder::const_iterator it = shelledFolders.begin();
-			it != shelledFolders.end(); ++it)
+		for(IShellInfoFetcher::BasicFolder::const_iterator it = shelledFiles.begin();
+			it != shelledFiles.end(); ++it)
 		{
 			IPtrPlisgoFSFile file = InternalGetChild(it->sName.c_str());
 
@@ -297,30 +297,20 @@ public:
 
 	virtual bool				ForEachChild(EachChild& rEachChild) const
 	{
+		InitVirtualFolder();
+
 		//This shouldn't be called unless the user has for some crazy reason browsed in!
 
-		IShellInfoFetcher::BasicFolder shelledFolders;
+		IShellInfoFetcher::BasicFolder shelledFiles;
 
-		if (!m_pRoot->GetShellInfoFetcher()->ReadShelled(m_sSubjectPath, shelledFolders) || shelledFolders.size() == 0)
+		if (!m_pRoot->GetShellInfoFetcher()->ReadShelled(m_sSubjectPath, &shelledFiles) || shelledFiles.size() == 0)
 			return true;
 
-		if (m_pRoot->HasOverlays() && !rEachChild.Do(IPtrPlisgoFSFile(new OverlayIconsFolder(m_sPath + L"\\.overlay_icons", m_sSubjectPath, m_pRoot))))
+		if (!m_virtualChildren.ForEachFile(rEachChild))
 			return false;
 
-		if (m_pRoot->HasCustomIcons() && !rEachChild.Do(IPtrPlisgoFSFile(new CustomIconsFolder(m_sPath + L"\\.custom_icons", m_sSubjectPath, m_pRoot))))
-			return false;
-
-		if (m_pRoot->HasThumbnails() && !rEachChild.Do(IPtrPlisgoFSFile(new ThumbnailsFolder(m_sPath + L"\\.thumbnails", m_sSubjectPath, m_pRoot))))
-			return false;
-
-		const UINT nColumnNum = m_pRoot->GetColumnNum();
-
-		for(UINT n = 0; n < nColumnNum; ++n)
-			if (!rEachChild.Do(IPtrPlisgoFSFile(CreateColumnFolder((int)n))))
-				return false;
-
-		for(IShellInfoFetcher::BasicFolder::const_iterator it = shelledFolders.begin();
-			it != shelledFolders.end(); ++it)
+		for(IShellInfoFetcher::BasicFolder::const_iterator it = shelledFiles.begin();
+			it != shelledFiles.end(); ++it)
 		{
 			if (it->bIsFolder && !rEachChild.Do(IPtrPlisgoFSFile(CreateChildShellInfoFolder(it->sName))))
 				return false;
@@ -332,29 +322,28 @@ public:
 
 	virtual IPtrPlisgoFSFile	GetChild(LPCWSTR sNameUnknownCase) const
 	{
+		InitVirtualFolder();
+
 		assert(sNameUnknownCase != NULL);
 
 		//This shouldn't be called unless the user has browsed in
 
-		IShellInfoFetcher::BasicFolder shelledFolders;
+		IShellInfoFetcher::BasicFolder shelledFiles;
 
-		if (!m_pRoot->GetShellInfoFetcher()->ReadShelled(m_sSubjectPath, shelledFolders) || shelledFolders.size() == 0)
+		if (!m_pRoot->GetShellInfoFetcher()->ReadShelled(m_sSubjectPath, &shelledFiles))
 			return IPtrPlisgoFSFile();
+
+		IPtrPlisgoFSFile result = m_virtualChildren.GetFile(sNameUnknownCase);
+
+		if (result.get() != NULL)
+			return result;
 
 		WCHAR sName[MAX_PATH];
 
 		CopyToLower(sName, MAX_PATH, sNameUnknownCase);
 
-		StubShellInfoFolder* pFolder = NULL;
-
-		if (!GetStubShellInfoFolder(pFolder, sName, m_sSubjectPath, (m_sPath + L"\\") += sName))
-			return IPtrPlisgoFSFile();
-
-		if (pFolder != NULL)
-			return IPtrPlisgoFSFile(pFolder);
-
-		for(IShellInfoFetcher::BasicFolder::const_iterator it = shelledFolders.begin();
-			it != shelledFolders.end(); ++it)
+		for(IShellInfoFetcher::BasicFolder::const_iterator it = shelledFiles.begin();
+			it != shelledFiles.end(); ++it)
 		{
 			if (it->bIsFolder && MatchLower(it->sName.c_str(), sName))
 				return CreateChildShellInfoFolder(it->sName);
@@ -366,26 +355,19 @@ public:
 
 	virtual UINT				GetChildNum() const
 	{
-		//This shouldn't be called unless the user has browsed in
+		InitVirtualFolder();
 
-		UINT nResult = m_pRoot->GetColumnNum();
-		
-		if (m_pRoot->HasOverlays())
-			++nResult;
+		UINT nResult = m_virtualChildren.GetLength();
 
-		if (m_pRoot->HasCustomIcons())
-			++nResult;
+		IShellInfoFetcher::BasicFolder shelledFiles;
 
-		if (m_pRoot->HasThumbnails())
-			++nResult;
-
-		IShellInfoFetcher::BasicFolder shelledFolders;
-
-		if (!m_pRoot->GetShellInfoFetcher()->ReadShelled(m_sSubjectPath, shelledFolders))
+		if (!m_pRoot->GetShellInfoFetcher()->ReadShelled(m_sSubjectPath, &shelledFiles))
 			return 0;
 
-		for(IShellInfoFetcher::BasicFolder::const_iterator it = shelledFolders.begin();
-			it != shelledFolders.end(); ++it)
+		// Only folders exist in the .shellinfo folder
+		// but files and folders have entries in the  .column_n  .custom_icons  .overlays_icons  .thumbnails  sub folders
+		for(IShellInfoFetcher::BasicFolder::const_iterator it = shelledFiles.begin();
+			it != shelledFiles.end(); ++it)
 		{
 			if (it->bIsFolder)
 				++nResult;
@@ -396,6 +378,30 @@ public:
 
 
 protected:
+
+	void						InitVirtualFolder() const
+	{
+		//The whole const thing is because of cacheing, it's trying to avoid de-consting other than when init needs doing
+
+		if (m_virtualChildren.GetLength() != 0)
+			return; //Done already
+
+		if (m_pRoot->HasOverlays())
+			const_cast<ShellInfoFolder*>(this)->m_virtualChildren.AddFile(IPtrPlisgoFSFile(new OverlayIconsFolder(m_sPath + L"\\.overlay_icons", m_sSubjectPath, m_pRoot)));
+
+		if (m_pRoot->HasCustomIcons())
+			const_cast<ShellInfoFolder*>(this)->m_virtualChildren.AddFile(IPtrPlisgoFSFile(new CustomIconsFolder(m_sPath + L"\\.custom_icons", m_sSubjectPath, m_pRoot)));
+
+		if (m_pRoot->HasThumbnails())
+			const_cast<ShellInfoFolder*>(this)->m_virtualChildren.AddFile(IPtrPlisgoFSFile(new ThumbnailsFolder(m_sPath + L"\\.thumbnails", m_sSubjectPath, m_pRoot)));
+		
+		const UINT nColumnNum = m_pRoot->GetColumnNum();
+
+		for(UINT n = 0; n < nColumnNum; ++n)
+			const_cast<ShellInfoFolder*>(this)->m_virtualChildren.AddFile(IPtrPlisgoFSFile(CreateColumnFolder((int)n)));
+	}
+
+
 	IPtrPlisgoFSFile			CreateChildShellInfoFolder(const std::wstring& rsName) const
 	{
 		return IPtrPlisgoFSFile( new ShellInfoFolder(	m_sPath + L"\\" + rsName,
@@ -403,12 +409,9 @@ protected:
 														m_pRoot));
 	}
 
-	bool						GetStubShellInfoFolder(	StubShellInfoFolder*& rpFolder,
-														LPCWSTR sName,
-														const std::wstring& rsRealPath,
-														const std::wstring& rsVirtualPath) const;
-
 	IPtrPlisgoFSFile			CreateColumnFolder(const int nColumn) const;
+
+	PlisgoFSFileList			m_virtualChildren;
 };
 
 
@@ -423,72 +426,39 @@ IPtrPlisgoFSFile	ShellInfoFolder::CreateColumnFolder(const int nColumn) const
 }
 
 
-bool				ShellInfoFolder::GetStubShellInfoFolder(StubShellInfoFolder*&	rpFolder,
-															LPCWSTR					sName,
-															const std::wstring&		rsRealPath,
-															const std::wstring&		rsVirtualPath) const
+
+static int GetSpecialFolderType(LPCWSTR sName)
 {
-	if (m_pRoot->HasOverlays())
-	{
-		if (wcscmp(sName, L".overlay_icons") == 0)
-		{
-			if (m_pRoot->GetShellInfoFetcher()->IsShelledFolder(rsRealPath))
-			{
-				rpFolder = new OverlayIconsFolder(rsVirtualPath, rsRealPath, m_pRoot);
-				return true;
-			}
-			else return false;
-		}
-	}
+	LPCWSTR sPos = sName;	
 
-	if (m_pRoot->HasCustomIcons())
-	{
-		if (wcscmp(sName, L".custom_icons") == 0)
-		{
-			if (m_pRoot->GetShellInfoFetcher()->IsShelledFolder(rsRealPath))
-			{
-				rpFolder = new CustomIconsFolder(rsVirtualPath, rsRealPath, m_pRoot);
-				return true;
-			}
-			else return false;
-		}
-	}
+	if (ParseLower(sPos, L".overlay_icons") && (sPos[0] == L'\\' || sPos[0] == L'\0'))
+		return 1;
 
-	if (m_pRoot->HasThumbnails())
-	{
-		if (wcscmp(sName, L".thumbnails") == 0)
-		{
-			if (m_pRoot->GetShellInfoFetcher()->IsShelledFolder(rsRealPath))
-			{
-				rpFolder = new ThumbnailsFolder(rsVirtualPath, rsRealPath, m_pRoot);
-				return true;
-			}
-			else return false;
-		}
-	}
+	sPos = sName;
+	if (ParseLower(sPos, L".custom_icons") && (sPos[0] == L'\\' || sPos[0] == L'\0'))
+		return 2;
 
-	const int nColumnNum = (int)m_pRoot->GetColumnNum();
-
-	if (nColumnNum)
-	{
-		if (!ParseLower(sName, L".column_"))
-			return true;
-		
-		const int nColumn = _wtoi(sName);
-
-		if (nColumn < 0 || nColumn >= nColumnNum)
-			return false;
-
-		if (!m_pRoot->GetShellInfoFetcher()->IsShelledFolder(rsRealPath))
-			return false;
-
-		rpFolder = new ColumnFolder(rsVirtualPath, rsRealPath, m_pRoot, nColumn);
-	}
+	sPos = sName;
+	if (ParseLower(sPos, L".thumbnails") && (sPos[0] == L'\\' || sPos[0] == L'\0'))
+		return 3;
 	
-	return true;
+	sPos = sName;
+	if (ParseLower(sPos, L".column_"))
+	{
+		if (!isdigit(*sPos))
+			return -1;
+
+		++sPos;
+
+		for(;sPos[0] != L'\\' && sPos[0] != L'\0';++sPos)
+			if (!isdigit(*sPos))
+				return -1;
+
+		return 4;
+	}
+
+	return -1;
 }
-
-
 
 
 
@@ -499,97 +469,97 @@ IPtrPlisgoFSFile	ShellInfoFolder::GetDescendant(LPCWSTR sPath) const
 
 	LPCWSTR sNameUnknownCase = GetNameFromPath(sPath);
 
-	std::wstring sRealPath = L"\\";
-	
-	sRealPath.append(sPath, (sNameUnknownCase != sPath)?((sNameUnknownCase-sPath)-1):0);
-	
-	if (m_pRoot->GetShellInfoFetcher()->IsShelledFolder(sRealPath))
+	if (sNameUnknownCase == sPath)
+		return GetChild(sNameUnknownCase);
+
+	int nType = GetSpecialFolderType(sNameUnknownCase);
+
+	if (nType != -1)
 	{
+		std::wstring sRealPath = L"\\";
 		std::wstring sVirtualPath = L"\\.plisgofs\\.shellinfo\\";
-		sVirtualPath += sPath;
 
-		if (sVirtualPath.length() && sVirtualPath[sVirtualPath.length()-1] == L'\\')
-			sVirtualPath.resize(sVirtualPath.size()-1);
+		sRealPath.append(sPath, sNameUnknownCase-sPath);
+		sVirtualPath.append(sPath, (sNameUnknownCase-sPath)-1);
 
-		//Check if it's retrieving a StubShellInfoFolder folder
-		{
-			WCHAR sName[MAX_PATH];
-
-			CopyToLower(sName, MAX_PATH, sNameUnknownCase);
-
-			StubShellInfoFolder* pFolder = NULL;
-
-			LPWSTR sTrailing = wcschr(sName,L'\\');
-
-			if (sTrailing != NULL)
-				sTrailing[0] = L'\0';
-
-			if (!GetStubShellInfoFolder(pFolder, sName, sRealPath, sVirtualPath))
-				return IPtrPlisgoFSFile();
-
-			if (pFolder != NULL)
-				return IPtrPlisgoFSFile(pFolder);
-		}
-
-
-		std::wstring sFullRealPath = sRealPath;
-
-		if (sFullRealPath.length() && sFullRealPath[sFullRealPath.length()-1] != L'\\')
-			sFullRealPath += L"\\";
-
-		sFullRealPath+= sNameUnknownCase;
-
-		if (!m_pRoot->GetShellInfoFetcher()->IsShelledFolder(sFullRealPath))
+		if (!m_pRoot->GetShellInfoFetcher()->ReadShelled(sRealPath))
 			return IPtrPlisgoFSFile();
 
+		switch(nType)
+		{
+		case 1: return IPtrPlisgoFSFile(new OverlayIconsFolder(sVirtualPath, sRealPath, m_pRoot));
+		case 2: return IPtrPlisgoFSFile(new CustomIconsFolder(sVirtualPath, sRealPath, m_pRoot));
+		case 3: return IPtrPlisgoFSFile(new ThumbnailsFolder(sVirtualPath, sRealPath, m_pRoot));
+		case 4:
+			{
+				const int nColumnNum = (int)m_pRoot->GetColumnNum();		
+				const int nColumn = _wtoi(sNameUnknownCase+8); //8 = len(".column_")
 
-		return IPtrPlisgoFSFile( new ShellInfoFolder( sVirtualPath, sFullRealPath, m_pRoot));
+				if (nColumn > -1 || nColumn < nColumnNum)
+					return IPtrPlisgoFSFile(new ColumnFolder(sVirtualPath, sRealPath, m_pRoot, nColumn));
+			}
+		default:
+			return IPtrPlisgoFSFile();
+		}
 	}
 	else
 	{
-		//Check if it's retrieving a child of a StubShellInfoFolder folder
+		LPCWSTR sParentUnknownCase = GetParentFromPath(sPath, sNameUnknownCase);
 
-		LPCWSTR sParentNameUnknownCase = sNameUnknownCase-2; //Skip past slash
+		nType = GetSpecialFolderType(sParentUnknownCase);
 
-		while(sParentNameUnknownCase > sPath && sParentNameUnknownCase[0] != L'\\')
-			--sParentNameUnknownCase;
+		if (nType != -1)
+		{
+			std::wstring sRealPath = L"\\";
+			std::wstring sVirtualPath = L"\\.plisgofs\\.shellinfo\\";
 
-		if (sParentNameUnknownCase[0] == L'\\')
-			++sParentNameUnknownCase;
+			if (sParentUnknownCase != sPath)
+			{
+				sRealPath.append(sPath, sParentUnknownCase-sPath);
+				sVirtualPath.append(sPath, (sParentUnknownCase-sPath)-1);
+			}
 
-		WCHAR sName[MAX_PATH];
+			if (!m_pRoot->GetShellInfoFetcher()->ReadShelled(sRealPath))
+				return IPtrPlisgoFSFile();
+
+			switch(nType)
+			{
+			case 1: return OverlayIconsFolder(sVirtualPath, sRealPath, m_pRoot).GetDescendant(sNameUnknownCase);
+			case 2: return CustomIconsFolder(sVirtualPath, sRealPath, m_pRoot).GetDescendant(sNameUnknownCase);
+			case 3: return ThumbnailsFolder(sVirtualPath, sRealPath, m_pRoot).GetDescendant(sNameUnknownCase);
+			case 4:
+				{
+					const int nColumnNum = (int)m_pRoot->GetColumnNum();		
+					const int nColumn = _wtoi(sParentUnknownCase+8); //8 = len(".column_")
+
+					if (nColumn > -1 || nColumn < nColumnNum)
+						return ColumnFolder(sVirtualPath, sRealPath, m_pRoot, nColumn).GetDescendant(sNameUnknownCase);
+				}
+			default:
+				return IPtrPlisgoFSFile();
+			}
+		}
+
+		//It's not a special folder
 		
-		int n = 0;
+		// Check full real path
 
-		for(; sParentNameUnknownCase[n] != L'\\' && ((sParentNameUnknownCase+n) < sNameUnknownCase); ++n)
-			sName[n] = tolower(sParentNameUnknownCase[n]);
+		std::wstring sRealPath = L"\\";
+		sRealPath += sPath;
 
-		sName[n] = L'\0';
+		if (!boost::algorithm::ends_with(sRealPath, L"\\"))
+			sRealPath+= L"\\";
 
-		sRealPath = L"\\";
-		sRealPath.append(sPath, (sParentNameUnknownCase != sPath)?(sParentNameUnknownCase-sPath):0);
-
-		std::wstring sVirtualPath = L"\\.plisgofs\\.shellinfo\\";
-		
-		sVirtualPath.append(sPath, (sNameUnknownCase-sPath)-1);
-
-		StubShellInfoFolder* pFolder = NULL;
-
-		if (!GetStubShellInfoFolder(pFolder, sName, sRealPath, sVirtualPath))
+		if (!m_pRoot->GetShellInfoFetcher()->ReadShelled(sRealPath))
 			return IPtrPlisgoFSFile();
 
-		if (pFolder != NULL)
-		{
-			IPtrPlisgoFSFile result = pFolder->GetChild(sNameUnknownCase);
+		std::wstring sVirtualPath = L"\\.plisgofs\\.shellinfo\\";
+		sVirtualPath += sPath;		
 
-			delete pFolder;
-
-			return result;
-		}
+		return IPtrPlisgoFSFile( new ShellInfoFolder( sVirtualPath, sRealPath, m_pRoot));
 	}
-
-	return IPtrPlisgoFSFile();
 }
+
 
 
 /*
@@ -624,6 +594,7 @@ RootPlisgoFSFolder::RootPlisgoFSFolder(LPCWSTR sFSName, IShellInfoFetcher* pIShe
 
 	
 UINT				RootPlisgoFSFolder::GetColumnNum() const			{ boost::shared_lock<boost::shared_mutex> lock(m_Mutex); return m_nColumnNum; }
+UINT				RootPlisgoFSFolder::GetIconListNum() const			{ boost::shared_lock<boost::shared_mutex> lock(m_Mutex); return m_nIconListsNum; }
 bool				RootPlisgoFSFolder::HasThumbnails() const			{ boost::shared_lock<boost::shared_mutex> lock(m_Mutex); return m_bEnableThumbnails; }
 bool				RootPlisgoFSFolder::HasCustomIcons() const			{ boost::shared_lock<boost::shared_mutex> lock(m_Mutex); return m_bEnableCustomIcons; }
 bool				RootPlisgoFSFolder::HasOverlays() const				{ boost::shared_lock<boost::shared_mutex> lock(m_Mutex); return m_bEnableOverlays; }
@@ -664,6 +635,11 @@ bool				RootPlisgoFSFolder::AddIcons(HINSTANCE hExeHandle, int nListIndex, LPCWS
 
 				if (pStream != NULL)
 				{
+					Gdiplus::GdiplusStartupInput	GDiplusStartupInputData;
+					ULONG_PTR						nDiplusToken;
+
+					Gdiplus::GdiplusStartup(&nDiplusToken, &GDiplusStartupInputData, NULL);
+
 					Gdiplus::Bitmap* pBitmap = Gdiplus::Bitmap::FromStream(pStream);
 
 					if (pBitmap != NULL)
@@ -680,12 +656,14 @@ bool				RootPlisgoFSFolder::AddIcons(HINSTANCE hExeHandle, int nListIndex, LPCWS
 
 							AddChild(IPtrPlisgoFSFile(new PlisgoFSDataFile(sPath, (BYTE*)pData, nSize )));
 
-							if (nListIndex >= m_nIconListsNum)
+							if ((UINT)nListIndex >= m_nIconListsNum)
 								m_nIconListsNum = nListIndex+1;
 
 							bResult = true;
 						}
 					}
+
+					Gdiplus::GdiplusShutdown(nDiplusToken);
 
 					pStream->Release();
 				}
@@ -709,7 +687,14 @@ bool				RootPlisgoFSFolder::AddIcons(int nListIndex, const std::wstring& sFilena
 
 	int nResult = -1;
 
+	Gdiplus::GdiplusStartupInput	GDiplusStartupInputData;
+	ULONG_PTR						nDiplusToken;
+
+	Gdiplus::GdiplusStartup(&nDiplusToken, &GDiplusStartupInputData, NULL);
+
 	Gdiplus::Bitmap* pBitmap = Gdiplus::Bitmap::FromFile(sFilename.c_str(), TRUE);
+
+	bool bResult = false;
 
 	if (pBitmap != NULL)
 	{
@@ -727,14 +712,16 @@ bool				RootPlisgoFSFolder::AddIcons(int nListIndex, const std::wstring& sFilena
 
 			AddChild(IPtrPlisgoFSFile(new PlisgoFSRedirectionFile(sPath, sFilename)));
 
-			if (nListIndex >= m_nIconListsNum)
+			if ((UINT)nListIndex >= m_nIconListsNum)
 				m_nIconListsNum = nListIndex+1;
 
-			return true;
+			bResult = true;
 		}
 	}
 
-	return false;
+	Gdiplus::GdiplusShutdown(nDiplusToken);
+
+	return bResult;
 }
 
 
@@ -836,7 +823,7 @@ int					RootPlisgoFSFolder::AddMenu(LPCWSTR			sText,
 {
 	boost::unique_lock<boost::shared_mutex> lock(m_Mutex);
 
-	assert(nIconList < m_nIconListsNum);
+	assert(nIconList < (int)m_nIconListsNum);
 
 	IPtrPlisgoFSFile parentMenu = FindMenu(nParentMenu);
 

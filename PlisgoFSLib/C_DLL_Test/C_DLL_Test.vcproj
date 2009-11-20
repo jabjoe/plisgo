@@ -2,9 +2,9 @@
 <VisualStudioProject
 	ProjectType="Visual C++"
 	Version="9.00"
-	Name="Plisgo_Dokan_Example"
-	ProjectGUID="{FA2E4B66-C98D-44DC-B32F-7B832ED581C3}"
-	RootNamespace="Plisgo_Example"
+	Name="C_DLL_Test"
+	ProjectGUID="{190E6CB5-1FB6-4657-A23A-DD88DEAA9608}"
+	RootNamespace="C_DLL_Test"
 	Keyword="Win32Proj"
 	TargetFrameworkVersion="196613"
 	>
@@ -21,7 +21,6 @@
 			OutputDirectory="$(SolutionDir)$(ConfigurationName)"
 			IntermediateDirectory="$(ConfigurationName)"
 			ConfigurationType="1"
-			UseOfMFC="0"
 			CharacterSet="1"
 			>
 			<Tool
@@ -42,8 +41,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="&quot;C:\Program Files\Dokan\DokanLibrary&quot;"
-				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE"
+				PreprocessorDefinitions="PLISGOFSLIBDLL"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="3"
@@ -62,9 +60,9 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="dokan.lib PlisgoFSLib.lib gdiplus.lib Psapi.lib"
+				AdditionalDependencies="PlisgoFSLib.lib"
 				LinkIncremental="2"
-				AdditionalLibraryDirectories="&quot;C:\Program Files\Dokan\DokanLibrary&quot;;&quot;../PlisgoFSLib/$(ConfigurationName)/&quot;"
+				AdditionalLibraryDirectories="../Debug_DLL/"
 				GenerateDebugInformation="true"
 				SubSystem="1"
 				TargetMachine="1"
@@ -96,7 +94,6 @@
 			OutputDirectory="$(SolutionDir)$(ConfigurationName)"
 			IntermediateDirectory="$(ConfigurationName)"
 			ConfigurationType="1"
-			UseOfMFC="0"
 			CharacterSet="1"
 			WholeProgramOptimization="1"
 			>
@@ -117,13 +114,14 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
-				Optimization="3"
-				AdditionalIncludeDirectories="&quot;C:\Program Files\Dokan\DokanLibrary&quot;"
-				PreprocessorDefinitions="WIN32;NDEBUG;_CONSOLE"
+				Optimization="2"
+				EnableIntrinsicFunctions="true"
+				PreprocessorDefinitions="PLISGOFSLIBDLL"
 				RuntimeLibrary="2"
+				EnableFunctionLevelLinking="true"
 				UsePrecompiledHeader="0"
 				WarningLevel="3"
-				DebugInformationFormat="0"
+				DebugInformationFormat="3"
 			/>
 			<Tool
 				Name="VCManagedResourceCompilerTool"
@@ -136,9 +134,9 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="dokan.lib PlisgoFSLib.lib gdiplus.lib Psapi.lib"
+				AdditionalDependencies="PlisgoFSLib.lib"
 				LinkIncremental="1"
-				AdditionalLibraryDirectories="&quot;C:\Program Files\Dokan\DokanLibrary&quot;;&quot;../PlisgoFSLib/$(ConfigurationName)/&quot;"
+				AdditionalLibraryDirectories="../Release_DLL/"
 				GenerateDebugInformation="true"
 				SubSystem="1"
 				OptimizeReferences="2"
@@ -177,59 +175,7 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
 			<File
-				RelativePath=".\main.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\ProcessesFolder.cpp"
-				>
-			</File>
-		</Filter>
-		<Filter
-			Name="Header Files"
-			Filter="h;hpp;hxx;hm;inl;inc;xsd"
-			UniqueIdentifier="{93995380-89BD-4b04-88EB-625FBE52EBFB}"
-			>
-			<File
-				RelativePath=".\ProcessesFolder.h"
-				>
-			</File>
-			<File
-				RelativePath=".\resource.h"
-				>
-			</File>
-		</Filter>
-		<Filter
-			Name="Resource Files"
-			Filter="rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav"
-			UniqueIdentifier="{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}"
-			>
-			<File
-				RelativePath=".\icon_16.png"
-				>
-			</File>
-			<File
-				RelativePath=".\icon_32.png"
-				>
-			</File>
-			<File
-				RelativePath=".\locked_16.png"
-				>
-			</File>
-			<File
-				RelativePath=".\locked_32.png"
-				>
-			</File>
-			<File
-				RelativePath=".\locked_96.png"
-				>
-			</File>
-			<File
-				RelativePath=".\resource.rc"
-				>
-			</File>
-			<File
-				RelativePath=".\thumb.jpg"
+				RelativePath=".\C_DLL_Test.c"
 				>
 			</File>
 		</Filter>

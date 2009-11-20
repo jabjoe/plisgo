@@ -63,8 +63,7 @@ public:
 
 	typedef std::vector<BasicFileInfo> BasicFolder;
 
-	virtual bool IsShelledFolder(const std::wstring& rsFolderPath) const = 0;
-	virtual bool ReadShelled(const std::wstring& rsFolderPath, BasicFolder& rResult) const = 0;
+	virtual bool ReadShelled(const std::wstring& rsFolderPath, BasicFolder* pResult = NULL) const = 0;
 
 	virtual bool GetColumnEntry(const std::wstring& rsFilePath, const int nColumnIndex, std::wstring& rsResult) const = 0;
 	virtual bool GetOverlayIcon(const std::wstring& rsFilePath, IconLocation& rResult) const = 0;
@@ -154,6 +153,7 @@ public:
 	bool						EnableOverlays();
 	
 	UINT						GetColumnNum() const;
+	UINT						GetIconListNum() const;
 	bool						HasThumbnails() const;
 	bool						HasCustomIcons() const;
 	bool						HasOverlays() const;
@@ -176,7 +176,7 @@ private:
 	mutable boost::shared_mutex	m_Mutex;
 
 	ULONG						m_nRootMenuNum;
-	int							m_nIconListsNum;
+	UINT						m_nIconListsNum;
 
 	IShellInfoFetcher*			m_pIShellInfoFetcher;
 

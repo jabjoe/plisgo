@@ -32,7 +32,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <shlobj.h>
-#include "PlisgoFSHiddenFolders.h"
+#include "../PlisgoFSLib/PlisgoFSHiddenFolders.h"
 #include "resource.h"
 #include "ProcessesFolder.h"
 #include "Psapi.h"
@@ -408,30 +408,28 @@ UINT				ProcessesFolder::GetChildNum() const
 
 //IShellInfoFetcher Interface
 
-bool				ProcessesFolder::IsShelledFolder(const std::wstring& rsFolderPath) const
-{
-	if (rsFolderPath.length() > 1)
-		return false;
 
-	if (rsFolderPath.length() == 0)
-		return true;
-
-	return (rsFolderPath[0] == L'\\');
-}
-
-
-bool				ProcessesFolder::ReadShelled(const std::wstring& rsFolderPath, IShellInfoFetcher::BasicFolder& rResult) const
+bool				ProcessesFolder::ReadShelled(const std::wstring& rsFolderPath, IShellInfoFetcher::BasicFolder* pResult) const
 {
 	boost::shared_lock<boost::shared_mutex> lock(m_Mutex);
 
-	if (!IsShelledFolder(rsFolderPath))
-		return false;
+	if (pResult == NULL)
+	{
+		if (rsFolderPath.length() > 1)
+			return false;
+
+		if (rsFolderPath.length() == 0)
+			return true;
+
+		return (rsFolderPath[0] == L'\\');
+	}
+
 
 	for(std::map<DWORD, PROCESSENTRY32>::const_iterator it = m_Processes.begin(); it != m_Processes.end(); ++it)
 	{
-		rResult.resize(rResult.size()+1);
+		pResult->resize(pResult->size()+1);
 
-		IShellInfoFetcher::BasicFileInfo& rFile = rResult.back();
+		IShellInfoFetcher::BasicFileInfo& rFile = pResult->back();
 
 		rFile.bIsFolder = false;
 		rFile.sName = (boost::wformat(L"%1%") %it->first).str();
