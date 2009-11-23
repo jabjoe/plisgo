@@ -298,7 +298,7 @@ STDMETHODIMP CPlisgoFolder::GetUIObjectOf(HWND hWnd, UINT cidl, LPCITEMIDLIST* p
 
 HRESULT		 CPlisgoFolder::GetTextOfColumn(PCUITEMID_CHILD pIDL, UINT nColumn, WCHAR* sBuffer, size_t nBufferSize) const
 {
-	SHELLDETAILS sd;
+	SHELLDETAILS sd = {0};
 
 	LRESULT hr = const_cast<CPlisgoFolder*>(this)->GetDetailsOf(pIDL, nColumn, &sd);
 
