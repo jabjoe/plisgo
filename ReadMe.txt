@@ -44,7 +44,13 @@ Provided in this package should be:
 
 * "PlisgoFSLib"			Folder	- C++ Source code for of an example of a PlisgoFS API implimentation.
 
+* "PlisgoFSLib.dll"		File	- C DLL of PlisgoFSLib functions, almost every language can import and use C functions from a DLL.
+
+* "PlisgoFSLib.h"		File	- C header for the PlisgoFSLib.dll
+
 * "PlisgoFS_Folder.pdf"		File	- Scalable Vector Graphics diagram of PlisgoFS folder/API.
+
+* "PlisgoFS_Folder_Ex.pdf"	File	- Scalable Vector Graphics diagram of PlisgoFS folder/API extentions.
 
 * "TestFolder.zip"		File	- contains "real" filesystem mock up of a PlisgoFS filesystem.
 (Mark folder as read only from command line using "ATTRIB +r testfolder", Explorer's read only doesn't seam to be same......)
