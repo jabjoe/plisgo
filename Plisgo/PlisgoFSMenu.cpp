@@ -159,20 +159,20 @@ int			PlisgoFSMenu::GetIndex() const
 
 void		PlisgoFSMenu::Click()
 {
-	if (m_hSelectionFile == NULL)
-		return;
-
-	HANDLE hClickFile = CreateFile((m_sPath + L"\\.click").c_str(), GENERIC_WRITE, 0, NULL, TRUNCATE_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-
-	if (hClickFile != NULL && hClickFile != INVALID_HANDLE_VALUE)
+	if (m_hSelectionFile != NULL)
 	{
-		DWORD nWritten = 0;
+		HANDLE hClickFile = CreateFile((m_sPath + L"\\.click").c_str(), GENERIC_WRITE, 0, NULL, TRUNCATE_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 
-		WriteFile(hClickFile, "1", 1, &nWritten, NULL);
+		if (hClickFile != NULL && hClickFile != INVALID_HANDLE_VALUE)
+		{
+			DWORD nWritten = 0;
 
-		FlushFileBuffers(hClickFile);
+			WriteFile(hClickFile, "1", 1, &nWritten, NULL);
 
-		CloseHandle(hClickFile);
+			FlushFileBuffers(hClickFile);
+
+			CloseHandle(hClickFile);
+		}
 	}
 
 
