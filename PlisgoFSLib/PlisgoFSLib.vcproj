@@ -283,6 +283,7 @@
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
+				CommandLine="copy $(OutDir)\$(ProjectName).dll $(ProjectDir)..\$(ProjectName).dll&#x0D;&#x0A;copy PlisgoFSLib_DLL.h $(ProjectDir)..\PlisgoFSLib.h"
 			/>
 		</Configuration>
 	</Configurations>
