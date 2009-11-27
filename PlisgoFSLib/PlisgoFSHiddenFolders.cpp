@@ -35,12 +35,10 @@
 *********************************************************************
 */
 
-class StubShellInfoFolder : public PlisgoFSStdPathFile<PlisgoFSFolder>
+class StubShellInfoFolder : public PlisgoFSFolder
 {
 public:
-	StubShellInfoFolder(const std::wstring& rsPath,
-						const std::wstring& rsSubjectPath,
-						RootPlisgoFSFolder* pRoot)	: PlisgoFSStdPathFile<PlisgoFSFolder>(rsPath)
+	StubShellInfoFolder(const std::wstring& rsSubjectPath, RootPlisgoFSFolder* pRoot)
 	{
 		assert(pRoot != NULL);
 
@@ -54,22 +52,17 @@ public:
 		m_pRoot			= pRoot;
 	}
 
-	virtual IPtrPlisgoFSFile	GetDescendant(LPCWSTR sPath) const	{ return GetChild(sPath); } //The tree ends here
-
-	virtual bool				GetEntryFile(	IPtrPlisgoFSFile&	rFile,
-												const std::wstring& rsVirtualFile,
-												const std::wstring&	rsRealFile) const = 0;
+	virtual bool				GetEntryFile( IPtrPlisgoFSFile&	rFile, const std::wstring&	rsRealFile) const = 0;
 
 	virtual IPtrPlisgoFSFile	GetChild(LPCWSTR sNameUnknownCase) const
 	{
-		std::wstring sVirtualFile	= m_sPath + L"\\" += sNameUnknownCase;
 		std::wstring sRealFile		= m_sSubjectPath;
 
 		sRealFile+= sNameUnknownCase;
 
 		IPtrPlisgoFSFile result;
 
-		GetEntryFile(result, sVirtualFile, sRealFile);
+		GetEntryFile(result,  sRealFile);
 
 		return result;
 	}
@@ -87,7 +80,7 @@ public:
 		{
 			IPtrPlisgoFSFile file = InternalGetChild(it->sName.c_str());
 
-			if (file.get() != NULL && !rEachChild.Do(file))
+			if (file.get() != NULL && !rEachChild.Do(it->sName.c_str(), file))
 				return false;
 		}
 
@@ -135,16 +128,14 @@ class ColumnFolder : public StubShellInfoFolder
 {
 public:
 
-	ColumnFolder(	const std::wstring& rsPath,
-					const std::wstring& rsSubjectPath,
+	ColumnFolder(	const std::wstring& rsSubjectPath,
 					RootPlisgoFSFolder* pRoot,
-					const int nColumn) : StubShellInfoFolder(rsPath, rsSubjectPath, pRoot)
+					const int nColumn) : StubShellInfoFolder(rsSubjectPath, pRoot)
 	{
 		m_nColumnIndex = nColumn;
 	}
 
 	virtual bool				GetEntryFile(	IPtrPlisgoFSFile&	rFile,
-												const std::wstring& rsVirtualFile,
 												const std::wstring&	rsRealFile) const
 	{
 		std::wstring sText;
@@ -152,7 +143,7 @@ public:
 		if (!m_pRoot->GetShellInfoFetcher()->GetColumnEntry(rsRealFile, m_nColumnIndex, sText))
 			return false;
 
-		rFile = IPtrPlisgoFSFile( new PlisgoFSStringFile(rsVirtualFile, sText, true));	
+		rFile = IPtrPlisgoFSFile( new PlisgoFSStringFile(sText, true));	
 
 		return true;
 	}
@@ -165,13 +156,11 @@ private:
 class OverlayIconsFolder : public StubShellInfoFolder
 {
 public:
-	OverlayIconsFolder(	const std::wstring& rsPath,
-						const std::wstring& rsSubjectPath,
-						RootPlisgoFSFolder* pRoot)	: StubShellInfoFolder(rsPath, rsSubjectPath, pRoot) {}
+	OverlayIconsFolder(	const std::wstring& rsSubjectPath,
+						RootPlisgoFSFolder* pRoot)	: StubShellInfoFolder(rsSubjectPath, pRoot) {}
 
 
 	virtual bool				GetEntryFile(	IPtrPlisgoFSFile&	rFile,
-												const std::wstring& rsVirtualFile,
 												const std::wstring&	rsRealFile) const
 	{
 		IconLocation icon;
@@ -184,7 +173,7 @@ public:
 		if (!icon.GetText(sText))
 			return false;
 
-		rFile = IPtrPlisgoFSFile( new PlisgoFSStringFile(rsVirtualFile, sText, true));	
+		rFile = IPtrPlisgoFSFile( new PlisgoFSStringFile(sText, true));	
 
 		return true;
 	}
@@ -194,12 +183,10 @@ public:
 class CustomIconsFolder : public StubShellInfoFolder
 {
 public:
-	CustomIconsFolder(	const std::wstring& rsPath,
-						const std::wstring& rsSubjectPath,
-						RootPlisgoFSFolder* pRoot)	: StubShellInfoFolder(rsPath, rsSubjectPath, pRoot) {}
+	CustomIconsFolder(	const std::wstring& rsSubjectPath,
+						RootPlisgoFSFolder* pRoot)	: StubShellInfoFolder(rsSubjectPath, pRoot) {}
 
 	virtual bool				GetEntryFile(	IPtrPlisgoFSFile&	rFile,
-												const std::wstring& rsVirtualFile,
 												const std::wstring&	rsRealFile) const
 	{
 		IconLocation icon;
@@ -212,7 +199,7 @@ public:
 		if (!icon.GetText(sText))
 			return false;
 
-		rFile = IPtrPlisgoFSFile( new PlisgoFSStringFile(rsVirtualFile, sText, true));	
+		rFile = IPtrPlisgoFSFile( new PlisgoFSStringFile(sText, true));	
 
 		return true;
 	}
@@ -223,20 +210,22 @@ class ThumbnailsFolder : public StubShellInfoFolder
 {
 public:
 
-	ThumbnailsFolder(	const std::wstring& rsPath,
-						const std::wstring& rsSubjectPath,
-						RootPlisgoFSFolder* pRoot)	: StubShellInfoFolder(rsPath, rsSubjectPath, pRoot) {}
+	ThumbnailsFolder(	const std::wstring& rsSubjectPath,
+						RootPlisgoFSFolder* pRoot)	: StubShellInfoFolder(rsSubjectPath, pRoot) {}
 
 	virtual bool				GetEntryFile(	IPtrPlisgoFSFile&	rFile,
-												const std::wstring& rsVirtualFile,
 												const std::wstring&	rsRealFile) const
 	{
-
 		const size_t nDot = rsRealFile.rfind(L'.');
 
-		const std::wstring sRealFile = (nDot == -1)?rsRealFile:rsRealFile.substr(0,nDot);
+		if (nDot == -1)
+			return false;
 
-		return m_pRoot->GetShellInfoFetcher()->GetThumbnail(sRealFile, rsVirtualFile, rFile);
+		const std::wstring sRealFile = rsRealFile.substr(0,nDot);
+
+		LPCWSTR sExt = &rsRealFile.c_str()[nDot];
+
+		return m_pRoot->GetShellInfoFetcher()->GetThumbnail(sRealFile, sExt, rFile);
 	}
 
 protected:
@@ -286,14 +275,11 @@ class ShellInfoFolder : public StubShellInfoFolder
 {
 public:
 
-	ShellInfoFolder(	const std::wstring& rsPath,
-						const std::wstring& rsSubjectPath,
-						RootPlisgoFSFolder* pRoot) : StubShellInfoFolder(rsPath, rsSubjectPath, pRoot)
+	ShellInfoFolder(	const std::wstring& rsSubjectPath,
+						RootPlisgoFSFolder* pRoot) : StubShellInfoFolder(rsSubjectPath, pRoot)
 	{}
 
-	virtual IPtrPlisgoFSFile	GetDescendant(LPCWSTR sPath) const;
-
-	virtual bool				GetEntryFile( IPtrPlisgoFSFile&, const std::wstring&, const std::wstring& ) const { return false; } //Not required
+	virtual bool				GetEntryFile( IPtrPlisgoFSFile&, const std::wstring& ) const { return false; } //Not required
 
 	virtual bool				ForEachChild(EachChild& rEachChild) const
 	{
@@ -312,7 +298,7 @@ public:
 		for(IShellInfoFetcher::BasicFolder::const_iterator it = shelledFiles.begin();
 			it != shelledFiles.end(); ++it)
 		{
-			if (it->bIsFolder && !rEachChild.Do(IPtrPlisgoFSFile(CreateChildShellInfoFolder(it->sName))))
+			if (it->bIsFolder && !rEachChild.Do(it->sName.c_str(), IPtrPlisgoFSFile(CreateChildShellInfoFolder(it->sName))))
 				return false;
 		}
 		
@@ -387,43 +373,38 @@ protected:
 			return; //Done already
 
 		if (m_pRoot->HasOverlays())
-			const_cast<ShellInfoFolder*>(this)->m_virtualChildren.AddFile(IPtrPlisgoFSFile(new OverlayIconsFolder(m_sPath + L"\\.overlay_icons", m_sSubjectPath, m_pRoot)));
+			const_cast<ShellInfoFolder*>(this)->m_virtualChildren.AddFile(L".overlay_icons", IPtrPlisgoFSFile(new OverlayIconsFolder(m_sSubjectPath, m_pRoot)));
 
 		if (m_pRoot->HasCustomIcons())
-			const_cast<ShellInfoFolder*>(this)->m_virtualChildren.AddFile(IPtrPlisgoFSFile(new CustomIconsFolder(m_sPath + L"\\.custom_icons", m_sSubjectPath, m_pRoot)));
+			const_cast<ShellInfoFolder*>(this)->m_virtualChildren.AddFile(L".custom_icons", IPtrPlisgoFSFile(new CustomIconsFolder(m_sSubjectPath, m_pRoot)));
 
 		if (m_pRoot->HasThumbnails())
-			const_cast<ShellInfoFolder*>(this)->m_virtualChildren.AddFile(IPtrPlisgoFSFile(new ThumbnailsFolder(m_sPath + L"\\.thumbnails", m_sSubjectPath, m_pRoot)));
+			const_cast<ShellInfoFolder*>(this)->m_virtualChildren.AddFile(L".thumbnails", IPtrPlisgoFSFile(new ThumbnailsFolder(m_sSubjectPath, m_pRoot)));
 		
 		const UINT nColumnNum = m_pRoot->GetColumnNum();
 
 		for(UINT n = 0; n < nColumnNum; ++n)
-			const_cast<ShellInfoFolder*>(this)->m_virtualChildren.AddFile(IPtrPlisgoFSFile(CreateColumnFolder((int)n)));
+			const_cast<ShellInfoFolder*>(this)->m_virtualChildren.AddFile(	(boost::wformat(L".column_%1%") %n).str().c_str(),
+																			IPtrPlisgoFSFile(CreateColumnFolder((int)n)));
 	}
 
 
 	IPtrPlisgoFSFile			CreateChildShellInfoFolder(const std::wstring& rsName) const
 	{
-		return IPtrPlisgoFSFile( new ShellInfoFolder(	m_sPath + L"\\" + rsName,
-				(m_sSubjectPath.length() == 1)?(m_sSubjectPath + rsName):(m_sSubjectPath + L"\\" + rsName),
+		return IPtrPlisgoFSFile( new ShellInfoFolder( (m_sSubjectPath.length() == 1)?(m_sSubjectPath + rsName):(m_sSubjectPath + L"\\" + rsName),
 														m_pRoot));
 	}
 
-	IPtrPlisgoFSFile			CreateColumnFolder(const int nColumn) const;
+	IPtrPlisgoFSFile			CreateColumnFolder(const int nColumn) const
+	{
+		return IPtrPlisgoFSFile( new ColumnFolder(m_sSubjectPath, m_pRoot, nColumn));
+	}
+
 
 	PlisgoFSFileList			m_virtualChildren;
 };
 
 
-
-IPtrPlisgoFSFile	ShellInfoFolder::CreateColumnFolder(const int nColumn) const
-{
-	WCHAR sName[MAX_PATH];
-
-	wsprintfW(sName, L"\\.column_%i", nColumn);
-
-	return IPtrPlisgoFSFile( new ColumnFolder(m_sPath + sName, m_sSubjectPath, m_pRoot, nColumn));
-}
 
 
 
@@ -461,107 +442,6 @@ static int GetSpecialFolderType(LPCWSTR sName)
 }
 
 
-
-
-IPtrPlisgoFSFile	ShellInfoFolder::GetDescendant(LPCWSTR sPath) const
-{
-	assert(sPath != NULL);
-
-	LPCWSTR sNameUnknownCase = GetNameFromPath(sPath);
-
-	if (sNameUnknownCase == sPath)
-		return GetChild(sNameUnknownCase);
-
-	int nType = GetSpecialFolderType(sNameUnknownCase);
-
-	if (nType != -1)
-	{
-		std::wstring sRealPath = L"\\";
-		std::wstring sVirtualPath = L"\\.plisgofs\\.shellinfo\\";
-
-		sRealPath.append(sPath, sNameUnknownCase-sPath);
-		sVirtualPath.append(sPath, (sNameUnknownCase-sPath)-1);
-
-		if (!m_pRoot->GetShellInfoFetcher()->ReadShelled(sRealPath))
-			return IPtrPlisgoFSFile();
-
-		switch(nType)
-		{
-		case 1: return IPtrPlisgoFSFile(new OverlayIconsFolder(sVirtualPath, sRealPath, m_pRoot));
-		case 2: return IPtrPlisgoFSFile(new CustomIconsFolder(sVirtualPath, sRealPath, m_pRoot));
-		case 3: return IPtrPlisgoFSFile(new ThumbnailsFolder(sVirtualPath, sRealPath, m_pRoot));
-		case 4:
-			{
-				const int nColumnNum = (int)m_pRoot->GetColumnNum();		
-				const int nColumn = _wtoi(sNameUnknownCase+8); //8 = len(".column_")
-
-				if (nColumn > -1 || nColumn < nColumnNum)
-					return IPtrPlisgoFSFile(new ColumnFolder(sVirtualPath, sRealPath, m_pRoot, nColumn));
-			}
-		default:
-			return IPtrPlisgoFSFile();
-		}
-	}
-	else
-	{
-		LPCWSTR sParentUnknownCase = GetParentFromPath(sPath, sNameUnknownCase);
-
-		nType = GetSpecialFolderType(sParentUnknownCase);
-
-		if (nType != -1)
-		{
-			std::wstring sRealPath = L"\\";
-			std::wstring sVirtualPath = L"\\.plisgofs\\.shellinfo\\";
-
-			if (sParentUnknownCase != sPath)
-			{
-				sRealPath.append(sPath, sParentUnknownCase-sPath);
-				sVirtualPath.append(sPath, (sParentUnknownCase-sPath)-1);
-			}
-
-			if (!m_pRoot->GetShellInfoFetcher()->ReadShelled(sRealPath))
-				return IPtrPlisgoFSFile();
-
-			switch(nType)
-			{
-			case 1: return OverlayIconsFolder(sVirtualPath, sRealPath, m_pRoot).GetDescendant(sNameUnknownCase);
-			case 2: return CustomIconsFolder(sVirtualPath, sRealPath, m_pRoot).GetDescendant(sNameUnknownCase);
-			case 3: return ThumbnailsFolder(sVirtualPath, sRealPath, m_pRoot).GetDescendant(sNameUnknownCase);
-			case 4:
-				{
-					const int nColumnNum = (int)m_pRoot->GetColumnNum();		
-					const int nColumn = _wtoi(sParentUnknownCase+8); //8 = len(".column_")
-
-					if (nColumn > -1 || nColumn < nColumnNum)
-						return ColumnFolder(sVirtualPath, sRealPath, m_pRoot, nColumn).GetDescendant(sNameUnknownCase);
-				}
-			default:
-				return IPtrPlisgoFSFile();
-			}
-		}
-
-		//It's not a special folder
-		
-		// Check full real path
-
-		std::wstring sRealPath = L"\\";
-		sRealPath += sPath;
-
-		if (!boost::algorithm::ends_with(sRealPath, L"\\"))
-			sRealPath+= L"\\";
-
-		if (!m_pRoot->GetShellInfoFetcher()->ReadShelled(sRealPath))
-			return IPtrPlisgoFSFile();
-
-		std::wstring sVirtualPath = L"\\.plisgofs\\.shellinfo\\";
-		sVirtualPath += sPath;		
-
-		return IPtrPlisgoFSFile( new ShellInfoFolder( sVirtualPath, sRealPath, m_pRoot));
-	}
-}
-
-
-
 /*
 ***************************************************************
 				RootPlisgoFSFolder
@@ -569,7 +449,7 @@ IPtrPlisgoFSFile	ShellInfoFolder::GetDescendant(LPCWSTR sPath) const
 */
 
 
-RootPlisgoFSFolder::RootPlisgoFSFolder(LPCWSTR sFSName, IShellInfoFetcher* pIShellInfoFetcher ) : PlisgoFSStorageFolder(L"\\.plisgofs")
+RootPlisgoFSFolder::RootPlisgoFSFolder(LPCWSTR sFSName, IShellInfoFetcher* pIShellInfoFetcher )
 {
 	assert(sFSName != NULL);
 
@@ -577,8 +457,8 @@ RootPlisgoFSFolder::RootPlisgoFSFolder(LPCWSTR sFSName, IShellInfoFetcher* pIShe
 
 	m_pIShellInfoFetcher = pIShellInfoFetcher;
 
-	AddChild(IPtrPlisgoFSFile(new PlisgoFSStringFile(L"\\.plisgofs\\.fsname", sFSName, true)));
-	AddChild(IPtrPlisgoFSFile(new PlisgoFSStringFile(L"\\.plisgofs\\.version", fmt.str(), true)));
+	AddChild(L".fsname", IPtrPlisgoFSFile(new PlisgoFSStringFile( sFSName, true)));
+	AddChild(L".version", IPtrPlisgoFSFile(new PlisgoFSStringFile(fmt.str(), true)));
 
 	m_nColumnNum	= 0;
 	m_nIconListsNum = 0;
@@ -652,9 +532,7 @@ bool				RootPlisgoFSFolder::AddIcons(HINSTANCE hExeHandle, int nListIndex, LPCWS
 
 						if (GetChild(nameFmt.str().c_str()).get() == NULL)
 						{
-							std::wstring sPath = std::wstring(L"\\.plisgofs\\") + nameFmt.str();
-
-							AddChild(IPtrPlisgoFSFile(new PlisgoFSDataFile(sPath, (BYTE*)pData, nSize )));
+							AddChild(nameFmt.str().c_str(), IPtrPlisgoFSFile(new PlisgoFSDataFile((BYTE*)pData, nSize )));
 
 							if ((UINT)nListIndex >= m_nIconListsNum)
 								m_nIconListsNum = nListIndex+1;
@@ -708,9 +586,7 @@ bool				RootPlisgoFSFolder::AddIcons(int nListIndex, const std::wstring& sFilena
 
 		if (GetChild(nameFmt.str().c_str()).get() == NULL)
 		{
-			std::wstring sPath = std::wstring(L"\\.plisgofs\\") + nameFmt.str();
-
-			AddChild(IPtrPlisgoFSFile(new PlisgoFSRedirectionFile(sPath, sFilename)));
+			AddChild(nameFmt.str().c_str(), IPtrPlisgoFSFile(new PlisgoFSRedirectionFile(sFilename)));
 
 			if ((UINT)nListIndex >= m_nIconListsNum)
 				m_nIconListsNum = nListIndex+1;
@@ -733,7 +609,7 @@ public:
 	
 	void operator = (FindMenuCallObj&)	{}
 
-	virtual bool Do(IPtrPlisgoFSFile file)
+	virtual bool Do(LPCWSTR, IPtrPlisgoFSFile file)
 	{
 		if (file->GetAttributes() & FILE_ATTRIBUTE_DIRECTORY)
 		{
@@ -802,7 +678,7 @@ class FolderCountCallObj : public PlisgoFSFolder::EachChild
 public:
 	FolderCountCallObj() { m_nCount = 0; }
 	
-	virtual bool Do(IPtrPlisgoFSFile file)
+	virtual bool Do(LPCWSTR, IPtrPlisgoFSFile file)
 	{
 		if (file->GetAttributes() & FILE_ATTRIBUTE_DIRECTORY)
 			++m_nCount;
@@ -839,19 +715,19 @@ int					RootPlisgoFSFolder::AddMenu(LPCWSTR			sText,
 
 		nResult = counter.m_nCount;
 
-		std::wstring sMenuPath = (boost::wformat(L"%1%\\.menu_%2%") %pMenuFolder->GetPath() %nResult).str();
+		std::wstring sMenuName = (boost::wformat(L".menu_%1%") %nResult).str();
 
-		pMenuFolder->AddChild(IPtrPlisgoFSFile(new PlisgoFSMenuItem(sMenuPath, onClickEvent, enabledEvent, sText, nIconList, nIconIndex)));
+		pMenuFolder->AddChild(sMenuName.c_str(), IPtrPlisgoFSFile(new PlisgoFSMenuItem(onClickEvent, enabledEvent, sText, nIconList, nIconIndex)));
 	}
 	else
 	{
-		std::wstring  sMenuPath = (boost::wformat(L"\\.plisgofs\\.menu_%1%") %m_nRootMenuNum).str();
+		std::wstring sMenuName = (boost::wformat(L".menu_%1%") %m_nRootMenuNum).str();
 
 		nResult = (int)m_nRootMenuNum;
 
 		++m_nRootMenuNum;
 
-		AddChild(IPtrPlisgoFSFile(new PlisgoFSMenuItem(sMenuPath, onClickEvent, enabledEvent, sText, nIconList, nIconIndex)));
+		AddChild(sMenuName.c_str(), IPtrPlisgoFSFile(new PlisgoFSMenuItem(onClickEvent, enabledEvent, sText, nIconList, nIconIndex)));
 	}
 
 	return nResult;
@@ -865,9 +741,9 @@ bool				RootPlisgoFSFolder::AddColumn(std::wstring sHeader)
 	if (m_pIShellInfoFetcher == NULL)
 		return false;
 
-	boost::wformat headerFmt = boost::wformat(L"\\.plisgofs\\.column_header_%1%") %m_nColumnNum;
+	boost::wformat headerFmt = boost::wformat(L".column_header_%1%") %m_nColumnNum;
 
-	AddChild(IPtrPlisgoFSFile(new PlisgoFSStringFile(headerFmt.str(), sHeader, true)));
+	AddChild(headerFmt.str().c_str(), IPtrPlisgoFSFile(new PlisgoFSStringFile(sHeader, true)));
 
 	++m_nColumnNum;
 
@@ -884,17 +760,15 @@ bool				RootPlisgoFSFolder::SetColumnAlignment(UINT nColumnIndex, ColumnAlignmen
 	if (nColumnIndex >= m_nColumnNum)
 		return false;
 
-	std::wstring sPath = (boost::wformat(L".column_alignment_%1%") %nColumnIndex).str();
+	std::wstring sName = (boost::wformat(L".column_alignment_%1%") %nColumnIndex).str();
 
-	if (GetChild(sPath.c_str()).get() != NULL)
+	if (GetChild(sName.c_str()).get() != NULL)
 		return false;
 
 	if (eAlignment == CENTER)
 		return true;
 
-	sPath.insert(0, L"\\.plisgofs\\", 11);
-
-	AddChild(IPtrPlisgoFSFile(new PlisgoFSStringFile(sPath, (eAlignment == LEFT)?L"l":L"r", true)));
+	AddChild(sName.c_str(), IPtrPlisgoFSFile(new PlisgoFSStringFile((eAlignment == LEFT)?L"l":L"r", true)));
 
 	return true;
 }
@@ -907,17 +781,15 @@ bool				RootPlisgoFSFolder::SetColumnType(UINT nColumnIndex, ColumnType eType)
 	if (nColumnIndex >= m_nColumnNum)
 		return false;
 
-	std::wstring sPath = (boost::wformat(L".column_type_%1%") %nColumnIndex).str();
+	std::wstring sName = (boost::wformat(L".column_type_%1%") %nColumnIndex).str();
 
-	if (GetChild(sPath.c_str()).get() != NULL)
+	if (GetChild(sName.c_str()).get() != NULL)
 		return false;
 
 	if (eType == TEXT)
 		return true;
 
-	sPath.insert(0, L"\\.plisgofs\\", 11);
-
-	AddChild(IPtrPlisgoFSFile(new PlisgoFSStringFile(sPath, (eType == INT)?L"i":L"f", true)));
+	AddChild(sName.c_str(), IPtrPlisgoFSFile(new PlisgoFSStringFile((eType == INT)?L"i":L"f", true)));
 
 	return true;
 }
@@ -971,7 +843,7 @@ bool				RootPlisgoFSFolder::EnableOverlays()
 void				RootPlisgoFSFolder::EnableCustomShell()
 {
 	if (GetChild(L".shellinfo").get() == NULL)
-		AddChild(IPtrPlisgoFSFile(new ShellInfoFolder(L"\\.plisgofs\\.shellinfo", L"\\", this)));
+		AddChild(L".shellinfo", IPtrPlisgoFSFile(new ShellInfoFolder(L"\\", this)));
 }
 
 
@@ -981,11 +853,11 @@ IPtrPlisgoFSFile	RootPlisgoFSFolder::GetCustomTypeIconsFolder()
 
 	if (result == NULL)
 	{
-		result.reset(new PlisgoFSStorageFolder(L"\\.plisgofs\\.type_icons"));
+		result.reset(new PlisgoFSStorageFolder());
 
 		assert(result.get() != NULL);
 
-		AddChild(result);
+		AddChild(L".type_icons", result);
 	}
 	else
 	{
@@ -1034,5 +906,5 @@ void				RootPlisgoFSFolder::AddCustomExtensionIcon(LPCWSTR sExt, int nList, int 
 
 	const std::string sData = (boost::format("%1% : %2%") %nList %nIndex).str();
 
-	pFolder->AddChild(IPtrPlisgoFSFile(new PlisgoFSStringFile(std::wstring(L"\\.plisgofs\\.type_icons\\") + sExt, sData, true)));
+	pFolder->AddChild(sExt, IPtrPlisgoFSFile(new PlisgoFSStringFile(sData, true)));
 }

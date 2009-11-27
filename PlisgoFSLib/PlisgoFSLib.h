@@ -38,6 +38,7 @@
 #include <boost/make_shared.hpp>
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/algorithm/string/trim.hpp>
+#include <boost/pool/object_pool.hpp>
 
 
 static const int PLISGO_APIVERSION = 2;
@@ -128,10 +129,7 @@ inline LPCWSTR				GetNameFromPath(const std::wstring& rsPath)
 {
 	const size_t nSlash = rsPath.rfind(L'\\');
 
-	if (nSlash != -1)
-		return &rsPath.c_str()[nSlash+1];
-
-	return rsPath.c_str();
+	return &rsPath.c_str()[nSlash+1];
 }
 
 

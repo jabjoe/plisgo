@@ -42,11 +42,8 @@ public:
 
 	// PlisgoFSFolder interface
 
-	virtual LPCWSTR				GetName() const			{ return L"processes"; }
-	virtual const std::wstring&	GetPath() const			{ return m_sPath; }
 	virtual DWORD				GetAttributes() const	{ return FILE_ATTRIBUTE_DIRECTORY|FILE_ATTRIBUTE_READONLY; }
 
-	virtual IPtrPlisgoFSFile	GetDescendant(LPCWSTR sPath) const;
 	virtual bool				ForEachChild(EachChild& rEachChild) const;
 	virtual IPtrPlisgoFSFile	GetChild(LPCWSTR sName) const;
 	virtual UINT				GetChildNum() const;
@@ -59,7 +56,7 @@ public:
 	virtual bool				GetColumnEntry(const std::wstring& rsFilePath, const int nColumnIndex, std::wstring& rsResult) const;
 	virtual bool				GetOverlayIcon(const std::wstring& rsFilePath, IconLocation& rResult) const;
 	virtual bool				GetCustomIcon(const std::wstring& rsFilePath, IconLocation& rResult) const;
-	virtual bool				GetThumbnail(const std::wstring& rsFilePath, const std::wstring& rsVirturalPath, IPtrPlisgoFSFile& rThumbnailFile) const;
+	virtual bool				GetThumbnail(const std::wstring& rsFilePath, LPCWSTR sExt, IPtrPlisgoFSFile& rThumbnailFile) const;
 
 private:
 

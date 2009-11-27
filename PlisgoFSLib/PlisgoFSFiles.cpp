@@ -80,52 +80,14 @@ int				PlisgoFSFile::SetFileTimes(	const FILETIME* ,//pCreation,
 												const FILETIME* ,//pLastWrite
 												ULONGLONG*		/*pInstanceData*/)					{ return -ERROR_INVALID_FUNCTION; }
 
-int				PlisgoFSFile::SetFileAttributesW(	DWORD		,//nFileAttributes,
-													ULONGLONG*	/*pInstanceData*/)					{ return -ERROR_INVALID_FUNCTION; }
+int				PlisgoFSFile::SetAttributes(	DWORD		,//nFileAttributes,
+												ULONGLONG*	/*pInstanceData*/)					{ return -ERROR_INVALID_FUNCTION; }
 
-
-
-
-
-
-
-template<typename T>
-inline void GetFileInfo(const PlisgoFSFile* pThis, T* pFileInfo)
-{
-	assert(pFileInfo != NULL);
-
-	ZeroMemory(pFileInfo, sizeof(T));
-
-	pFileInfo->dwFileAttributes = pThis->GetAttributes();
-
-	pThis->GetFileTimes(pFileInfo->ftCreationTime, pFileInfo->ftLastAccessTime, pFileInfo->ftLastWriteTime);
-
-	LARGE_INTEGER nSize;
-
-	nSize.QuadPart = pThis->GetSize();
-
-	pFileInfo->nFileSizeHigh	= nSize.HighPart;
-	pFileInfo->nFileSizeLow		= nSize.LowPart;
-}
 
 
 int	PlisgoFSFile::GetHandleInfo(LPBY_HANDLE_FILE_INFORMATION pInfo, ULONGLONG* )
 {
-	GetFileInfo(this, pInfo);
-
-	return 0;
-}
-
-
-int	PlisgoFSFile::GetFindFileData(WIN32_FIND_DATAW* pFindData)
-{
-	assert(pFindData != NULL);
-
-	ZeroMemory(pFindData, sizeof(WIN32_FIND_DATAW));
-
-	GetFileInfo(this, pFindData);
-
-	wcscpy_s(pFindData->cFileName, MAX_PATH-1, GetName());
+	GetFileInfo(pInfo);
 
 	return 0;
 }
@@ -135,63 +97,32 @@ int	PlisgoFSFile::GetFindFileData(WIN32_FIND_DATAW* pFindData)
 */
 
 
-IPtrPlisgoFSFile		PlisgoFSFolder::GetDescendant(LPCWSTR sPath) const
-{
-	assert(sPath != NULL);
-
-	IPtrPlisgoFSFile file;
-
-	{
-		LPCWSTR sSlash = wcschr(sPath, L'\\');
-
-		if (sSlash != NULL)
-		{
-			WCHAR sName[MAX_PATH];
-
-			memcpy_s(sName, sizeof(WCHAR)*MAX_PATH, sPath, sizeof(WCHAR)*(sSlash-sPath));
-
-			sName[sSlash-sPath] = L'\0';
-
-			file = GetChild(sName);
-		}
-		else file = GetChild(sPath);
-
-		if (file.get() == NULL)
-			return IPtrPlisgoFSFile(); //No a valid path
-
-		if (sSlash == NULL)
-			return file; //Work here is done
-
-		if (!(file->GetAttributes() & FILE_ATTRIBUTE_DIRECTORY))
-			return IPtrPlisgoFSFile(); //No a valid path
-		
-		++sSlash;
-
-		if (sSlash[0] == L'\0')
-			return file; //Work here is done
-
-		sPath = sSlash;
-	}
-
-	PlisgoFSFolder* pFolder = file->GetAsFolder();
-
-	if (pFolder == NULL)
-		return IPtrPlisgoFSFile(); //Not a folder
-
-	return pFolder->GetDescendant(sPath);
-}
-
-
 class ChildCount : public PlisgoFSFolder::EachChild
 {
 public:
 	ChildCount()	{ m_nChildNum = 0; }
 
-	virtual bool Do(IPtrPlisgoFSFile ) { ++m_nChildNum; return true; }
+	virtual bool Do(LPCWSTR , IPtrPlisgoFSFile ) { ++m_nChildNum; return true; }
 
 	UINT	m_nChildNum;
 
 };
+
+
+int				PlisgoFSFolder::Open(	DWORD	nDesiredAccess,
+										DWORD	,
+										DWORD	nCreationDisposition,
+										DWORD	,
+										ULONGLONG*)
+{
+	if (nCreationDisposition == CREATE_NEW || nCreationDisposition == TRUNCATE_EXISTING)
+		return -ERROR_ALREADY_EXISTS;
+
+	if (nDesiredAccess&(GENERIC_WRITE|FILE_WRITE_DATA|FILE_APPEND_DATA|FILE_WRITE_EA))
+		return -ERROR_ACCESS_DENIED;
+
+	return 0;
+}
 
 
 UINT					PlisgoFSFolder::GetChildNum() const
@@ -204,19 +135,209 @@ UINT					PlisgoFSFolder::GetChildNum() const
 }
 
 
+class FolderCopier : public PlisgoFSFolder::EachChild
+{
+public:
+
+	FolderCopier(PlisgoFSFolder* pDstFolder)
+	{
+		m_pDstFolder	= pDstFolder;
+		m_nError		= 0;
+	}
+
+	virtual bool Do(LPCWSTR sName, IPtrPlisgoFSFile file);
+
+	int	GetError() const { return m_nError; }
+
+private:
+
+	PlisgoFSFolder* m_pDstFolder;
+	int				m_nError;
+};
+
+
+
+
+static int				CopyPlisgoFile(IPtrPlisgoFSFile& rSrcFile, IPtrPlisgoFSFile& rDstFile)
+{
+	if (rSrcFile->GetAttributes()&FILE_ATTRIBUTE_DIRECTORY)
+	{
+		if ((rDstFile->GetAttributes()&FILE_ATTRIBUTE_DIRECTORY) != FILE_ATTRIBUTE_DIRECTORY)
+			return -ERROR_BAD_PATHNAME;
+
+		PlisgoFSFolder* pSrcChild = rSrcFile->GetAsFolder();
+		PlisgoFSFolder* pDstChild = rDstFile->GetAsFolder();
+
+		if (pSrcChild == NULL || pDstChild == NULL)
+			return -ERROR_BAD_PATHNAME;
+
+		FolderCopier copier(pDstChild);
+
+		pSrcChild->ForEachChild(copier);
+
+		return copier.GetError();
+	}
+	else
+	{
+		ULONG64 nSrcChildData = 0;
+
+		int nError = rSrcFile->Open(GENERIC_READ, 0, OPEN_EXISTING, 0, &nSrcChildData);
+
+		if (nError != 0)
+			return nError;
+
+		ULONG64 nDstChildData = 0;
+
+		nError = rDstFile->Open(GENERIC_WRITE, 0, OPEN_EXISTING, 0, &nDstChildData);
+
+		if (nError != 0)
+		{
+			rSrcFile->Close(&nSrcChildData);
+
+			return nError;
+		}
+
+
+		char sBuffer[1024*4]; //Copy in 4K blocks.
+
+		LONGLONG nPos = 0;
+		
+		DWORD nRead = 0;
+
+		do
+		{
+			nError = rSrcFile->Read(sBuffer, 1024*4, &nRead, nPos, &nSrcChildData);
+			
+			if (nRead == 0)
+				break;
+
+			DWORD nWritten;
+
+			nError = rDstFile->Write(sBuffer, nRead, &nWritten, nPos, &nDstChildData);
+
+			if (nWritten != nRead)
+			{
+				if (nError == 0)
+					nError = -1; //There is something wrong, so report that
+
+				break;
+			}
+
+			nPos += nRead;
+		}
+		while(nRead != 0);
+
+		if (nError == ERROR_HANDLE_EOF)
+			nError = 0;
+
+		rDstFile->SetEndOfFile(nPos, &nDstChildData);
+		rSrcFile->Close(&nSrcChildData);
+
+		//Restore any readonly attribute
+		rDstFile->SetAttributes(rDstFile->GetAttributes()|(rSrcFile->GetAttributes()&FILE_ATTRIBUTE_READONLY), &nDstChildData);
+
+		rDstFile->Close(&nDstChildData);
+
+		return nError;
+	}
+}
+
+
+
+bool FolderCopier::Do(LPCWSTR sName, IPtrPlisgoFSFile file)
+{
+	IPtrPlisgoFSFile dstFile;
+
+	//Create with same attributes, bar readonly because we are going to write to the file
+	m_nError = m_pDstFolder->CreateChild(dstFile, sName, file->GetAttributes()&~FILE_ATTRIBUTE_READONLY);
+
+	if (m_nError != 0)
+		return false;
+
+	m_nError = CopyPlisgoFile(file, dstFile);
+
+	if (m_nError != 0)
+		return false;
+
+	return true;
+}
+
+
+
+int						PlisgoFSFolder::Repath(LPCWSTR sOldName, LPCWSTR sNewName,
+											   bool bReplaceExisting, PlisgoFSFolder* pNewParent)
+{
+	/*
+	Before you get upset, please think about moving, hard. You will see if it goes wrong, you are in trouble.....
+	Same disc, easy, you are just changing where the folder is found, really not changing the data much.
+	If it NOT THE SAME DISC, where a move is really a copy and delete.
+	You will soon start to see a sea of possibilities......
+	*/
+
+	if (sOldName == NULL || sNewName == NULL)
+		return -ERROR_BAD_PATHNAME;
+
+	if (pNewParent == NULL)
+		pNewParent = this;
+
+	IPtrPlisgoFSFile oldChild = GetChild(sOldName);
+
+	if (oldChild.get() == NULL)
+		return -ERROR_FILE_NOT_FOUND;
+
+	IPtrPlisgoFSFile newChild = pNewParent->GetChild(sNewName);
+
+	int nError = 0;
+
+	if (newChild.get() != NULL)
+	{
+		if (bReplaceExisting)
+			nError = -ERROR_ALREADY_EXISTS;
+		else
+			nError = pNewParent->RemoveChild(sNewName);
+	}
+
+	if (nError != 0)
+		return nError;
+	
+	nError = pNewParent->AddChild(sNewName, oldChild);
+
+	if (nError != 0)
+		return nError;
+
+	nError = RemoveChild(sOldName);
+
+	if (nError != 0)
+		pNewParent->RemoveChild(sNewName);
+
+	return 0;
+}
+
 /*
 ****************************************************************************
 */
 
-void				PlisgoFSFileList::AddFile(IPtrPlisgoFSFile file)
+void				PlisgoFSFileList::AddFile(LPCWSTR sNameUnknownCase, IPtrPlisgoFSFile file)
 {
 	boost::unique_lock<boost::shared_mutex> lock(m_Mutex);
 
-	std::wstring sKey = file->GetName();
+	WCHAR sName[MAX_PATH];
+
+	CopyToLower(sName, MAX_PATH, sNameUnknownCase);
+
+	m_files[sName] = file;
+}
+	
+
+void				PlisgoFSFileList::RemoveFile(LPCWSTR sName)
+{
+	boost::unique_lock<boost::shared_mutex> lock(m_Mutex);
+
+	std::wstring sKey = sName;
 
 	std::transform(sKey.begin(),sKey.end(),sKey.begin(),tolower);
 
-	m_files[sKey] = file;
+	m_files.erase(sKey);
 }
 
 
@@ -227,7 +348,7 @@ bool				PlisgoFSFileList::ForEachFile(PlisgoFSFolder::EachChild& rEachFile) cons
 	for(std::map<std::wstring, IPtrPlisgoFSFile >::const_iterator it = m_files.begin();
 		it != m_files.end(); ++it)
 	{
-		if (!rEachFile.Do(it->second))
+		if (!rEachFile.Do(it->first.c_str(), it->second))
 			return false;
 	}
 
@@ -275,36 +396,26 @@ UINT				PlisgoFSFileList::GetLength() const
 	return (UINT)m_files.size();
 }
 
-
-IPtrPlisgoFSFile	PlisgoFSFileList::ParseName(LPCWSTR& rsPath) const
-{
-	assert(rsPath != NULL);
-
-	if (rsPath[0] == L'\\')
-		++rsPath;
-
-	std::wstring sName;
-
-	sName.reserve(MAX_PATH);
-
-	for(LPCWSTR sSrc = rsPath; *sSrc != L'\\' && *sSrc != L'\0'; ++sSrc)
-		sName.push_back(tolower(*sSrc));
-
-	boost::shared_lock<boost::shared_mutex> lock(m_Mutex);
-		
-	std::map<std::wstring, IPtrPlisgoFSFile >::const_iterator it = m_files.find(sName);
-	
-	if (it == m_files.end())
-		return IPtrPlisgoFSFile();
-
-	rsPath += sName.length();
-
-	return it->second;
-}
 /*
 ****************************************************************************
 */
-PlisgoFSDataFile::PlisgoFSDataFile(const std::wstring& rsPath, BYTE* pData, size_t nDataSize, bool bReadOnly, bool bCopy) : PlisgoFSStdPathFile(rsPath)
+int		PlisgoFSStorageFolder::CreateChild(IPtrPlisgoFSFile& rChild, LPCWSTR sName, DWORD nAttr)
+{
+	if (sName == NULL)
+		return -ERROR_INVALID_NAME;
+
+	if (nAttr & FILE_ATTRIBUTE_DIRECTORY)
+		rChild.reset(new PlisgoFSStorageFolder);
+	else
+		rChild.reset(new PlisgoFSDataFile);
+
+	return AddChild(sName, rChild);
+}
+
+/*
+****************************************************************************
+*/
+PlisgoFSDataFile::PlisgoFSDataFile(BYTE* pData, size_t nDataSize, bool bReadOnly, bool bCopy)
 {
 	m_pData = NULL;
 	m_nDataSize = m_nDataUsedSize = 0;
@@ -323,6 +434,18 @@ PlisgoFSDataFile::PlisgoFSDataFile(const std::wstring& rsPath, BYTE* pData, size
 		m_bOwnMemory = false;
 	}
 	else CreateOwnCopy(pData, nDataSize);
+}
+
+
+PlisgoFSDataFile::PlisgoFSDataFile()
+{
+	m_pData = NULL;
+	m_nDataSize = m_nDataUsedSize = 0;
+	m_bOwnMemory = true;
+	m_bWriteOpen = false;
+	m_bReadOnly = false;
+	GetSystemTimeAsFileTime(&m_CreatedTime);
+	m_LastWrite = m_CreatedTime;
 }
 
 
@@ -567,9 +690,7 @@ int		PlisgoFSDataFile::Write(	LPCVOID		pBuffer,
 ****************************************************************************
 */
 
-PlisgoFSStringFile::PlisgoFSStringFile(	const std::wstring& rsPath,
-							const std::wstring& rsData, 
-							bool bReadOnly) : PlisgoFSStdPathFile(rsPath)
+PlisgoFSStringFile::PlisgoFSStringFile(	const std::wstring& rsData, bool bReadOnly)
 {
 	SetString(rsData);
 
@@ -579,9 +700,7 @@ PlisgoFSStringFile::PlisgoFSStringFile(	const std::wstring& rsPath,
 
 
 
-PlisgoFSStringFile::PlisgoFSStringFile(	const std::wstring& rsPath,
-							const std::string& rsData, 
-							bool bReadOnly) : PlisgoFSStdPathFile(rsPath)
+PlisgoFSStringFile::PlisgoFSStringFile(	const std::string& rsData, bool bReadOnly)
 {
 
 	SetString(rsData);
@@ -648,10 +767,10 @@ void			PlisgoFSStringFile::GetWideString(std::wstring& rResult)
 
 
 int				PlisgoFSStringFile::Open(	DWORD		nDesiredAccess,
-									DWORD		nShareMode,
-									DWORD		nCreationDisposition,
-									DWORD		nFlagsAndAttributes,
-									ULONGLONG*	pInstanceData)
+											DWORD		nShareMode,
+											DWORD		nCreationDisposition,
+											DWORD		nFlagsAndAttributes,
+											ULONGLONG*	pInstanceData)
 {
 	assert(pInstanceData != NULL);
 
@@ -834,8 +953,7 @@ LONGLONG		PlisgoFSStringFile::GetSize() const
 */
 
 
-PlisgoFSRedirectionFile::PlisgoFSRedirectionFile(const std::wstring& rsPath,
-									 const std::wstring& rsRealFile) : PlisgoFSStdPathFile<PlisgoFSFile>::PlisgoFSStdPathFile(rsPath)
+PlisgoFSRedirectionFile::PlisgoFSRedirectionFile(const std::wstring& rsRealFile)
 {
 	m_sRealFile = rsRealFile;
 }
@@ -1063,7 +1181,7 @@ int				PlisgoFSRedirectionFile::SetFileTimes(const FILETIME* pCreation,
 }
 
 
-int				PlisgoFSRedirectionFile::SetFileAttributesW(DWORD	nFileAttributes, ULONGLONG* )
+int				PlisgoFSRedirectionFile::SetAttributes(DWORD	nFileAttributes, ULONGLONG* )
 {
 	if (!::SetFileAttributesW(m_sRealFile.c_str(), nFileAttributes))
 		return -(int)GetLastError();
@@ -1071,195 +1189,833 @@ int				PlisgoFSRedirectionFile::SetFileAttributesW(DWORD	nFileAttributes, ULONGL
 	return 0;
 }
 
-
 /*
 ****************************************************************************
 */
 
 
-class ManagedEncapsulatedFile : public EncapsulatedFile, public boost::enable_shared_from_this<ManagedEncapsulatedFile>
+PlisgoFSRedirectionFolder::PlisgoFSRedirectionFolder(const std::wstring& rsRealFolder) 
 {
-public:
-	ManagedEncapsulatedFile(const std::wstring& rsFullPathLowerCase,
-							PlisgoFSCachedFileTree* pCacheHolder,
-							IPtrPlisgoFSFile file) : EncapsulatedFile(file)
+	m_sRealPath = rsRealFolder;
+
+	boost::trim_right_if(m_sRealPath, boost::is_any_of(L"\\"));
+}
+
+
+DWORD			PlisgoFSRedirectionFolder::GetAttributes() const
+{
+	return GetFileAttributesW(m_sRealPath.c_str());
+}
+
+
+bool			PlisgoFSRedirectionFolder::GetFileTimes(FILETIME& rCreation, FILETIME& rLastAccess, FILETIME& rLastWrite) const
+{
+	WIN32_FILE_ATTRIBUTE_DATA  data = {0};
+
+	if (!GetFileAttributesExW(m_sRealPath.c_str(), GetFileExInfoStandard, &data))
+		return false;
+
+	rCreation	= data.ftCreationTime;
+	rLastAccess	= data.ftLastAccessTime;
+	rLastWrite	= data.ftLastWriteTime;
+
+	return true;
+}
+
+
+int				PlisgoFSRedirectionFolder::SetFileTimes(const FILETIME* pCreation,
+												const FILETIME* pLastAccess,
+												const FILETIME* pLastWrite,
+												ULONGLONG*		pInstanceData)
+{
+	HANDLE hHandle = CreateFileW(	m_sRealPath.c_str(),
+									GENERIC_READ, FILE_SHARE_READ|FILE_SHARE_WRITE,
+									NULL, OPEN_EXISTING,
+									FILE_FLAG_BACKUP_SEMANTICS, NULL); 
+
+	if (hHandle == NULL || hHandle == INVALID_HANDLE_VALUE)
+		return -(int)GetLastError();
+
+	int nError = 0;
+
+	if(!::SetFileTime(hHandle, pCreation, pLastAccess, pLastWrite))
+		nError = -(int)GetLastError();
+
+	CloseHandle(hHandle);
+
+	return nError;
+}
+
+
+int				PlisgoFSRedirectionFolder::SetAttributes(DWORD	nFileAttributes, ULONGLONG* )
+{
+	if (!::SetFileAttributesW(m_sRealPath.c_str(), nFileAttributes))
+		return -(int)GetLastError();
+
+	return 0;
+}
+
+
+IPtrPlisgoFSFile	PlisgoFSRedirectionFolder::GetChild(	WIN32_FIND_DATAW& rFind) const
+{
+	std::wstring sExtra = L"\\";
+	sExtra+= rFind.cFileName;
+
+	if (rFind.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
 	{
-		m_pCacheHolder	= pCacheHolder;
-		m_sFullPath		= rsFullPathLowerCase;
+		return IPtrPlisgoFSFile(new PlisgoFSRedirectionFolder(m_sRealPath + sExtra));
+	}
+	else
+	{
+		return IPtrPlisgoFSFile(new PlisgoFSRedirectionFile(m_sRealPath + sExtra));
+	}
+}
+
+
+bool				PlisgoFSRedirectionFolder::ForEachChild(PlisgoFSFolder::EachChild& rEachChild) const
+{
+	std::wstring sRealSearchPath = m_sRealPath + L"\\*";
+
+	WIN32_FIND_DATAW	findData;
+
+	HANDLE hFind = FindFirstFileW(sRealSearchPath.c_str(), &findData);
+
+	if (hFind == NULL || hFind == INVALID_HANDLE_VALUE)
+		return false;
+	
+	bool bResult = true;
+
+	if (FindNextFileW(hFind, &findData)) //Skip . and ..
+	{
+		while(FindNextFileW(hFind, &findData)) 
+		{
+			IPtrPlisgoFSFile file(GetChild(findData));
+
+			if (!rEachChild.Do(findData.cFileName, file))
+			{
+				bResult = false;
+				break;
+			}
+		}
 	}
 
-	int					Open(	DWORD		nDesiredAccess,
-								DWORD		nShareMode,
-								DWORD		nCreationDisposition,
-								DWORD		nFlagsAndAttributes,
-								ULONGLONG*	pInstanceData)
+	FindClose(hFind);
+	
+	return bResult;
+}
+
+
+IPtrPlisgoFSFile	PlisgoFSRedirectionFolder::GetChild(LPCWSTR sName) const
+{
+	assert(sName != NULL);
+
+	std::wstring sRealSearchPath = m_sRealPath + L"\\" + sName;
+
+	WIN32_FIND_DATAW	findData;
+
+	HANDLE hFind = FindFirstFileW(sRealSearchPath.c_str(), &findData);
+
+	if (hFind == NULL || hFind == INVALID_HANDLE_VALUE)
+		return IPtrPlisgoFSFile();
+
+	IPtrPlisgoFSFile result = GetChild(findData);
+
+	FindClose(hFind);
+	
+	return result;
+}
+
+
+UINT				PlisgoFSRedirectionFolder::GetChildNum() const
+{
+	UINT nResult = 0;
+
+	WIN32_FIND_DATAW	findData;
+
+	std::wstring sRealSearchPath = m_sRealPath + L"\\*";
+
+	HANDLE hFind = FindFirstFileW(sRealSearchPath.c_str(), &findData);
+
+	if (hFind == NULL || hFind == INVALID_HANDLE_VALUE)
+		return 0;
+	
+	if (FindNextFileW(hFind, &findData)) //Skip . and ..
 	{
-		int nError = EncapsulatedFile::Open(nDesiredAccess, nShareMode, nCreationDisposition, nFlagsAndAttributes, pInstanceData);
-
-		if (nError == 0)
-			m_pCacheHolder->LogOpening(m_sFullPath, shared_from_this());
-
-		return nError;
+		while(FindNextFileW(hFind, &findData)) 
+		{
+			++nResult;
+		}
 	}
 
-	int					Close(ULONGLONG* pInstanceData)
-	{
-		m_pCacheHolder->LogClosing(m_sFullPath, shared_from_this());
+	FindClose(hFind);
 
-		return EncapsulatedFile::Close(pInstanceData);
+	return nResult;
+}
+
+
+int					PlisgoFSRedirectionFolder::AddChild(LPCWSTR sName, IPtrPlisgoFSFile file)
+{
+	FolderCopier copier(this);
+
+	copier.Do(sName, file);
+
+	return copier.GetError();
+}
+
+
+int					PlisgoFSRedirectionFolder::CreateChild(IPtrPlisgoFSFile& rChild, LPCWSTR sName, DWORD nAttr)
+{
+	std::wstring sPath = m_sRealPath;
+	sPath += L"\\";
+	sPath += sName;
+
+	{
+		WIN32_FIND_DATAW	findData;
+
+		HANDLE hFind = FindFirstFileW(sPath.c_str(), &findData);
+
+		if (hFind != NULL && hFind != INVALID_HANDLE_VALUE)
+		{
+			FindClose(hFind);
+
+			return -ERROR_FILE_EXISTS;
+		}
 	}
 
-private:
-	PlisgoFSCachedFileTree*	m_pCacheHolder;
-	std::wstring			m_sFullPath;
-};
+	if (nAttr & FILE_ATTRIBUTE_DIRECTORY)
+	{
+		if (!CreateDirectoryW(sPath.c_str(), NULL))
+			return -(int)GetLastError();
+
+		rChild.reset(new PlisgoFSRedirectionFolder(sPath));
+	}
+	else
+	{
+		HANDLE hHandle = CreateFileW(	sPath.c_str(),
+										GENERIC_READ|GENERIC_WRITE, FILE_SHARE_READ|FILE_SHARE_WRITE,
+										NULL, CREATE_NEW,
+										nAttr, NULL); 
+
+		if (hHandle == NULL || hHandle == INVALID_HANDLE_VALUE)
+			return -(int)GetLastError();
+
+		CloseHandle(hHandle);
+
+		rChild.reset(new PlisgoFSRedirectionFile(sPath));
+	}
+
+	return 0;
+}
 
 
+
+static int			GetDeleteFolderError(const std::wstring& rsFolder)
+{
+	WIN32_FIND_DATAW	findData;
+
+	std::wstring sRealSearchPath = rsFolder + L"\\*";
+
+	HANDLE hFind = FindFirstFileW(sRealSearchPath.c_str(), &findData);
+
+	if (hFind == INVALID_HANDLE_VALUE)
+	{
+		int nError = GetLastError();
+
+		if (nError == ERROR_NO_MORE_FILES)
+			return 0;
+		else
+			return nError;
+	}
+	else
+	{
+		FindClose(hFind);
+		return -ERROR_DIR_NOT_EMPTY;
+	}
+}
+
+
+int					PlisgoFSRedirectionFolder::GetDeleteError(ULONGLONG* pInstanceData) const
+{
+	return GetDeleteFolderError(m_sRealPath);
+}
+
+
+int					PlisgoFSRedirectionFolder::GetRemoveChildError(LPCWSTR sName) const
+{
+	std::wstring sRealPath = m_sRealPath + L"\\" + sName;
+
+	DWORD nAttr = GetFileAttributesW(sRealPath.c_str());
+
+	if (nAttr == INVALID_FILE_ATTRIBUTES)
+		return -ERROR_FILE_NOT_FOUND;
+	
+	if (nAttr&FILE_ATTRIBUTE_DIRECTORY)
+		return GetDeleteFolderError(sRealPath);
+	else
+		return 0;
+}
+
+
+int					PlisgoFSRedirectionFolder::RemoveChild(LPCWSTR sName)
+{
+	std::wstring sRealPath = m_sRealPath + L"\\" + sName;
+
+	DWORD nAttr = GetFileAttributesW(sRealPath.c_str());
+
+	if (nAttr == INVALID_FILE_ATTRIBUTES)
+		return 0; //Already gone
+	
+	BOOL bSuccess;
+
+	if (nAttr&FILE_ATTRIBUTE_DIRECTORY)
+		bSuccess = RemoveDirectoryW(sRealPath.c_str());
+	else
+		bSuccess = DeleteFileW(sRealPath.c_str());
+
+	if (!bSuccess)
+		return -(int)GetLastError();
+
+	return 0;
+}
+
+
+int					PlisgoFSRedirectionFolder::Repath(	LPCWSTR sOldName, LPCWSTR sNewName,
+														bool bReplaceExisting, PlisgoFSFolder* pNewParent)
+{
+	if (sOldName == NULL || sNewName == NULL)
+		return -ERROR_BAD_PATHNAME;
+
+	PlisgoFSRedirectionFolder* pNewParent2 = dynamic_cast<PlisgoFSRedirectionFolder*>(pNewParent);
+
+	if (pNewParent2 == NULL && pNewParent != NULL)
+		return PlisgoFSFolder::Repath(sOldName, sNewName, bReplaceExisting, pNewParent);
+
+	//Ooooo we can do a proper move!
+
+	std::wstring sOldPath = m_sRealPath;
+	std::wstring sNewPath = (pNewParent2 != NULL)?pNewParent2->GetRealPath():m_sRealPath;
+
+	sOldPath += L"\\";
+	sOldPath += sOldName;
+
+	sNewPath += L"\\";
+	sNewPath += sNewName;
+
+	if (MoveFileExW(sOldPath.c_str(), sNewPath.c_str(), (bReplaceExisting)?MOVEFILE_REPLACE_EXISTING:0))
+		return 0;
+	else
+		return -(int)GetLastError();
+}
 /*
 ****************************************************************************
 */
 
-IPtrPlisgoFSFile	PlisgoFSCachedFileTree::TracePath(LPCWSTR sPath, bool* pbInTrees) const
+bool				PlisgoVFS::AddMount(LPCWSTR sMount, IPtrPlisgoFSFile Mount)
 {
+	IPtrPlisgoFSFile current = TracePath(sMount);
+
+	if (current.get() == NULL)
+		return false;
+
+	if (current == m_Root)
+		return false; //HELL NO
+
+	if (current->GetAsFolder() == NULL)
+		return false;
+
+	std::wstring sMountLowerCase = sMount;
+
+	boost::trim_right_if(sMountLowerCase, boost::is_any_of(L"\\"));
+
+	std::transform(sMountLowerCase.begin(),sMountLowerCase.end(),sMountLowerCase.begin(),tolower);
+
+	boost::unique_lock<boost::shared_mutex> lock(m_MountsMutex);
+
+	m_Mounts[sMountLowerCase] = Mount;
+
+	return true;
+}
+
+
+IPtrPlisgoFSFile	PlisgoVFS::GetOverride(const std::wstring& rsMount) const
+{
+	boost::shared_lock<boost::shared_mutex> lock(m_MountsMutex);
+
+	std::map<std::wstring, IPtrPlisgoFSFile>::const_iterator it = m_Mounts.find(rsMount);
+
+	if (it != m_Mounts.end())
+		return it->second;
+
+	return IPtrPlisgoFSFile();
+}
+
+
+IPtrPlisgoFSFile	PlisgoVFS::TracePath(LPCWSTR sPath, IPtrPlisgoFSFile* pParent) const
+{
+	if (sPath == NULL || sPath[0] == L'\0')
+		return m_Root;
+
+	if (sPath[0] != L'\\')
+		return IPtrPlisgoFSFile();
+
+	++sPath;
+
+	if (sPath[0] == L'\0')
+		return m_Root;
+
+
 	std::wstring sOrgPathLowerCase = sPath;
 
 	std::transform(sOrgPathLowerCase.begin(),sOrgPathLowerCase.end(),sOrgPathLowerCase.begin(),tolower);
 
 	boost::trim_right_if(sOrgPathLowerCase, boost::is_any_of(L"\\"));
 
-	assert(sPath != NULL);
+	LPCWSTR sOrgPath		= sPath;
+	LPCWSTR sLowerPath		= sOrgPathLowerCase.c_str();
+	size_t	nLowerPathEndPos = 0;
 
-	if (pbInTrees != NULL)
-		*pbInTrees = false;
 
-	if (sPath == NULL)
-		return IPtrPlisgoFSFile();
+	IPtrPlisgoFSFile file = m_Root;
 
-	IPtrPlisgoFSFile result = FindLoggedOpen(sOrgPathLowerCase);
-
-	if (result.get() != NULL)
+	do
 	{
-		if (pbInTrees != NULL)
-			*pbInTrees = true;
+		PlisgoFSFolder* pFolder = file->GetAsFolder();
 
-		return result;
+		if (pFolder == NULL)
+			goto failedExit; //No a valid path
+
+		if (pParent != NULL)
+			(*pParent) = file;
+
+		LPCWSTR sSlash = wcschr(sPath, L'\\');
+
+		if (sSlash != NULL)
+		{
+			WCHAR sName[MAX_PATH];
+
+			memcpy_s(sName, sizeof(WCHAR)*MAX_PATH, sPath, sizeof(WCHAR)*(sSlash-sPath));
+
+			sName[sSlash-sPath] = L'\0';
+
+			file = pFolder->GetChild(sName);
+
+			nLowerPathEndPos = sSlash-sOrgPath;
+		}
+		else
+		{
+			file = pFolder->GetChild(sPath);
+			nLowerPathEndPos = NULL;
+		}
+
+		if (file.get() == NULL)
+			goto failedExit; //No a valid path
+
+		IPtrPlisgoFSFile mnt = GetOverride(sOrgPathLowerCase.substr(0, nLowerPathEndPos));
+
+		if (mnt.get() != NULL)
+			file = mnt;
+
+		if (sSlash != NULL)
+		{
+			if (!(file->GetAttributes() & FILE_ATTRIBUTE_DIRECTORY) || file->GetAsFolder() == NULL)
+				goto failedExit; //No a valid path
+		
+			++sSlash;
+		}
+
+		sPath = sSlash;
 	}
-	
-	IPtrPlisgoFSFile file = ParseName(sPath);
+	while(sPath != NULL && sPath[0] != L'\0');
 
-	if (file.get() == NULL)
-		return IPtrPlisgoFSFile();
+	return file;
 
-	if (sPath[0] == L'\0')
-	{
-		if (pbInTrees != NULL)
-			*pbInTrees = true;
+failedExit:
 
-		return file;
-	}
-
-	if (file->GetAsFolder() == NULL)
-		return IPtrPlisgoFSFile();
-
-	if (sPath[0] == L'\0')
-	{
-		if (pbInTrees != NULL)
-			*pbInTrees = true;
-
-		return file;
-	}
-	else if (sPath[0] != L'\\')	
-		return IPtrPlisgoFSFile();
-	else
-		++sPath;
-
-	if (pbInTrees != NULL)
-		*pbInTrees = true;
-
-	if (sPath[0] == L'\0')
-		return file;
-
-	result = file->GetAsFolder()->GetDescendant(sPath);
-
-	if (result.get() == NULL)
-		return result;
-
-	result.reset(new ManagedEncapsulatedFile(sOrgPathLowerCase, const_cast<PlisgoFSCachedFileTree*>(this), result));
-
-	return result;
-}
-
-
-bool				PlisgoFSCachedFileTree::IncrementValidCacheEntry(const std::wstring& rsFullPathLowerCase, IPtrPlisgoFSFile file)
-{
-	OpenFilesMap::iterator it = m_OpenFiles.find(rsFullPathLowerCase);
-
-	if (it == m_OpenFiles.end())
-		return false;
-	
-	if (InterlockedIncrement(&it->second.nOpenNum) != 1)
-		return true;
-	
-	//It was zero....
-
-	return (it->second.file == file);
-}
-
-
-void				PlisgoFSCachedFileTree::LogOpening(const std::wstring& rsFullPathLowerCase, IPtrPlisgoFSFile file)
-{
-	if (file.get() == NULL)
-		return;
-
-	boost::upgrade_lock<boost::shared_mutex> lock(m_Mutex);
-
-	if (IncrementValidCacheEntry(rsFullPathLowerCase, file))
-		return;
-
-	boost::upgrade_to_unique_lock<boost::shared_mutex> rwlock(lock);
-
-	if (IncrementValidCacheEntry(rsFullPathLowerCase, file))
-		return;
-
-	OpenFile& rOpenFile = m_OpenFiles[rsFullPathLowerCase];
-
-	rOpenFile.file = file;
-	rOpenFile.nOpenNum = 1;
-}
-
-
-IPtrPlisgoFSFile	PlisgoFSCachedFileTree::FindLoggedOpen(const std::wstring& rsFullPathLowerCase) const
-{
-	boost::shared_lock<boost::shared_mutex> lock(m_Mutex);
-
-	OpenFilesMap::const_iterator it = m_OpenFiles.find(rsFullPathLowerCase);
-
-	if (it != m_OpenFiles.end())
-		return it->second.file;
+	//If there is more path, then the parent isn't parent
+	if (pParent != NULL && (sPath == NULL || wcschr(sPath, L'\\') != NULL))
+		pParent->reset();
 
 	return IPtrPlisgoFSFile();
 }
 
 
-void				PlisgoFSCachedFileTree::LogClosing(const std::wstring& rsFullPathLowerCase, IPtrPlisgoFSFile file)
+void				PlisgoVFS::RemoveDownstreamMounts(std::wstring sMount)
 {
-	if (file.get() == NULL)
-		return;
+	std::transform(sMount.begin(),sMount.end(),sMount.begin(),tolower);
 
-	boost::upgrade_lock<boost::shared_mutex> lock(m_Mutex);
+	boost::trim_right_if(sMount, boost::is_any_of(L"\\"));
 
-	OpenFilesMap::iterator it = m_OpenFiles.find(rsFullPathLowerCase);
+	boost::shared_lock<boost::shared_mutex> lock(m_MountsMutex);
 
-	if (it != m_OpenFiles.end())
-		if (InterlockedDecrement(&it->second.nOpenNum) == 0)
+	for(MountTable::const_iterator it = m_Mounts.begin(); it != m_Mounts.end();)
+	{
+		if (sMount.compare(0, sMount.length(), it->first) == 0)
 		{
-			boost::upgrade_to_unique_lock<boost::shared_mutex> rwlock(lock);
-
-			it = m_OpenFiles.find(rsFullPathLowerCase);
-
-			if (it != m_OpenFiles.end() && it->second.nOpenNum == 0)
-				m_OpenFiles.erase(rsFullPathLowerCase);			
+			m_Mounts.erase(it);
+			it = m_Mounts.begin();
 		}
+		else ++it;
+	}
 }
 
+
+int					PlisgoVFS::Repath(LPCWSTR sOldPath, LPCWSTR sNewPath, bool bReplaceExisting)
+{
+	IPtrPlisgoFSFile newParent;
+	IPtrPlisgoFSFile newFile = TracePath(sNewPath, &newParent);
+
+	if (newParent.get() == NULL)
+		return -ERROR_BAD_PATHNAME;
+
+	PlisgoFSFolder* pNewParent = newParent->GetAsFolder();
+
+	assert(pNewParent != NULL);
+
+	if (newFile.get() != NULL && !bReplaceExisting)
+		return -ERROR_ALREADY_EXISTS;
+
+	IPtrPlisgoFSFile oldParent;
+	IPtrPlisgoFSFile oldFile = TracePath(sOldPath, &oldParent);
+
+	if (oldFile.get() == NULL)
+		return -ERROR_FILE_NOT_FOUND;
+
+	if (oldParent.get() == NULL)
+		return -ERROR_FILE_NOT_FOUND; //wtf? Should never happen
+
+	PlisgoFSFolder* pOldParent = oldParent->GetAsFolder();
+
+	//Get the mount lock as the mount table may change
+	boost::shared_lock<boost::shared_mutex> lock(m_MountsMutex);
+
+	int nError = pOldParent->Repath(GetNameFromPath(sOldPath),
+									GetNameFromPath(sNewPath),
+									bReplaceExisting, pNewParent);
+
+	if (nError != 0)
+		return nError;
+
+	//Update the mount table
+
+	std::wstring sOldMount = sOldPath;
+	std::wstring sNewMount = sNewPath;
+
+	boost::trim_right_if(sOldMount, boost::is_any_of(L"\\"));
+	boost::trim_right_if(sNewMount, boost::is_any_of(L"\\"));
+
+	std::transform(sOldMount.begin(),sOldMount.end(),sOldMount.begin(),tolower);
+	std::transform(sNewMount.begin(),sNewMount.end(),sNewMount.begin(),tolower);
+
+
+	for(MountTable::const_iterator it = m_Mounts.begin(); it != m_Mounts.end();)
+	{
+		if (sOldMount.compare(0, sOldMount.length(), it->first) == 0)
+		{
+			IPtrPlisgoFSFile mnt = it->second;
+			std::wstring sMount = it->first;
+
+			m_Mounts.erase(it);
+
+			sMount.replace(0, sOldMount.length(), sNewMount);
+
+			m_Mounts[sMount] = mnt;
+
+			it = m_Mounts.begin();
+		}
+		else ++it;
+	}
+
+	return 0;
+}
+
+
+
+
+int					PlisgoVFS::Open(	PlisgoFileHandle&	rHandle,
+										LPCWSTR				sPath,
+										DWORD				nDesiredAccess,
+										DWORD				nShareMode,
+										DWORD				nCreationDisposition,
+										DWORD				nFlagsAndAttributes)
+{
+	IPtrPlisgoFSFile	parent;
+	IPtrPlisgoFSFile	file = TracePath(sPath, &parent);
+
+	int nError = 0;
+	ULONG64 nOpenInstaceData = 0;
+
+	if (file.get() == NULL)
+	{
+		if (nCreationDisposition == OPEN_EXISTING ||
+			nCreationDisposition == TRUNCATE_EXISTING)
+			return -ERROR_FILE_NOT_FOUND;
+
+		if (parent.get() == NULL)
+			return -ERROR_PATH_NOT_FOUND;
+		
+		PlisgoFSFolder* pFolder = parent->GetAsFolder();
+
+		if (pFolder == NULL)
+			return -ERROR_PATH_NOT_FOUND; //wtf
+
+		nError = pFolder->CreateChild(file, GetNameFromPath(sPath), nFlagsAndAttributes);
+
+		if (file.get() != NULL)
+			nError = file->Open(nDesiredAccess, nShareMode, OPEN_EXISTING, nFlagsAndAttributes, &nOpenInstaceData);
+	}
+	else nError = file->Open(nDesiredAccess, nShareMode, nCreationDisposition, nFlagsAndAttributes, &nOpenInstaceData);
+
+	if (nError != 0)
+		return nError;
+
+	assert(file.get() != NULL);
+
+	boost::unique_lock<boost::shared_mutex>	lock(m_OpenFilePoolMutex);
+	
+	OpenFileData* pOpenFileData = m_OpenFilePool.construct();
+
+	if (pOpenFileData == NULL)
+	{
+		file->Close(&nOpenInstaceData);
+
+		return -ERROR_TOO_MANY_OPEN_FILES;
+	}
+
+	pOpenFileData->File = file;
+	pOpenFileData->sPath = sPath;
+	pOpenFileData->nData = nOpenInstaceData;
+
+	rHandle = (PlisgoFileHandle)pOpenFileData;
+
+	return 0;
+}
+
+
+
+PlisgoVFS::OpenFileData*		PlisgoVFS::GetOpenFileData(PlisgoFileHandle&	rHandle) const
+{
+	OpenFileData* pOpenFileData = (OpenFileData*)rHandle;
+
+	boost::shared_lock<boost::shared_mutex>	lock(m_OpenFilePoolMutex);
+
+	if (!m_OpenFilePool.is_from(pOpenFileData))
+		return NULL;
+
+	return pOpenFileData;
+}
+
+
+IPtrPlisgoFSFile	PlisgoVFS::GetFileFromHandle(PlisgoFileHandle&	rHandle) const
+{
+	OpenFileData* pOpenFileData = GetOpenFileData(rHandle);
+
+	if (pOpenFileData == NULL)
+		return IPtrPlisgoFSFile();
+
+	return pOpenFileData->File;
+}
+
+
+IPtrPlisgoFSFile	PlisgoVFS::GetParentFromHandle(PlisgoFileHandle&	rHandle) const
+{
+	OpenFileData* pOpenFileData = GetOpenFileData(rHandle);
+
+	if (pOpenFileData == NULL)
+		return IPtrPlisgoFSFile();
+
+	size_t nSlash = pOpenFileData->sPath.rfind(L'\\');
+
+	std::wstring sParentPath = pOpenFileData->sPath.substr(0, nSlash);
+
+	return TracePath(sParentPath.c_str());
+}
+
+
+int					PlisgoVFS::Read(	PlisgoFileHandle&	rHandle,
+										LPVOID				pBuffer,
+										DWORD				nNumberOfBytesToRead,
+										LPDWORD				pnNumberOfBytesRead,
+										LONGLONG			nOffset)
+{
+	OpenFileData* pOpenFileData = GetOpenFileData(rHandle);
+
+	if (pOpenFileData == NULL)
+		return -ERROR_INVALID_HANDLE;
+
+	return pOpenFileData->File->Read(	pBuffer,
+										nNumberOfBytesToRead,
+										pnNumberOfBytesRead,
+										nOffset,
+										&pOpenFileData->nData);
+}
+
+
+int					PlisgoVFS::Write(	PlisgoFileHandle&	rHandle,
+										LPCVOID				pBuffer,
+										DWORD				nNumberOfBytesToWrite,
+										LPDWORD				pnNumberOfBytesWritten,
+										LONGLONG			nOffset)
+{
+	OpenFileData* pOpenFileData = GetOpenFileData(rHandle);
+
+	if (pOpenFileData == NULL)
+		return -ERROR_INVALID_HANDLE;
+
+	return pOpenFileData->File->Write(	pBuffer,
+										nNumberOfBytesToWrite,
+										pnNumberOfBytesWritten,
+										nOffset,
+										&pOpenFileData->nData);
+}
+
+
+int					PlisgoVFS::LockFile(PlisgoFileHandle&	rHandle,
+										LONGLONG			nByteOffset,
+										LONGLONG			nByteLength)
+{
+	OpenFileData* pOpenFileData = GetOpenFileData(rHandle);
+
+	if (pOpenFileData == NULL)
+		return -ERROR_INVALID_HANDLE;
+
+	return pOpenFileData->File->LockFile(	nByteOffset,
+											nByteLength,
+											&pOpenFileData->nData);
+}
+
+
+int					PlisgoVFS::UnlockFile(	PlisgoFileHandle&	rHandle,
+											LONGLONG			nByteOffset,
+											LONGLONG			nByteLength)
+{
+	OpenFileData* pOpenFileData = GetOpenFileData(rHandle);
+
+	if (pOpenFileData == NULL)
+		return -ERROR_INVALID_HANDLE;
+
+	return pOpenFileData->File->UnlockFile(	nByteOffset,
+											nByteLength,
+											&pOpenFileData->nData);
+}
+
+
+int					PlisgoVFS::FlushBuffers(PlisgoFileHandle&	rHandle)
+{
+	OpenFileData* pOpenFileData = GetOpenFileData(rHandle);
+
+	if (pOpenFileData == NULL)
+		return -ERROR_INVALID_HANDLE;
+
+	return pOpenFileData->File->FlushBuffers(&pOpenFileData->nData);
+}
+
+
+int					PlisgoVFS::SetEndOfFile(PlisgoFileHandle&	rHandle, LONGLONG nEndPos)
+{
+	OpenFileData* pOpenFileData = GetOpenFileData(rHandle);
+
+	if (pOpenFileData == NULL)
+		return -ERROR_INVALID_HANDLE;
+
+	return pOpenFileData->File->SetEndOfFile(nEndPos, &pOpenFileData->nData);
+}
+
+
+int					PlisgoVFS::Close(PlisgoFileHandle&	rHandle, bool bDeleteOnClose)
+{
+	OpenFileData* pOpenFileData = GetOpenFileData(rHandle);
+
+	if (pOpenFileData == NULL)
+		return -ERROR_INVALID_HANDLE;
+
+	int nError = pOpenFileData->File->Close(&pOpenFileData->nData);
+
+	if (nError != 0)
+		return nError;
+
+	if (!bDeleteOnClose)
+		return 0;
+	
+	IPtrPlisgoFSFile parent = GetParentFromHandle(rHandle);
+
+	assert(parent.get() != NULL);
+
+	PlisgoFSFolder* pFolder = parent->GetAsFolder();
+
+	assert(pFolder != NULL);
+
+	nError = pFolder->RemoveChild(GetNameFromPath(pOpenFileData->sPath.c_str()));
+
+	if (nError != 0)
+		return nError;
+
+	RemoveDownstreamMounts(pOpenFileData->sPath);
+
+	boost::unique_lock<boost::shared_mutex>	lock(m_OpenFilePoolMutex);
+
+	m_OpenFilePool.destroy(pOpenFileData);
+
+	return 0;
+}
+
+
+int					PlisgoVFS::GetDeleteError(PlisgoFileHandle&	rHandle) const
+{
+	OpenFileData* pOpenFileData = GetOpenFileData(rHandle);
+
+	if (pOpenFileData == NULL)
+		return -ERROR_INVALID_HANDLE;
+
+	IPtrPlisgoFSFile parent = GetParentFromHandle(rHandle);
+
+	assert(parent.get() != NULL);
+
+	PlisgoFSFolder* pFolder = parent->GetAsFolder();
+
+	assert(pFolder != NULL);
+
+	int nError = pFolder->GetRemoveChildError(GetNameFromPath(pOpenFileData->sPath));
+
+	if (nError != 0)
+		return nError;
+
+	return pOpenFileData->File->GetDeleteError(&pOpenFileData->nData);
+}
+
+
+int					PlisgoVFS::SetFileTimes(	PlisgoFileHandle&	rHandle,
+												const FILETIME*		pCreation,
+												const FILETIME*		pLastAccess,
+												const FILETIME*		pLastWrite)
+{
+	OpenFileData* pOpenFileData = GetOpenFileData(rHandle);
+
+	if (pOpenFileData == NULL)
+		return -ERROR_INVALID_HANDLE;
+
+	return pOpenFileData->File->SetFileTimes(pCreation, pLastAccess, pLastWrite, &pOpenFileData->nData);
+}
+
+
+int					PlisgoVFS::SetAttributes(	PlisgoFileHandle&	rHandle,
+												DWORD				nFileAttributes)
+{
+	OpenFileData* pOpenFileData = GetOpenFileData(rHandle);
+
+	if (pOpenFileData == NULL)
+		return -ERROR_INVALID_HANDLE;
+
+	return pOpenFileData->File->SetAttributes(nFileAttributes, &pOpenFileData->nData);
+}
+
+
+int					PlisgoVFS::GetHandleInfo(PlisgoFileHandle&	rHandle, LPBY_HANDLE_FILE_INFORMATION pInfo)
+{
+	OpenFileData* pOpenFileData = GetOpenFileData(rHandle);
+
+	if (pOpenFileData == NULL)
+		return -ERROR_INVALID_HANDLE;
+
+	return pOpenFileData->File->GetHandleInfo(pInfo, &pOpenFileData->nData);
+}
 

@@ -44,9 +44,6 @@ public:
 
 	virtual LONGLONG			GetSize() const = 0;
 
-	virtual LPCWSTR				GetName() const = 0;
-	virtual const std::wstring&	GetPath() const = 0;
-
 	virtual int					Open(	DWORD		nDesiredAccess,
 										DWORD		nShareMode,
 										DWORD		nCreationDisposition,
@@ -79,20 +76,43 @@ public:
 
 	virtual int					Close(ULONGLONG* pInstanceData);
 
+	virtual int					GetDeleteError(ULONGLONG* pInstanceData) const	{ return -ERROR_ACCESS_DENIED; }
+
 	virtual int					SetFileTimes(	const FILETIME* pCreation,
 												const FILETIME* pLastAccess,
 												const FILETIME* pLastWrite,
 												ULONGLONG*		pInstanceData);
 
-	virtual int					SetFileAttributesW(	DWORD		nFileAttributes,
-													ULONGLONG*	pInstanceData);
-
-	virtual PlisgoFSFolder*		GetAsFolder() const			{ return NULL; }
+	virtual int					SetAttributes(	DWORD		nFileAttributes,
+												ULONGLONG*	pInstanceData);
 
 	virtual int					GetHandleInfo(LPBY_HANDLE_FILE_INFORMATION pInfo, ULONGLONG* pInstanceData);
-	int							GetFindFileData(WIN32_FIND_DATAW* pFindData);
 
+	virtual PlisgoFSFolder*		GetAsFolder() const							{ return NULL; }
+	template<typename T>
+	void						GetFileInfo(T* pFileInfo) const;
 };
+
+
+template<typename T>
+inline void		PlisgoFSFile::GetFileInfo(T* pFileInfo) const
+{
+	assert(pFileInfo != NULL);
+
+	ZeroMemory(pFileInfo, sizeof(T));
+
+	pFileInfo->dwFileAttributes = GetAttributes();
+
+	GetFileTimes(pFileInfo->ftCreationTime, pFileInfo->ftLastAccessTime, pFileInfo->ftLastWriteTime);
+
+	LARGE_INTEGER nSize;
+
+	nSize.QuadPart = GetSize();
+
+	pFileInfo->nFileSizeHigh	= nSize.HighPart;
+	pFileInfo->nFileSizeLow		= nSize.LowPart;
+}
+
 
 
 typedef boost::shared_ptr<PlisgoFSFile>	IPtrPlisgoFSFile;
@@ -108,15 +128,27 @@ public:
 	class EachChild
 	{
 	public:
-		virtual bool Do(IPtrPlisgoFSFile file) = 0;
+		virtual bool Do(LPCWSTR sName, IPtrPlisgoFSFile file) = 0;
 	};
 
-	virtual IPtrPlisgoFSFile	GetDescendant(LPCWSTR sPath) const;
+	virtual int					Open(	DWORD		nDesiredAccess,
+										DWORD		nShareMode,
+										DWORD		nCreationDisposition,
+										DWORD		nFlagsAndAttributes,
+										ULONGLONG*	pInstanceData);
 
 	virtual bool				ForEachChild(EachChild& rEachChild) const = 0;
 	virtual IPtrPlisgoFSFile	GetChild(LPCWSTR sName) const = 0;
 
 	virtual UINT				GetChildNum() const;
+	virtual int					AddChild(LPCWSTR sName, IPtrPlisgoFSFile file)	{ return -ERROR_ACCESS_DENIED; }
+
+	virtual int					CreateChild(IPtrPlisgoFSFile& rChild, LPCWSTR sName, DWORD nAttr)	{ return -ERROR_ACCESS_DENIED; }
+
+	virtual int					Repath(LPCWSTR sOldName, LPCWSTR sNewName, bool bReplaceExisting, PlisgoFSFolder* pNewParent);
+
+	virtual int					GetRemoveChildError(LPCWSTR sName) const		{ return -ERROR_ACCESS_DENIED; }
+	virtual int					RemoveChild(LPCWSTR sName)						{ return -ERROR_ACCESS_DENIED; }
 
 	PlisgoFSFolder*				GetAsFolder() const								{ return const_cast<PlisgoFSFolder*>(this); }
 };
@@ -125,27 +157,14 @@ typedef boost::shared_ptr<PlisgoFSFolder>	IPtrPlisgoFSFolder;
 
 
 
-template<class BASE>
-class PlisgoFSStdPathFile : public BASE
-{
-public:
-	PlisgoFSStdPathFile(const std::wstring& rsPath)								{ m_sPath = rsPath; }
-
-	virtual LPCWSTR				GetName() const								{ return GetNameFromPath(m_sPath); }
-	virtual const std::wstring&	GetPath() const								{ return m_sPath; }
-
-protected:
-	std::wstring				m_sPath;
-};
-
 
 class PlisgoFSFileList
 {
 public:
 
-	void				AddFile(IPtrPlisgoFSFile file);
+	void				AddFile(LPCWSTR sName, IPtrPlisgoFSFile file);
+	void				RemoveFile(LPCWSTR sName);
 	bool				ForEachFile(PlisgoFSFolder::EachChild& rEachFile) const;
-	IPtrPlisgoFSFile	ParseName(LPCWSTR& rsPath) const;
 	IPtrPlisgoFSFile	GetFile(LPCWSTR sName) const;
 	IPtrPlisgoFSFile	GetFile(UINT nIndex) const;
 	UINT				GetLength() const;
@@ -153,18 +172,15 @@ public:
 private:
 	mutable boost::shared_mutex					m_Mutex;
 	
-	std::map<std::wstring, IPtrPlisgoFSFile >	m_files;	
+	std::map<std::wstring, IPtrPlisgoFSFile >	m_files;
 };
 
 
 
-class PlisgoFSStorageFolder : public PlisgoFSStdPathFile<PlisgoFSFolder>
+class PlisgoFSStorageFolder : public PlisgoFSFolder
 {
 public:
 
-	PlisgoFSStorageFolder(const std::wstring& rsPath) : PlisgoFSStdPathFile<PlisgoFSFolder>::PlisgoFSStdPathFile(rsPath)
-	{
-	}
 
 	virtual bool				ForEachChild(PlisgoFSFolder::EachChild& rEachChild) const
 	{
@@ -181,10 +197,17 @@ public:
 		return m_childList.GetLength();
 	}
 
-	void						AddChild(IPtrPlisgoFSFile file)
+	virtual int					AddChild(LPCWSTR sName, IPtrPlisgoFSFile file)
 	{
-		m_childList.AddFile(file);
+		m_childList.AddFile(sName, file);
+
+		return 0;
 	}
+
+	virtual int					CreateChild(IPtrPlisgoFSFile& rChild, LPCWSTR sName, DWORD nAttr);
+
+	virtual int					GetRemoveChildError(LPCWSTR sName) const		{ return 0; }
+	virtual int					RemoveChild(LPCWSTR sName)						{ m_childList.RemoveFile(sName); return 0; }
 
 protected:
 	PlisgoFSFileList		m_childList;
@@ -194,14 +217,16 @@ protected:
 
 
 
-class PlisgoFSDataFile : public PlisgoFSStdPathFile<PlisgoFSFile>
+class PlisgoFSDataFile : public PlisgoFSFile
 {
 public:
-	PlisgoFSDataFile(	const std::wstring&	rsPath,
-						BYTE*				pData = NULL,
-						size_t				nDataSize = 0,
+	PlisgoFSDataFile(	BYTE*				pData,
+						size_t				nDataSize,
 						bool				bReadOnly = true,
 						bool				bCopy = false);
+
+	PlisgoFSDataFile();
+
 	~PlisgoFSDataFile();
 
 	virtual DWORD			GetAttributes() const							{ return FILE_ATTRIBUTE_HIDDEN|((m_bReadOnly)?FILE_ATTRIBUTE_READONLY:0); }
@@ -256,17 +281,15 @@ private:
 
 
 
-class PlisgoFSStringFile : public  PlisgoFSStdPathFile<PlisgoFSFile>
+class PlisgoFSStringFile : public  PlisgoFSFile
 {
 public:
-	PlisgoFSStringFile(	const std::wstring& rsPath) :  PlisgoFSStdPathFile<PlisgoFSFile>(rsPath) { m_bReadOnly = m_bWriteOpen = false; }
+	PlisgoFSStringFile()												{ m_bReadOnly = m_bWriteOpen = false; }
 
-	PlisgoFSStringFile(	const std::wstring& sPath,
-						const std::wstring& sData, 
+	PlisgoFSStringFile(	const std::wstring& sData, 
 						bool				bReadOnly = false);
 
-	PlisgoFSStringFile(	const std::wstring&	sPath,
-						const std::string& sData, 
+	PlisgoFSStringFile(	const std::string& sData, 
 						bool bReadOnly = false);
 
 	void				SetString(const std::wstring& rsData);
@@ -324,17 +347,18 @@ private:
 
 
 
-class PlisgoFSRedirectionFile : public PlisgoFSStdPathFile<PlisgoFSFile>
+class PlisgoFSRedirectionFile : public PlisgoFSFile
 {
 public:
 
-	PlisgoFSRedirectionFile(const std::wstring& rsPath, const std::wstring& rsRealFile); 
+	PlisgoFSRedirectionFile(const std::wstring& rsRealFile); 
 
 
 	virtual DWORD			GetAttributes() const;
 	virtual LONGLONG		GetSize() const;
 
 	virtual bool			GetFileTimes(FILETIME& rCreation, FILETIME& rLastAccess, FILETIME& rLastWrite) const;
+
 
 	virtual int				Open(	DWORD		nDesiredAccess,
 									DWORD		nShareMode,
@@ -368,6 +392,8 @@ public:
 
 	virtual int				SetEndOfFile(LONGLONG nEndPos, ULONGLONG* pInstanceData);
 
+	virtual int				GetDeleteError(ULONGLONG* pInstanceData) const	{ return 0; }
+
 	virtual int				Close(ULONGLONG* pInstanceData);
 
 	virtual int				SetFileTimes(	const FILETIME* pCreation,
@@ -375,7 +401,7 @@ public:
 											const FILETIME*	pLastWrite,
 											ULONGLONG*		pInstanceData);
 
-	virtual int				SetFileAttributesW(DWORD	nFileAttributes, ULONGLONG* pInstanceData);
+	virtual int				SetAttributes(DWORD	nFileAttributes, ULONGLONG* pInstanceData);
 
 	const std::wstring&		GetRealPath() const		{ return m_sRealFile; }
 
@@ -386,118 +412,159 @@ private:
 
 
 
-class EncapsulatedFile : public PlisgoFSStdPathFile<PlisgoFSFile>
+class PlisgoFSRedirectionFolder : public PlisgoFSFolder
 {
 public:
 
-	EncapsulatedFile(IPtrPlisgoFSFile& rFile) : PlisgoFSStdPathFile<PlisgoFSFile>::PlisgoFSStdPathFile(rFile->GetPath())
-	{
-		m_file = rFile;
-	}
+	PlisgoFSRedirectionFolder(const std::wstring& rsRealFolder); 
 
-	EncapsulatedFile(const std::wstring& rsPath, IPtrPlisgoFSFile& rFile) : PlisgoFSStdPathFile<PlisgoFSFile>::PlisgoFSStdPathFile(rsPath)
-	{
-		m_file = rFile;
-	}
+	virtual DWORD				GetAttributes() const;
 
-	void						Reset(IPtrPlisgoFSFile& rFile)			{ m_file = rFile; }
-
-	virtual DWORD				GetAttributes() const					{ return m_file->GetAttributes(); }
-
-	virtual bool				GetFileTimes(FILETIME& rCreation, FILETIME& rLastAccess, FILETIME& rLastWrite) const	{ return m_file->GetFileTimes(rCreation, rLastAccess, rLastWrite); }
-
-	virtual LONGLONG			GetSize() const							{ return m_file->GetSize(); }
-
-	virtual int					Open(	DWORD		nDesiredAccess,
-										DWORD		nShareMode,
-										DWORD		nCreationDisposition,
-										DWORD		nFlagsAndAttributes,
-										ULONGLONG*	pInstanceData)		{ return m_file->Open(nDesiredAccess, nShareMode, nCreationDisposition, nFlagsAndAttributes, pInstanceData); }
-
-	virtual int					Read(	LPVOID		pBuffer,
-										DWORD		nNumberOfBytesToRead,
-										LPDWORD		pnNumberOfBytesRead,
-										LONGLONG	nOffset,
-										ULONGLONG*	pInstanceData)		{ return m_file->Read(pBuffer, nNumberOfBytesToRead, pnNumberOfBytesRead, nOffset, pInstanceData); }
-
-	virtual int					Write(	LPCVOID		pBuffer,
-										DWORD		nNumberOfBytesToWrite,
-										LPDWORD		pnNumberOfBytesWritten,
-										LONGLONG	nOffset,
-										ULONGLONG*	pInstanceData)		{ return m_file->Write(pBuffer, nNumberOfBytesToWrite, pnNumberOfBytesWritten, nOffset, pInstanceData); }
-
-	virtual int					LockFile(	LONGLONG	nByteOffset,
-											LONGLONG	nByteLength,
-											ULONGLONG*	pInstanceData)	{ return m_file->LockFile(nByteOffset, nByteLength, pInstanceData); }
-
-	virtual int					UnlockFile(	LONGLONG	nByteOffset,
-											LONGLONG	nByteLength,
-											ULONGLONG*	pInstanceData)	{ return m_file->UnlockFile(nByteOffset, nByteLength, pInstanceData); }
-
-	virtual int					FlushBuffers(ULONGLONG* pInstanceData)	{ return m_file->FlushBuffers(pInstanceData); }
-
-	virtual int					SetEndOfFile(LONGLONG nEndPos, ULONGLONG* pInstanceData)	{ return m_file->SetEndOfFile(nEndPos, pInstanceData); }
-
-	virtual int					Close(ULONGLONG* pInstanceData)			{ return m_file->Close(pInstanceData); }
+	virtual bool				GetFileTimes(FILETIME& rCreation, FILETIME& rLastAccess, FILETIME& rLastWrite) const;
 
 	virtual int					SetFileTimes(	const FILETIME* pCreation,
 												const FILETIME* pLastAccess,
-												const FILETIME* pLastWrite,
-												ULONGLONG*		pInstanceData)	{ return m_file->SetFileTimes(pCreation, pLastAccess, pLastWrite, pInstanceData ); }
+												const FILETIME*	pLastWrite,
+												ULONGLONG*		pInstanceData);
 
-	virtual int					SetFileAttributesW(	DWORD		nFileAttributes,
-													ULONGLONG*	pInstanceData)	{ return m_file->SetFileAttributesW(nFileAttributes, pInstanceData ); }
+	virtual int					SetAttributes(DWORD	nFileAttributes, ULONGLONG* pInstanceData);
 
+	virtual bool				ForEachChild(PlisgoFSFolder::EachChild& rEachChild) const;
 
-	PlisgoFSFolder*				GetAsFolder() const						{ return m_file->GetAsFolder(); }
+	virtual IPtrPlisgoFSFile	GetChild(LPCWSTR sName) const;
 
-protected:
-	IPtrPlisgoFSFile m_file;
-};
+	virtual UINT				GetChildNum() const;
 
+	virtual int					AddChild(LPCWSTR sName, IPtrPlisgoFSFile file);
+	virtual int					CreateChild(IPtrPlisgoFSFile& rChild, LPCWSTR sName, DWORD nAttr);
 
+	virtual int					Repath(LPCWSTR sOldName, LPCWSTR sNewName, bool bReplaceExisting, PlisgoFSFolder* pNewParent);
 
-class PlisgoFSCachedFileTree : public PlisgoFSFileList
-{
-	friend class ManagedEncapsulatedFile;
+	const std::wstring&			GetRealPath() const		{ return m_sRealPath; }
 
-public:
+	virtual int					GetDeleteError(ULONGLONG* pInstanceData) const;
 
-	IPtrPlisgoFSFile			TracePath(LPCWSTR sPath, bool* pbInTrees = NULL) const;
+	virtual int					GetRemoveChildError(LPCWSTR sName) const;
 
-protected:
+	virtual int					RemoveChild(LPCWSTR sName);
 
-	void						LogOpening(const std::wstring& rsFullPathLowerCase, IPtrPlisgoFSFile file);
-	void						LogClosing(const std::wstring& rsFullPathLowerCase, IPtrPlisgoFSFile file);
 private:
 
-	IPtrPlisgoFSFile			FindLoggedOpen(const std::wstring& rsFullPathLowerCase) const;
+	IPtrPlisgoFSFile			GetChild(	WIN32_FIND_DATAW& rFind) const;
 
-	bool						IncrementValidCacheEntry(const std::wstring& rsKey, IPtrPlisgoFSFile file);
-
-	struct OpenFile
-	{
-		IPtrPlisgoFSFile	file;
-		volatile LONG		nOpenNum;
-	};
-
-	typedef std::map<std::wstring, OpenFile>	OpenFilesMap;
-
-
-	mutable boost::shared_mutex		m_Mutex;
-	OpenFilesMap					m_OpenFiles;
+	std::wstring				m_sRealPath;
 };
 
 
-typedef boost::shared_ptr<PlisgoFSCachedFileTree>	IPtrPlisgoFSCachedFileTree;
+
+class PlisgoVFS
+{
+public:
+	PlisgoVFS(IPtrPlisgoFSFolder root)
+	{
+		assert(root.get() != NULL);
+		m_Root = root;
+	}
+
+	IPtrPlisgoFSFile			TracePath(LPCWSTR sPath, IPtrPlisgoFSFile* pParent = NULL) const;
+
+	bool						AddMount(LPCWSTR sMount, IPtrPlisgoFSFile Mount);
+
+	int							Repath(LPCWSTR sOldPath, LPCWSTR sNewPath, bool bReplaceExisting = false);
+
+	IPtrPlisgoFSFolder			GetRoot() const			{ return m_Root; }
+
+
+	typedef ULONG64	PlisgoFileHandle;
+
+
+	IPtrPlisgoFSFile			GetFileFromHandle(PlisgoFileHandle&	rHandle) const;
+	IPtrPlisgoFSFile			GetParentFromHandle(PlisgoFileHandle&	rHandle) const;
+
+
+	int							Open(	PlisgoFileHandle&	rHandle,
+										LPCWSTR				sPath,
+										DWORD				nDesiredAccess,
+										DWORD				nShareMode,
+										DWORD				nCreationDisposition,
+										DWORD				nFlagsAndAttributes);
+
+	int							Read(	PlisgoFileHandle&	rHandle,
+										LPVOID				pBuffer,
+										DWORD				nNumberOfBytesToRead,
+										LPDWORD				pnNumberOfBytesRead,
+										LONGLONG			nOffset);
+
+	int							Write(	PlisgoFileHandle&	rHandle,
+										LPCVOID				pBuffer,
+										DWORD				nNumberOfBytesToWrite,
+										LPDWORD				pnNumberOfBytesWritten,
+										LONGLONG			nOffset);
+
+	int							LockFile(	PlisgoFileHandle&	rHandle,
+											LONGLONG			nByteOffset,
+											LONGLONG			nByteLength);
+
+	int							UnlockFile(	PlisgoFileHandle&	rHandle,
+											LONGLONG			nByteOffset,
+											LONGLONG			nByteLength);
+
+	int							FlushBuffers(PlisgoFileHandle&	rHandle);
+
+	int							SetEndOfFile(PlisgoFileHandle&	rHandle, LONGLONG nEndPos);
+
+	int							Close(PlisgoFileHandle&	rHandle, bool bDeleteOnClose = false);
+
+	int							GetDeleteError(PlisgoFileHandle&	rHandle) const;
+
+	int							SetFileTimes(	PlisgoFileHandle&	rHandle,
+												const FILETIME*		pCreation,
+												const FILETIME*		pLastAccess,
+												const FILETIME*		pLastWrite);
+
+	int							SetAttributes(	PlisgoFileHandle&	rHandle,
+												DWORD				nFileAttributes);
+
+	int							GetHandleInfo(PlisgoFileHandle&	rHandle, LPBY_HANDLE_FILE_INFORMATION pInfo);
+
+
+protected:
+	
+	IPtrPlisgoFSFile			GetOverride(const std::wstring& rsMount) const;
+
+
+	void						RemoveDownstreamMounts(std::wstring sMount);
+
+private:
+
+	typedef std::map<std::wstring, IPtrPlisgoFSFile> MountTable;
+	struct OpenFileData
+	{
+		std::wstring		sPath;
+		IPtrPlisgoFSFile	File;
+		ULONG64				nData;
+	};
+
+	OpenFileData*				GetOpenFileData(PlisgoFileHandle&	rHandle) const;
+
+
+	IPtrPlisgoFSFolder						m_Root;
+
+	mutable boost::shared_mutex				m_MountsMutex;
+	MountTable								m_Mounts;
+
+	mutable boost::shared_mutex				m_OpenFilePoolMutex;
+	boost::object_pool<OpenFileData>		m_OpenFilePool;
+};
+
+typedef boost::shared_ptr<PlisgoVFS>	IPtrPlisgoVFS;
 
 
 
-
-inline IPtrPlisgoFSFile	GetPlisgoDesktopIniFile(const std::wstring& rsFolder = std::wstring())
+inline IPtrPlisgoFSFile	GetPlisgoDesktopIniFile()
 {
 	std::string sData = "[.ShellClassInfo]\r\nCLSID={ADA19F85-EEB6-46F2-B8B2-2BD977934A79}\r\n";
 
-	return IPtrPlisgoFSFile(new PlisgoFSStringFile(rsFolder + L"\\Desktop.ini", sData, true));
+	return IPtrPlisgoFSFile(new PlisgoFSStringFile(sData, true));
 }
 

@@ -30,8 +30,7 @@ class PlisgoFSMenuItem : public PlisgoFSStorageFolder
 {
 public:
 
-	PlisgoFSMenuItem(	const std::wstring&	rsMenuPath,
-						IPtrStringEvent		onClickEvent,
+	PlisgoFSMenuItem(	IPtrStringEvent		onClickEvent,
 						IPtrStringEvent		enabledEvent,
 						LPCWSTR				sUserText,
 						int					nIconList = -1,

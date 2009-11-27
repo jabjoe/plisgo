@@ -68,7 +68,7 @@ public:
 	virtual bool GetColumnEntry(const std::wstring& rsFilePath, const int nColumnIndex, std::wstring& rsResult) const = 0;
 	virtual bool GetOverlayIcon(const std::wstring& rsFilePath, IconLocation& rResult) const = 0;
 	virtual bool GetCustomIcon(const std::wstring& rsFilePath, IconLocation& rResult) const = 0;
-	virtual bool GetThumbnail(const std::wstring& rsFilePath, const std::wstring& rsVirturalPath, IPtrPlisgoFSFile& rThumbnailFile) const = 0;
+	virtual bool GetThumbnail(const std::wstring& rsFilePath, LPCWSTR sExt, IPtrPlisgoFSFile& rThumbnailFile) const = 0;
 };
 
 

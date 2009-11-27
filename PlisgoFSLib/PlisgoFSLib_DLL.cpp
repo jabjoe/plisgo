@@ -131,24 +131,17 @@ public:
 		return GetIcon(m_CBs.GetCustomIconCB, rsFilePath, rResult);
 	}
 
-	virtual bool GetThumbnail(const std::wstring& rsFilePath, const std::wstring& rsVirturalPath, IPtrPlisgoFSFile& rThumbnailFile) const
+	virtual bool GetThumbnail(const std::wstring& rsFilePath, LPCWSTR sExt, IPtrPlisgoFSFile& rThumbnailFile) const
 	{
-		if (m_CBs.GetThumbnailCB == NULL)
+		if (m_CBs.GetThumbnailCB == NULL || sExt == NULL)
 			return false;
-
-		size_t nExt = rsVirturalPath.rfind(L'.');
-
-		if (nExt == -1)
-			return false;
-
-
 
 		WCHAR sBuffer[MAX_PATH];
 
-		if (!m_CBs.GetThumbnailCB(rsFilePath.c_str(), &rsVirturalPath.c_str()[nExt], sBuffer, MAX_PATH, m_CBs.pUserData))
+		if (!m_CBs.GetThumbnailCB(rsFilePath.c_str(), sExt, sBuffer, MAX_PATH, m_CBs.pUserData))
 			return false;
 
-		rThumbnailFile = IPtrPlisgoFSFile(new PlisgoFSRedirectionFile(rsVirturalPath, sBuffer));
+		rThumbnailFile = IPtrPlisgoFSFile(new PlisgoFSRedirectionFile(sBuffer));
 
 		return true;
 	}
@@ -160,8 +153,12 @@ public:
 
 struct PlisgoFiles
 {
-	PlisgoFSCachedFileTree					VirtualFiles;
-	IPtrRootPlisgoFSFolder					Root;
+	PlisgoFiles() : VFS(boost::make_shared<PlisgoFSStorageFolder>())
+	{
+	}
+
+	PlisgoVFS								VFS;
+	boost::shared_ptr<RootPlisgoFSFolder>	Plisgo;
 	boost::shared_ptr<C_IShellInfoFetcher>	ShellInfoFetcher;
 };
 
@@ -189,7 +186,7 @@ public:
 
 	}
 
-	virtual bool Do(IPtrPlisgoFSFile file)
+	virtual bool Do(LPCWSTR sName, IPtrPlisgoFSFile file)
 	{
 		FILETIME Creation;
 		FILETIME LastAccess;
@@ -202,7 +199,7 @@ public:
 			return false;
 		}
 
-		m_nError = m_cb(file->GetName(),
+		m_nError = m_cb(sName,
 						file->GetAttributes(),
 						file->GetSize(),
 						*(ULONGLONG*)&Creation,
@@ -262,9 +259,10 @@ int		PlisgoFilesCreate(PlisgoFiles** ppPlisgoFiles, LPCWSTR sFSName, PlisgoGUICB
 	if (pCBs != NULL)
 		(*ppPlisgoFiles)->ShellInfoFetcher.reset(new C_IShellInfoFetcher(pCBs));
 
-	RootPlisgoFSFolder* pRoot = new RootPlisgoFSFolder(sFSName, (*ppPlisgoFiles)->ShellInfoFetcher.get());
 
-	if (pRoot == NULL)
+	boost::shared_ptr<RootPlisgoFSFolder> Plisgo =  boost::make_shared<RootPlisgoFSFolder>(sFSName, (*ppPlisgoFiles)->ShellInfoFetcher.get());
+
+	if (Plisgo.get() == NULL)
 	{
 		delete *ppPlisgoFiles;
 		*ppPlisgoFiles = NULL;
@@ -272,20 +270,23 @@ int		PlisgoFilesCreate(PlisgoFiles** ppPlisgoFiles, LPCWSTR sFSName, PlisgoGUICB
 		return -ERROR_NO_SYSTEM_RESOURCES;
 	}
 
-	(*ppPlisgoFiles)->Root = IPtrRootPlisgoFSFolder(pRoot);
-	(*ppPlisgoFiles)->VirtualFiles.AddFile((*ppPlisgoFiles)->Root);
-	(*ppPlisgoFiles)->VirtualFiles.AddFile(GetPlisgoDesktopIniFile());
+	(*ppPlisgoFiles)->Plisgo = Plisgo;
+
+	IPtrPlisgoFSFolder root = (*ppPlisgoFiles)->VFS.GetRoot();
+
+	root->AddChild(L".plisgofs", Plisgo);
+	root->AddChild(L"Desktop.ini", GetPlisgoDesktopIniFile());
 
 	if (pCBs != NULL)
 	{
 		if (pCBs->GetThumbnailCB != NULL)
-			pRoot->EnableThumbnails();
+			Plisgo->EnableThumbnails();
 		
 		if (pCBs->GetCustomIconCB != NULL)
-			pRoot->EnableCustomIcons();
+			Plisgo->EnableCustomIcons();
 
 		if (pCBs->GetOverlayIconCB != NULL)
-			pRoot->EnableOverlays();
+			Plisgo->EnableOverlays();
 
 	}
 
@@ -309,7 +310,7 @@ int		PlisgoFilesAddColumn(PlisgoFiles* pPlisgoFiles, LPCWSTR sColumnHeader)
 	if (pPlisgoFiles == NULL || sColumnHeader == NULL)
 		return -ERROR_BAD_ARGUMENTS;
 
-	if (pPlisgoFiles->Root->AddColumn(sColumnHeader))
+	if (pPlisgoFiles->Plisgo->AddColumn(sColumnHeader))
 		return 0;
 	else
 		return -ERROR_BAD_ARGUMENTS;
@@ -321,7 +322,7 @@ int		PlisgoFilesSetColumnType(PlisgoFiles* pPlisgoFiles, UINT nColumn, UINT nTyp
 	if (pPlisgoFiles == NULL)
 		return -ERROR_BAD_ARGUMENTS;
 
-	pPlisgoFiles->Root->SetColumnType(nColumn, (RootPlisgoFSFolder::ColumnType)nType);
+	pPlisgoFiles->Plisgo->SetColumnType(nColumn, (RootPlisgoFSFolder::ColumnType)nType);
 
 	return 0;
 }
@@ -332,7 +333,7 @@ int		PlisgoFilesSetColumnAlignment(PlisgoFiles* pPlisgoFiles, UINT nColumn, int 
 	if (pPlisgoFiles == NULL)
 		return -ERROR_BAD_ARGUMENTS;
 
-	pPlisgoFiles->Root->SetColumnAlignment(nColumn, (RootPlisgoFSFolder::ColumnAlignment)nAlignment);
+	pPlisgoFiles->Plisgo->SetColumnAlignment(nColumn, (RootPlisgoFSFolder::ColumnAlignment)nAlignment);
 
 	return 0;
 }
@@ -343,9 +344,9 @@ int		PlisgoFilesAddIconsList(PlisgoFiles* pPlisgoFiles, LPCWSTR sImageFilePath)
 	if (pPlisgoFiles == NULL || sImageFilePath == NULL)
 		return -ERROR_BAD_ARGUMENTS;
 
-	UINT nIconIndex = pPlisgoFiles->Root->GetIconListNum();
+	UINT nIconIndex = pPlisgoFiles->Plisgo->GetIconListNum();
 
-	if (pPlisgoFiles->Root->AddIcons(nIconIndex, sImageFilePath))
+	if (pPlisgoFiles->Plisgo->AddIcons(nIconIndex, sImageFilePath))
 		return 0;
 	else
 		return -ERROR_BAD_ARGUMENTS;
@@ -359,7 +360,7 @@ int		PlisgoFilesAddCustomFolderIcon(	PlisgoFiles* pPlisgoFiles,
 	if (pPlisgoFiles == NULL)
 		return -ERROR_BAD_ARGUMENTS;
 
-	pPlisgoFiles->Root->AddCustomFolderIcon(nClosedIconList, nClosedIconIndex, nOpenIconList, nOpenIconIndex);
+	pPlisgoFiles->Plisgo->AddCustomFolderIcon(nClosedIconList, nClosedIconIndex, nOpenIconList, nOpenIconIndex);
 
 	return 0;
 }
@@ -370,7 +371,7 @@ int		PlisgoFilesAddCustomDefaultIcon(PlisgoFiles* pPlisgoFiles, UINT nList, UINT
 	if (pPlisgoFiles == NULL)
 		return -ERROR_BAD_ARGUMENTS;
 
-	pPlisgoFiles->Root->AddCustomDefaultIcon(nList, nIndex);
+	pPlisgoFiles->Plisgo->AddCustomDefaultIcon(nList, nIndex);
 
 	return 0;
 }
@@ -381,7 +382,7 @@ int		PlisgoFilesAddCustomExtensionIcon(PlisgoFiles* pPlisgoFiles, LPCWSTR sExt, 
 	if (pPlisgoFiles == NULL || sExt == NULL)
 		return -ERROR_BAD_ARGUMENTS;
 
-	pPlisgoFiles->Root->AddCustomExtensionIcon(sExt, nList, nIndex);
+	pPlisgoFiles->Plisgo->AddCustomExtensionIcon(sExt, nList, nIndex);
 
 	return 0;
 }
@@ -409,7 +410,7 @@ int		PlisgoFilesAddMenuItem(	PlisgoFiles*	pPlisgoFiles,
 	if (isEnabledCB != NULL)
 		isEnabledObj.reset(new C_StringEvent(isEnabledCB, pCBUserData));
 
-	*pnResultIndex = pPlisgoFiles->Root->AddMenu(sText, onClickObj, nParentMenu, isEnabledObj, nIconList, nIconIndex);
+	*pnResultIndex = pPlisgoFiles->Plisgo->AddMenu(sText, onClickObj, nParentMenu, isEnabledObj, nIconList, nIconIndex);
 
 	return 0;
 }
@@ -420,7 +421,7 @@ int		PlisgoFilesAddMenuSeparatorItem(PlisgoFiles* pPlisgoFiles, int nParentMenu)
 	if (pPlisgoFiles == NULL)
 		return -ERROR_BAD_ARGUMENTS;
 
-	pPlisgoFiles->Root->AddSeparator(nParentMenu);
+	pPlisgoFiles->Plisgo->AddSeparator(nParentMenu);
 
 	return 0;
 }
@@ -433,7 +434,7 @@ int		PlisgoFilesForRootFiles(PlisgoFiles* pPlisgoFiles, PlisgoVirtualFileChildCB
 
 	CallForEachChild cbObj(cb, pData);
 
-	pPlisgoFiles->VirtualFiles.ForEachFile(cbObj);
+	pPlisgoFiles->VFS.GetRoot()->ForEachChild(cbObj);
 
 	return cbObj.GetError();
 }
@@ -459,7 +460,12 @@ int		PlisgoVirtualFileOpen(	PlisgoFiles*		pPlisgoFiles,
 	if (pPlisgoFiles == NULL || sPath == NULL || ppFile == NULL)
 		return -ERROR_BAD_ARGUMENTS;
 
-	IPtrPlisgoFSFile file = pPlisgoFiles->VirtualFiles.TracePath(sPath, (bool*)pbRootVirtualPath);
+	IPtrPlisgoFSFile parent;
+
+	IPtrPlisgoFSFile file = pPlisgoFiles->VFS.TracePath(sPath, &parent);
+
+	if (pbRootVirtualPath != NULL)
+		*pbRootVirtualPath = (parent.get() != NULL);
 
 	if (file.get() == NULL)
 		return -ERROR_BAD_PATHNAME;

@@ -41,7 +41,7 @@
 class ProcessFile : public PlisgoFSStringFile
 {
 public:
-	ProcessFile(const PROCESSENTRY32& rPE) : PlisgoFSStringFile((boost::wformat(L"\\%1%") %rPE.th32ProcessID).str(), rPE.szExeFile, true)
+	ProcessFile(const PROCESSENTRY32& rPE) : PlisgoFSStringFile(rPE.szExeFile, true)
 	{
 	}
 
@@ -211,7 +211,11 @@ public:
 		{
 			hWnd = GetAncestor(hWnd, GA_ROOT);
 
-			ShowWindow(hWnd, SW_SHOWNORMAL);
+			if (IsIconic(hWnd))
+				ShowWindow(hWnd, SW_RESTORE);
+
+			BringWindowToTop(hWnd);
+			SetForegroundWindow(hWnd);
 
 			SwitchToThisWindow(hWnd, FALSE);
 		}
@@ -246,14 +250,12 @@ public:
 
 ProcessesFolder::ProcessesFolder()
 {
-	m_sPath = L"\\processes";
-
 	IPtrRootPlisgoFSFolder plisgoRoot(new RootPlisgoFSFolder(L"processesFS", this));
 
 	assert(plisgoRoot.get() != NULL);
 
-	m_Extras.AddFile(plisgoRoot);
-	m_Extras.AddFile(GetPlisgoDesktopIniFile(L"\\processes"));
+	m_Extras.AddFile(L".plisgofs", plisgoRoot);
+	m_Extras.AddFile(L"Desktop.ini", GetPlisgoDesktopIniFile());
 
 	plisgoRoot->AddColumn(L"Exe File");
 	plisgoRoot->SetColumnAlignment(0, RootPlisgoFSFolder::LEFT);
@@ -299,7 +301,7 @@ ProcessesFolder::ProcessesFolder()
 			BYTE* pData = (BYTE*)LockResource(hReallyStaticMem);
 
 			if (pData != NULL)
-				m_ThumbnailPlaceHolder.reset(new PlisgoFSDataFile( L"N/A", pData, nDataSize ));
+				m_ThumbnailPlaceHolder.reset(new PlisgoFSDataFile( pData, nDataSize ));
 		}
 	}
 
@@ -315,39 +317,6 @@ void				ProcessesFolder::RefreshProcesses()
 
 
 // PlisgoFSFolder interface
-
-
-IPtrPlisgoFSFile	ProcessesFolder::GetDescendant(LPCWSTR sPath) const
-{
-	assert(sPath != NULL);
-
-	if (sPath[0] == L'\0')
-		return IPtrPlisgoFSFile();
-
-	if (sPath[0] == L'\\')
-		++sPath;
-
-	IPtrPlisgoFSFile result = m_Extras.ParseName(sPath);
-
-	if (result.get() != NULL)
-	{
-		if (sPath[0] == L'\0')
-			return result;
-
-		if (result->GetAsFolder() == NULL || sPath[0] != L'\\')
-			return IPtrPlisgoFSFile();
-
-		++sPath;
-
-		if (sPath[0] == L'\0')
-			return result;
-
-		return result->GetAsFolder()->GetDescendant(sPath);
-	}
-
-	return GetChild(sPath);
-}
-
 
 bool				ProcessesFolder::ForEachChild(EachChild& rEachChild) const
 {
@@ -368,8 +337,14 @@ bool				ProcessesFolder::ForEachChild(EachChild& rEachChild) const
 		IPtrPlisgoFSFile file = GetProcessFile(it->first);
 
 		if (file.get() != NULL)
-			if (!rEachChild.Do(file))
+		{
+			WCHAR sName[MAX_PATH];
+
+			wsprintf(sName,L"%i", it->first);
+
+			if (!rEachChild.Do(sName, file))
 				return false;
+		}
 	}
 
 	return true;
@@ -621,39 +596,19 @@ bool				ProcessesFolder::GetCustomIcon(const std::wstring& rsFilePath, IconLocat
 	return (nLength != 0);
 }
 
-bool				ProcessesFolder::GetThumbnail(const std::wstring& rsFilePath, const std::wstring& rsVirturalPath, IPtrPlisgoFSFile& rThumbnailFile) const
+
+bool				ProcessesFolder::GetThumbnail(const std::wstring& rsFilePath, LPCWSTR sExt, IPtrPlisgoFSFile& rThumbnailFile) const
 {
-	if (m_ThumbnailPlaceHolder.get() == NULL)
+	if (m_ThumbnailPlaceHolder.get() == NULL || sExt == NULL)
 		return false;
 
-	size_t nExt = rsVirturalPath.find_last_of(L'.');
-
-	if (nExt == -1)
+	if (!MatchLower(sExt, L".jpg"))
 		return false;
-
-	if (rsVirturalPath.length()-nExt == 4)
-	{
-		if (tolower(rsVirturalPath[nExt+1]) != L'j' ||
-			tolower(rsVirturalPath[nExt+2]) != L'p' ||
-			tolower(rsVirturalPath[nExt+3]) != L'g')
-			return false;
-	}
-	else if (rsVirturalPath.length()-nExt == 5)
-	{
-		if (tolower(rsVirturalPath[nExt+1]) != L'j' ||
-			tolower(rsVirturalPath[nExt+2]) != L'p' ||
-			tolower(rsVirturalPath[nExt+3]) != L'e' ||
-			tolower(rsVirturalPath[nExt+4]) == L'g')
-			return false;
-	}
-	else return false;
-
-	rThumbnailFile.reset(new EncapsulatedFile(rsVirturalPath, IPtrPlisgoFSFile(m_ThumbnailPlaceHolder)));
+	
+	rThumbnailFile = m_ThumbnailPlaceHolder;
 
 	return true;
 }
-
-
 
 
 void				ProcessesFolder::Update()
