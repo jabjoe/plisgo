@@ -103,9 +103,13 @@ inline void		PlisgoFSFile::GetFileInfo(T* pFileInfo) const
 
 	pFileInfo->dwFileAttributes = GetAttributes();
 
-	GetFileTimes(pFileInfo->ftCreationTime, pFileInfo->ftLastAccessTime, pFileInfo->ftLastWriteTime);
+	if (!GetFileTimes(pFileInfo->ftCreationTime, pFileInfo->ftLastAccessTime, pFileInfo->ftLastWriteTime))
+	{
+		GetSystemTimeAsFileTime(&pFileInfo->ftCreationTime);
+		pFileInfo->ftLastAccessTime = pFileInfo->ftLastWriteTime = pFileInfo->ftCreationTime;
+	}
 
-	LARGE_INTEGER nSize;
+	ULARGE_INTEGER nSize;
 
 	nSize.QuadPart = GetSize();
 

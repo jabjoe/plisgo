@@ -1520,12 +1520,10 @@ bool				PlisgoVFS::AddMount(LPCWSTR sMount, IPtrPlisgoFSFile Mount)
 	if (current == m_Root)
 		return false; //HELL NO
 
-	if (current->GetAsFolder() == NULL)
-		return false;
-
 	std::wstring sMountLowerCase = sMount;
 
 	boost::trim_right_if(sMountLowerCase, boost::is_any_of(L"\\"));
+	boost::trim_left_if(sMountLowerCase, boost::is_any_of(L"\\"));
 
 	std::transform(sMountLowerCase.begin(),sMountLowerCase.end(),sMountLowerCase.begin(),tolower);
 
