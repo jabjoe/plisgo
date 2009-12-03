@@ -78,9 +78,9 @@ public:
 		for(IShellInfoFetcher::BasicFolder::const_iterator it = shelledFiles.begin();
 			it != shelledFiles.end(); ++it)
 		{
-			IPtrPlisgoFSFile file = InternalGetChild(it->sName.c_str());
+			IPtrPlisgoFSFile file = InternalGetChild(it->sName);
 
-			if (file.get() != NULL && !rEachChild.Do(it->sName.c_str(), file))
+			if (file.get() != NULL && !rEachChild.Do(it->sName, file))
 				return false;
 		}
 
@@ -100,7 +100,7 @@ public:
 		for(IShellInfoFetcher::BasicFolder::const_iterator it = shelledFiles.begin();
 			it != shelledFiles.end(); ++it)
 		{
-			IPtrPlisgoFSFile file = InternalGetChild(it->sName.c_str());
+			IPtrPlisgoFSFile file = InternalGetChild(it->sName);
 
 			if (file.get() != NULL)
 				++nResult;
@@ -298,7 +298,7 @@ public:
 		for(IShellInfoFetcher::BasicFolder::const_iterator it = shelledFiles.begin();
 			it != shelledFiles.end(); ++it)
 		{
-			if (it->bIsFolder && !rEachChild.Do(it->sName.c_str(), IPtrPlisgoFSFile(CreateChildShellInfoFolder(it->sName))))
+			if (it->bIsFolder && !rEachChild.Do(it->sName, IPtrPlisgoFSFile(CreateChildShellInfoFolder(it->sName))))
 				return false;
 		}
 		
@@ -331,7 +331,7 @@ public:
 		for(IShellInfoFetcher::BasicFolder::const_iterator it = shelledFiles.begin();
 			it != shelledFiles.end(); ++it)
 		{
-			if (it->bIsFolder && MatchLower(it->sName.c_str(), sName))
+			if (it->bIsFolder && MatchLower(it->sName, sName))
 				return CreateChildShellInfoFolder(it->sName);
 		}
 
@@ -391,8 +391,7 @@ protected:
 
 	IPtrPlisgoFSFile			CreateChildShellInfoFolder(const std::wstring& rsName) const
 	{
-		return IPtrPlisgoFSFile( new ShellInfoFolder( (m_sSubjectPath.length() == 1)?(m_sSubjectPath + rsName):(m_sSubjectPath + L"\\" + rsName),
-														m_pRoot));
+		return IPtrPlisgoFSFile( new ShellInfoFolder( m_sSubjectPath + rsName, m_pRoot));
 	}
 
 	IPtrPlisgoFSFile			CreateColumnFolder(const int nColumn) const

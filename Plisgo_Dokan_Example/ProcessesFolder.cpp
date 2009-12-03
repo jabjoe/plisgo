@@ -407,7 +407,7 @@ bool				ProcessesFolder::ReadShelled(const std::wstring& rsFolderPath, IShellInf
 		IShellInfoFetcher::BasicFileInfo& rFile = pResult->back();
 
 		rFile.bIsFolder = false;
-		rFile.sName = (boost::wformat(L"%1%") %it->first).str();
+		wcscpy_s(rFile.sName, MAX_PATH, (boost::wformat(L"%1%") %it->first).str().c_str());
 	}
 
 	return true;
