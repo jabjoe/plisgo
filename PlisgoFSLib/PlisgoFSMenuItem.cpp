@@ -187,7 +187,7 @@ bool	SelectionFile::CallPerPath(StringEvent& rEvent)
 	if (sCStr[0] != '\0')
 		bResult |= rEvent.Do(sCStr);
 
-	rEvent.Do(NULL); //Inform event object list is complete.
+	bResult |= rEvent.Do(NULL); //Inform event object list is complete.
 	
 	return bResult;
 }
