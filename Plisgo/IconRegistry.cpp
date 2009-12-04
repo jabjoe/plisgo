@@ -591,9 +591,12 @@ bool		RefIconList::GetFileIconLocation(IconLocation& rIconLocation, const std::w
 
 	if (it != m_Extensions.end())
 	{
-		rIconLocation = m_CachedIcons[it->second].Location;
+		if (it->second > -1)
+		{
+			rIconLocation = m_CachedIcons[it->second].Location;
 
-		return rIconLocation.IsValid();
+			return rIconLocation.IsValid();
+		}
 	}
 	
 	boost::upgrade_to_unique_lock<boost::shared_mutex> rwlock(lock);
@@ -602,9 +605,12 @@ bool		RefIconList::GetFileIconLocation(IconLocation& rIconLocation, const std::w
 
 	if (it != m_Extensions.end())
 	{
-		rIconLocation = m_CachedIcons[it->second].Location;
+		if (it->second > -1)
+		{
+			rIconLocation = m_CachedIcons[it->second].Location;
 
-		return rIconLocation.IsValid();
+			return rIconLocation.IsValid();
+		}
 	}
 	
 	int nResult = DEFAULTFILEICONINDEX;
