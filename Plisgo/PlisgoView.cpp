@@ -1452,7 +1452,16 @@ LRESULT		 CPlisgoView::OnItemActivated ( int nCtrl, LPNMHDR pNMH, BOOL& rbHandle
 		return HRESULTTOLRESULT(hr);
 
 	if (nAttr&(SFGAO_FOLDER|SFGAO_HASSUBFOLDER))
-		hr = m_ShellBrowser->BrowseObject(pIDL, SBSP_RELATIVE|SBSP_DEFBROWSER);
+	{
+		LPITEMIDLIST pFullIDL = ILCombine(m_pContainingFolder->GetIDList(), pIDL);
+
+		if (pFullIDL != NULL)
+		{
+			hr = m_ShellBrowser->BrowseObject(pFullIDL, SBSP_SAMEBROWSER);
+
+			ILFree(pFullIDL);
+		}
+	}
 	else
 	{
 		CComPtr<ICommDlgBrowser> pCommDlgBrowser;
@@ -1826,7 +1835,12 @@ LRESULT		 CPlisgoView::DoContextMenu(IContextMenu* pIMenu, HMENU hMenu, int x, i
 				{
 					LPITEMIDLIST pIDL = ILCombine(m_pContainingFolder->GetIDList(), ListViewGetItemIDL(m_hList, nItem));
 
-					m_ShellBrowser->BrowseObject(pIDL,SBSP_DEFBROWSER);
+					if (pIDL != NULL)
+					{
+						m_ShellBrowser->BrowseObject(pIDL,SBSP_SAMEBROWSER);
+
+						ILFree(pIDL);
+					}
 				}					
 			}
 			else if (wcscmp(sBuffer,L"rename") != 0)
