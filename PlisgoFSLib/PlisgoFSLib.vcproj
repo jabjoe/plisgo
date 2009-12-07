@@ -49,6 +49,7 @@
 				RuntimeLibrary="3"
 				UsePrecompiledHeader="0"
 				WarningLevel="3"
+				Detect64BitPortabilityProblems="true"
 				DebugInformationFormat="4"
 			/>
 			<Tool
@@ -176,6 +177,7 @@
 				RuntimeLibrary="3"
 				UsePrecompiledHeader="0"
 				WarningLevel="3"
+				Detect64BitPortabilityProblems="true"
 				DebugInformationFormat="4"
 			/>
 			<Tool
@@ -283,7 +285,7 @@
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
-				CommandLine="copy $(OutDir)\$(ProjectName).dll $(ProjectDir)..\$(ProjectName).dll&#x0D;&#x0A;copy PlisgoFSLib_DLL.h $(ProjectDir)..\PlisgoFSLib.h"
+				CommandLine="copy $(OutDir)\$(ProjectName).dll $(ProjectDir)..\$(ProjectName).dll&#x0D;&#x0A;copy PlisgoFSLib_DLL.h $(ProjectDir)..\PlisgoFSLib.h&#x0D;&#x0A;"
 			/>
 		</Configuration>
 	</Configurations>

@@ -463,6 +463,7 @@ private:
 
 class PlisgoVFS
 {
+	friend class MountSensitiveEachChild;
 public:
 	PlisgoVFS(IPtrPlisgoFSFolder root)
 	{
@@ -482,8 +483,8 @@ public:
 	typedef ULONG64	PlisgoFileHandle;
 
 
-	IPtrPlisgoFSFile			GetFileFromHandle(PlisgoFileHandle&	rHandle) const;
-	IPtrPlisgoFSFile			GetParentFromHandle(PlisgoFileHandle&	rHandle) const;
+	int							CreateFolder(LPCWSTR sPath);
+	int							ForEachChild(PlisgoFileHandle&	rHandle, PlisgoFSFolder::EachChild& rCB) const;
 
 
 	int							Open(	PlisgoFileHandle&	rHandle,
@@ -534,14 +535,26 @@ public:
 
 protected:
 	
-	IPtrPlisgoFSFile			GetOverride(const std::wstring& rsMount) const;
+	IPtrPlisgoFSFile			TracePath(const std::wstring& rsLowerPath) const;
 
+	bool						GetCached(const std::wstring& rsPath, IPtrPlisgoFSFile& rFile) const;
 
-	void						RemoveDownstreamMounts(std::wstring sMount);
+	void						RemoveDownstreamMounts(std::wstring sLowerCaseFile);
+	void						MoveMounts(std::wstring sOld, std::wstring sNew);
+
+	IPtrPlisgoFSFile			GetChildMount(std::wstring& rsParentPath, LPCWSTR sName) const;
+
+	void						AddToCache(const std::wstring& rsLowerPath, IPtrPlisgoFSFile file);
+
+	//typedef boost::unordered_map<std::wstring, IPtrPlisgoFSFile>	ChildMountTable;
+	typedef std::map<std::wstring, IPtrPlisgoFSFile>	ChildMountTable;
 
 private:
 
-	typedef std::map<std::wstring, IPtrPlisgoFSFile> MountTable;
+
+	//typedef boost::unordered_map<std::wstring, ChildMountTable>		ParentMountTable;
+	typedef std::map<std::wstring, ChildMountTable>		ParentMountTable;
+
 	struct OpenFileData
 	{
 		std::wstring		sPath;
@@ -555,10 +568,25 @@ private:
 	IPtrPlisgoFSFolder						m_Root;
 
 	mutable boost::shared_mutex				m_MountsMutex;
-	MountTable								m_Mounts;
+	ParentMountTable						m_ParentMounts;
 
 	mutable boost::shared_mutex				m_OpenFilePoolMutex;
 	boost::object_pool<OpenFileData>		m_OpenFilePool;
+
+
+	struct Cached
+	{
+		IPtrPlisgoFSFile	file;
+		ULONG64				nTime;
+	};
+
+	typedef std::pair<std::wstring, Cached>																							CacheEntryPair;
+	typedef boost::fast_pool_allocator< CacheEntryPair >																			CacheEntryPairPool;
+	typedef boost::unordered_map<std::wstring, Cached, boost::hash<std::wstring>, std::equal_to<std::wstring>, CacheEntryPairPool >	CacheEntryMap;
+
+	mutable boost::shared_mutex				m_CacheEntryMutex;
+	CacheEntryMap							m_CacheEntryMap;
+
 };
 
 typedef boost::shared_ptr<PlisgoVFS>	IPtrPlisgoVFS;

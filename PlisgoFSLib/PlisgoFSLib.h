@@ -39,12 +39,16 @@
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/algorithm/string/trim.hpp>
 #include <boost/pool/object_pool.hpp>
+#include <boost/pool/pool_alloc.hpp>
+#include <boost/unordered_map.hpp>
 
 
 static const int PLISGO_APIVERSION = 2;
 
 #define PLISGOFSLIB_VERSION 1.1.0.0
 
+
+typedef	WCHAR		FileNameBuffer[MAX_PATH];
 
 extern bool			WildCardMatch(LPCWSTR* sMask, LPCWSTR* sTarget);
 
@@ -58,6 +62,7 @@ public:
 };
 
 typedef boost::shared_ptr<StringEvent>	IPtrStringEvent;
+
 
 
 inline size_t				CopyToLower(LPWSTR sDst, size_t nDstSize, LPCWSTR sSrc)
@@ -74,6 +79,12 @@ inline size_t				CopyToLower(LPWSTR sDst, size_t nDstSize, LPCWSTR sSrc)
 	sDst[nLen] = 0;
 
 	return nLen;
+}
+
+
+inline size_t				CopyToLower(FileNameBuffer sDst, LPCWSTR sSrc)
+{
+	return CopyToLower(sDst, MAX_PATH, sSrc);
 }
 
 

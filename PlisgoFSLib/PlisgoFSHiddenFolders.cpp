@@ -324,9 +324,9 @@ public:
 		if (result.get() != NULL)
 			return result;
 
-		WCHAR sName[MAX_PATH];
+		FileNameBuffer sName;
 
-		CopyToLower(sName, MAX_PATH, sNameUnknownCase);
+		CopyToLower(sName, sNameUnknownCase);
 
 		for(IShellInfoFetcher::BasicFolder::const_iterator it = shelledFiles.begin();
 			it != shelledFiles.end(); ++it)

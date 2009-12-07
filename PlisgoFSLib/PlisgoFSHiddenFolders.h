@@ -57,8 +57,8 @@ public:
 
 	struct BasicFileInfo
 	{
-		WCHAR	sName[MAX_PATH];
-		bool	bIsFolder;
+		FileNameBuffer	sName;
+		bool			bIsFolder;
 	};
 
 	typedef std::vector<BasicFileInfo> BasicFolder;

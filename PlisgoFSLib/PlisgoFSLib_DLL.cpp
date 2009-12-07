@@ -54,9 +54,9 @@ public:
 		}
 		else
 		{
-			WCHAR	sName[MAX_PATH];
-			BOOL	nIsFolder = FALSE;
-			UINT	nRequestIndex = 0;
+			FileNameBuffer	sName;
+			BOOL			nIsFolder = FALSE;
+			UINT			nRequestIndex = 0;
 
 			sName[0] = L'\0';
 

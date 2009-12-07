@@ -321,9 +321,9 @@ void				PlisgoFSFileList::AddFile(LPCWSTR sNameUnknownCase, IPtrPlisgoFSFile fil
 {
 	boost::unique_lock<boost::shared_mutex> lock(m_Mutex);
 
-	WCHAR sName[MAX_PATH];
+	FileNameBuffer sName;
 
-	CopyToLower(sName, MAX_PATH, sNameUnknownCase);
+	CopyToLower(sName, sNameUnknownCase);
 
 	m_files[sName] = file;
 }
@@ -358,9 +358,9 @@ bool				PlisgoFSFileList::ForEachFile(PlisgoFSFolder::EachChild& rEachFile) cons
 
 IPtrPlisgoFSFile	PlisgoFSFileList::GetFile(LPCWSTR sNameUnknownCase) const
 {
-	WCHAR sName[MAX_PATH];
+	FileNameBuffer sName;
 
-	CopyToLower(sName, MAX_PATH, sNameUnknownCase);
+	CopyToLower(sName, sNameUnknownCase);
 
 	boost::shared_lock<boost::shared_mutex> lock(m_Mutex);
 
@@ -1247,7 +1247,7 @@ int				PlisgoFSRedirectionFolder::SetFileTimes(const FILETIME* pCreation,
 }
 
 
-int				PlisgoFSRedirectionFolder::SetAttributes(DWORD	nFileAttributes, ULONGLONG* )
+int					PlisgoFSRedirectionFolder::SetAttributes(DWORD	nFileAttributes, ULONGLONG* )
 {
 	if (!::SetFileAttributesW(m_sRealPath.c_str(), nFileAttributes))
 		return -(int)GetLastError();
@@ -1426,11 +1426,18 @@ static int			GetDeleteFolderError(const std::wstring& rsFolder)
 		else
 			return nError;
 	}
-	else
-	{
-		FindClose(hFind);
-		return -ERROR_DIR_NOT_EMPTY;
-	}
+
+	//skip .. as well as .
+	FindNextFileW(hFind, &findData);
+
+	int nError = 0;
+
+	if (FindNextFileW(hFind, &findData))
+		nError = -ERROR_DIR_NOT_EMPTY;
+
+	FindClose(hFind);
+	
+	return nError;
 }
 
 
@@ -1512,39 +1519,160 @@ int					PlisgoFSRedirectionFolder::Repath(	LPCWSTR sOldName, LPCWSTR sNewName,
 
 bool				PlisgoVFS::AddMount(LPCWSTR sMount, IPtrPlisgoFSFile Mount)
 {
-	IPtrPlisgoFSFile current = TracePath(sMount);
+	assert(sMount != NULL && Mount.get() != NULL);
 
-	if (current.get() == NULL)
-		return false;
+	LPCWSTR sUnknownCaseName = GetNameFromPath(sMount);
 
-	if (current == m_Root)
-		return false; //HELL NO
+	std::wstring sName = sUnknownCaseName;
 
-	std::wstring sMountLowerCase = sMount;
+	boost::trim_right_if(sName, boost::is_any_of(L"\\"));
+	std::transform(sName.begin(),sName.end(),sName.begin(),tolower);
 
-	boost::trim_right_if(sMountLowerCase, boost::is_any_of(L"\\"));
+
+	std::wstring sMountLowerCase(sMount, sUnknownCaseName-sMount);
+
 	boost::trim_left_if(sMountLowerCase, boost::is_any_of(L"\\"));
-
+	boost::trim_right_if(sMountLowerCase, boost::is_any_of(L"\\"));
 	std::transform(sMountLowerCase.begin(),sMountLowerCase.end(),sMountLowerCase.begin(),tolower);
 
 	boost::unique_lock<boost::shared_mutex> lock(m_MountsMutex);
 
-	m_Mounts[sMountLowerCase] = Mount;
+	m_ParentMounts[sMountLowerCase][sName] = Mount;
 
 	return true;
 }
 
 
-IPtrPlisgoFSFile	PlisgoVFS::GetOverride(const std::wstring& rsMount) const
+IPtrPlisgoFSFile	PlisgoVFS::GetChildMount(std::wstring& rsParentPath, LPCWSTR sName) const
 {
 	boost::shared_lock<boost::shared_mutex> lock(m_MountsMutex);
 
-	std::map<std::wstring, IPtrPlisgoFSFile>::const_iterator it = m_Mounts.find(rsMount);
+	ParentMountTable::const_iterator parentIt = m_ParentMounts.find(rsParentPath);
 
-	if (it != m_Mounts.end())
-		return it->second;
+	if (parentIt == m_ParentMounts.end())
+		return IPtrPlisgoFSFile();
+
+	const ChildMountTable& rChildMnts = parentIt->second;
+
+	ChildMountTable::const_iterator childIt = rChildMnts.find(sName);
+
+	if (childIt != rChildMnts.end())
+		return childIt->second;
 
 	return IPtrPlisgoFSFile();
+}
+
+
+
+bool				PlisgoVFS::GetCached(const std::wstring& rsPath, IPtrPlisgoFSFile& rFile) const
+{
+	boost::upgrade_lock<boost::shared_mutex> readLock(m_CacheEntryMutex);
+
+	CacheEntryMap::const_iterator it = m_CacheEntryMap.find(rsPath);
+
+	if (it == m_CacheEntryMap.end())
+		return false;
+
+	rFile = it->second.file;
+
+	ULONG64	nNow;
+
+	GetSystemTimeAsFileTime((FILETIME*)&nNow);
+
+	const ULONG64 NTSECOND = 10000000;
+
+	if (nNow-it->second.nTime > NTSECOND*2)
+	{
+		boost::upgrade_to_unique_lock<boost::shared_mutex> writeLock(readLock);
+
+		const_cast<PlisgoVFS*>(this)->m_CacheEntryMap.erase(it);
+
+		return false;
+	}
+	
+
+	return true;
+}
+
+
+IPtrPlisgoFSFile	PlisgoVFS::TracePath(const std::wstring& rsLowerPath) const
+{
+	if (rsLowerPath.length() == 0)
+		return m_Root;
+
+	IPtrPlisgoFSFile file;
+
+	if (GetCached(rsLowerPath, file))
+		return file;
+
+	LPCWSTR sLowerPath		= rsLowerPath.c_str();
+
+	IPtrPlisgoFSFile parent;
+
+	file = m_Root;
+
+	do
+	{
+		PlisgoFSFolder* pFolder = file->GetAsFolder();
+
+		if (pFolder == NULL)
+		{
+			file.reset();
+			break;
+		}
+
+		parent = file;
+
+		LPCWSTR sSlash = wcschr(sLowerPath, L'\\');
+
+		std::wstring sCurrent(rsLowerPath.begin(), rsLowerPath.begin() + (uintptr_t)(sLowerPath-rsLowerPath.c_str()));
+
+		boost::trim_right_if(sCurrent, boost::is_any_of(L"\\"));
+
+		if (sSlash != NULL)
+		{
+			FileNameBuffer sName;
+
+			memcpy_s(sName, sizeof(WCHAR)*MAX_PATH, sLowerPath, sizeof(WCHAR)*(sSlash-sLowerPath));
+
+			sName[sSlash-sLowerPath] = L'\0';
+
+			file = GetChildMount(sCurrent, sName);
+
+			if (file.get() == NULL)
+				file = pFolder->GetChild(sName);
+		}
+		else
+		{
+			file = GetChildMount(sCurrent, sLowerPath);
+
+			if (file.get() == NULL)
+				file = pFolder->GetChild(sLowerPath);
+		}
+
+		if (file.get() == NULL)
+			break;
+
+		if (sSlash != NULL)
+		{
+			if (!(file->GetAttributes() & FILE_ATTRIBUTE_DIRECTORY) || file->GetAsFolder() == NULL)
+			{
+				file.reset();
+				break;
+			}
+		
+			++sSlash;
+
+			const_cast<PlisgoVFS*>(this)->AddToCache(sCurrent, parent);
+		}
+
+		sLowerPath = sSlash;
+	}
+	while(sLowerPath != NULL && sLowerPath[0] != L'\0');
+	
+	const_cast<PlisgoVFS*>(this)->AddToCache(rsLowerPath, file);
+
+	return file;
 }
 
 
@@ -1561,98 +1689,281 @@ IPtrPlisgoFSFile	PlisgoVFS::TracePath(LPCWSTR sPath, IPtrPlisgoFSFile* pParent) 
 	if (sPath[0] == L'\0')
 		return m_Root;
 
+	std::wstring sPathLowerCase = sPath;
 
-	std::wstring sOrgPathLowerCase = sPath;
+	std::transform(sPathLowerCase.begin(),sPathLowerCase.end(),sPathLowerCase.begin(),tolower);
 
-	std::transform(sOrgPathLowerCase.begin(),sOrgPathLowerCase.end(),sOrgPathLowerCase.begin(),tolower);
+	boost::trim_left_if(sPathLowerCase, boost::is_any_of(L"\\"));
+	boost::trim_right_if(sPathLowerCase, boost::is_any_of(L"\\"));
 
-	boost::trim_right_if(sOrgPathLowerCase, boost::is_any_of(L"\\"));
+	IPtrPlisgoFSFile file = TracePath(sPathLowerCase);
 
-	LPCWSTR sOrgPath		= sPath;
-	LPCWSTR sLowerPath		= sOrgPathLowerCase.c_str();
-	size_t	nLowerPathEndPos = 0;
-
-
-	IPtrPlisgoFSFile file = m_Root;
-
-	do
+	if (pParent != NULL)
 	{
-		PlisgoFSFolder* pFolder = file->GetAsFolder();
+		size_t nSlash = sPathLowerCase.rfind(L'\\');
 
-		if (pFolder == NULL)
-			goto failedExit; //No a valid path
-
-		if (pParent != NULL)
-			(*pParent) = file;
-
-		LPCWSTR sSlash = wcschr(sPath, L'\\');
-
-		if (sSlash != NULL)
+		if (nSlash != -1)
 		{
-			WCHAR sName[MAX_PATH];
+			sPathLowerCase.resize(nSlash);
 
-			memcpy_s(sName, sizeof(WCHAR)*MAX_PATH, sPath, sizeof(WCHAR)*(sSlash-sPath));
-
-			sName[sSlash-sPath] = L'\0';
-
-			file = pFolder->GetChild(sName);
-
-			nLowerPathEndPos = sSlash-sOrgPath;
+			*pParent = TracePath(sPathLowerCase);
 		}
-		else
-		{
-			file = pFolder->GetChild(sPath);
-			nLowerPathEndPos = NULL;
-		}
-
-		if (file.get() == NULL)
-			goto failedExit; //No a valid path
-
-		IPtrPlisgoFSFile mnt = GetOverride(sOrgPathLowerCase.substr(0, nLowerPathEndPos));
-
-		if (mnt.get() != NULL)
-			file = mnt;
-
-		if (sSlash != NULL)
-		{
-			if (!(file->GetAttributes() & FILE_ATTRIBUTE_DIRECTORY) || file->GetAsFolder() == NULL)
-				goto failedExit; //No a valid path
-		
-			++sSlash;
-		}
-
-		sPath = sSlash;
+		else *pParent = m_Root;
 	}
-	while(sPath != NULL && sPath[0] != L'\0');
 
 	return file;
-
-failedExit:
-
-	//If there is more path, then the parent isn't parent
-	if (pParent != NULL && (sPath == NULL || wcschr(sPath, L'\\') != NULL))
-		pParent->reset();
-
-	return IPtrPlisgoFSFile();
 }
 
 
-void				PlisgoVFS::RemoveDownstreamMounts(std::wstring sMount)
+int					PlisgoVFS::CreateFolder(LPCWSTR sPath)
 {
-	std::transform(sMount.begin(),sMount.end(),sMount.begin(),tolower);
+	if (sPath == NULL)
+		return -ERROR_BAD_PATHNAME;
 
-	boost::trim_right_if(sMount, boost::is_any_of(L"\\"));
+	LPCWSTR sName = GetNameFromPath(sPath);
 
-	boost::shared_lock<boost::shared_mutex> lock(m_MountsMutex);
+	std::wstring sPathLowerCase = sPath;
 
-	for(MountTable::const_iterator it = m_Mounts.begin(); it != m_Mounts.end();)
+	sPathLowerCase.resize(sName-sPath);
+
+	std::transform(sPathLowerCase.begin(),sPathLowerCase.end(),sPathLowerCase.begin(),tolower);
+
+	boost::trim_left_if(sPathLowerCase, boost::is_any_of(L"\\"));
+
+	IPtrPlisgoFSFile parent = TracePath(sPathLowerCase);
+
+	if (parent.get() == NULL)
+		return -ERROR_BAD_PATHNAME;
+
+	PlisgoFSFolder* pFolder = parent->GetAsFolder();
+
+	if (pFolder == NULL)
+		return -ERROR_BAD_PATHNAME;
+
+	IPtrPlisgoFSFile child;
+
+	return pFolder->CreateChild(child, sName, FILE_ATTRIBUTE_DIRECTORY);
+}
+
+
+
+class MountSensitiveEachChild : public PlisgoFSFolder::EachChild 
+{
+public:
+
+	MountSensitiveEachChild(PlisgoFSFolder::EachChild&				rCB,
+							const PlisgoVFS::ChildMountTable&		rChildMnts) :
+																m_CB(rCB),
+																m_rChildMnts(rChildMnts)
 	{
-		if (sMount.compare(0, sMount.length(), it->first) == 0)
+	}					
+
+	virtual bool Do(LPCWSTR sUnknownCaseName, IPtrPlisgoFSFile file)
+	{
+		WCHAR sName[MAX_PATH];
+
+		CopyToLower(sName, MAX_PATH, sUnknownCaseName);
+		
+		const PlisgoVFS::ChildMountTable::const_iterator it = m_rChildMnts.find(sName);
+
+		if (it != m_rChildMnts.end())
+			return m_CB.Do(sName, it->second);
+
+		return m_CB.Do(sName, file);
+	}
+
+	PlisgoFSFolder::EachChild&			m_CB;
+	const PlisgoVFS::ChildMountTable&	m_rChildMnts;
+};
+
+
+int					PlisgoVFS::ForEachChild(PlisgoFileHandle&	rHandle, PlisgoFSFolder::EachChild& rCB) const
+{
+	OpenFileData* pOpenFileData = GetOpenFileData(rHandle);
+
+	if (pOpenFileData == NULL)
+		return -ERROR_INVALID_HANDLE;
+
+	PlisgoFSFolder* pFolder = pOpenFileData->File->GetAsFolder();
+
+	if (pFolder == NULL)
+		return -ERROR_ACCESS_DENIED;
+
+
+	std::wstring sPathLowerCase = pOpenFileData->sPath;
+
+	std::transform(sPathLowerCase.begin(),sPathLowerCase.end(),sPathLowerCase.begin(),tolower);
+
+	boost::trim_left_if(sPathLowerCase, boost::is_any_of(L"\\"));
+	boost::trim_right_if(sPathLowerCase, boost::is_any_of(L"\\"));
+
+	{
+		boost::shared_lock<boost::shared_mutex> lock(m_MountsMutex);
+
+		ParentMountTable::const_iterator parentIt = m_ParentMounts.find(sPathLowerCase);
+
+		if (parentIt != m_ParentMounts.end())
 		{
-			m_Mounts.erase(it);
-			it = m_Mounts.begin();
+			const ChildMountTable& rChildMnts = parentIt->second;
+
+			MountSensitiveEachChild cb(rCB, rChildMnts);
+
+			pFolder->ForEachChild(cb);
+
+			return 0;
 		}
-		else ++it;
+	}
+
+	pFolder->ForEachChild(rCB);
+
+	return 0;
+}
+
+
+
+
+void				PlisgoVFS::RemoveDownstreamMounts(std::wstring sFile)
+{
+	boost::unique_lock<boost::shared_mutex> lock(m_MountsMutex);
+
+	for(ParentMountTable::iterator parentIt = m_ParentMounts.begin(); parentIt != m_ParentMounts.end();)
+	{
+		ChildMountTable& rChildMnts = parentIt->second;
+
+		for(ChildMountTable::iterator childIt = rChildMnts.begin(); childIt != rChildMnts.end();)
+		{
+			std::wstring sMount = parentIt->first + L"\\" + childIt->first;
+
+			if (sFile.compare(0, sFile.length(), sMount) == 0)
+			{
+				//Check it is a sub path, not just some matching folder names
+				//I.e.  \\some\\folder\\more not \\some\\folderWeIgnore
+				if (sMount.length() > sFile.length() &&
+					sMount[sFile.length()] != L'\\')
+				{
+					++childIt;
+				}
+				else
+				{
+					rChildMnts.erase(childIt);
+					childIt = rChildMnts.begin();
+				}
+			}
+			else ++childIt;
+		}
+
+		if (rChildMnts.size() == 0)
+		{
+			m_ParentMounts.erase(parentIt);
+			parentIt = m_ParentMounts.begin();
+		}
+		else ++parentIt;
+	}
+}
+
+
+void				PlisgoVFS::MoveMounts(std::wstring sOldPath, std::wstring sNewPath)
+{
+	/*
+		You might want a coffee before you read this.
+
+		The aim here is to change all mounts effected by sOldPath being moved to sNewPath
+	*/
+
+	boost::trim_right_if(sOldPath, boost::is_any_of(L"\\"));
+	boost::trim_right_if(sNewPath, boost::is_any_of(L"\\"));
+
+	std::transform(sOldPath.begin(),sOldPath.end(),sOldPath.begin(),tolower);
+	std::transform(sNewPath.begin(),sNewPath.end(),sNewPath.begin(),tolower);
+
+
+	for(ParentMountTable::iterator parentIt = m_ParentMounts.begin(); parentIt != m_ParentMounts.end();)
+	{
+		ChildMountTable& rChildMnts = parentIt->second;
+
+		if (sOldPath.compare(parentIt->first) == 0)
+		{
+			//Easy case, old path is the parent mount path, just move child mounts to new parent mount
+
+			ChildMountTable childMnts; //We must use a copy as rChildMnts address could change when we add new parent mount
+
+			for(ChildMountTable::iterator childIt = rChildMnts.begin(); childIt != rChildMnts.end();++childIt)
+				childMnts[childIt->first] = childIt->second;
+			
+			m_ParentMounts.erase(parentIt->first);
+			m_ParentMounts[sNewPath] = childMnts;
+
+			parentIt = m_ParentMounts.begin();
+		}
+		else
+		{
+			//See if any of the child mounts are effected
+
+			for(ChildMountTable::iterator childIt = rChildMnts.begin(); childIt != rChildMnts.end();)
+			{
+				std::wstring sOldMount = parentIt->first + L"\\" + childIt->first;
+
+				if (sOldMount.compare(sOldPath) == 0)
+				{
+					//Child mount is being moved
+					LPCWSTR sNamePos = GetNameFromPath(sNewPath);
+
+					std::wstring sNewParentMount = sNewPath;
+
+					FileNameBuffer sName;
+
+					CopyToLower(sName, sNamePos);
+
+					sNewParentMount.resize(sNamePos-sNewPath.c_str());
+
+					IPtrPlisgoFSFile file = childIt->second;
+
+					rChildMnts.erase(childIt);
+					m_ParentMounts[sNewParentMount][sName] = file;
+
+					childIt = rChildMnts.begin();
+				}
+				else if (sOldPath.compare(0, sOldPath.length(), sOldMount) == 0)
+				{
+					//Decendant of the mount
+
+					//Check it is a sub path, not just some matching folder names
+					//I.e.  \\some\\folder\\more not \\some\\folderWeIgnore
+					if (sOldMount.length() > sOldPath.length() &&
+						sOldMount[sOldPath.length()] != L'\\')
+					{
+						++childIt;
+						continue;
+					}
+
+					std::wstring sNewParentMount = sNewPath + sOldMount.substr(sOldPath.length());
+
+					LPCWSTR sNamePos = GetNameFromPath(sNewParentMount);
+
+					FileNameBuffer sName;
+
+					CopyToLower(sName, sNamePos);
+
+					sNewParentMount.resize(sNamePos-sNewParentMount.c_str());
+
+					IPtrPlisgoFSFile file = childIt->second;
+
+					rChildMnts.erase(childIt);
+					m_ParentMounts[sNewParentMount][sName] = file;
+
+					childIt = rChildMnts.begin();
+				}
+				else ++childIt;
+			}
+		
+
+			if (rChildMnts.size() == 0)
+			{
+				m_ParentMounts.erase(parentIt);
+				parentIt = m_ParentMounts.begin();
+			}
+			else ++parentIt;
+		}
 	}
 }
 
@@ -1684,7 +1995,10 @@ int					PlisgoVFS::Repath(LPCWSTR sOldPath, LPCWSTR sNewPath, bool bReplaceExist
 	PlisgoFSFolder* pOldParent = oldParent->GetAsFolder();
 
 	//Get the mount lock as the mount table may change
-	boost::shared_lock<boost::shared_mutex> lock(m_MountsMutex);
+	boost::unique_lock<boost::shared_mutex> mntLock(m_MountsMutex);
+
+	//Get the cache entry lock as we will need to nuke the cache
+	boost::unique_lock<boost::shared_mutex> cacheLock(m_CacheEntryMutex);
 
 	int nError = pOldParent->Repath(GetNameFromPath(sOldPath),
 									GetNameFromPath(sNewPath),
@@ -1694,34 +2008,10 @@ int					PlisgoVFS::Repath(LPCWSTR sOldPath, LPCWSTR sNewPath, bool bReplaceExist
 		return nError;
 
 	//Update the mount table
+	MoveMounts(sOldPath, sNewPath);
 
-	std::wstring sOldMount = sOldPath;
-	std::wstring sNewMount = sNewPath;
-
-	boost::trim_right_if(sOldMount, boost::is_any_of(L"\\"));
-	boost::trim_right_if(sNewMount, boost::is_any_of(L"\\"));
-
-	std::transform(sOldMount.begin(),sOldMount.end(),sOldMount.begin(),tolower);
-	std::transform(sNewMount.begin(),sNewMount.end(),sNewMount.begin(),tolower);
-
-
-	for(MountTable::const_iterator it = m_Mounts.begin(); it != m_Mounts.end();)
-	{
-		if (sOldMount.compare(0, sOldMount.length(), it->first) == 0)
-		{
-			IPtrPlisgoFSFile mnt = it->second;
-			std::wstring sMount = it->first;
-
-			m_Mounts.erase(it);
-
-			sMount.replace(0, sOldMount.length(), sNewMount);
-
-			m_Mounts[sMount] = mnt;
-
-			it = m_Mounts.begin();
-		}
-		else ++it;
-	}
+	//Nuke the cache
+	m_CacheEntryMap.clear();
 
 	return 0;
 }
@@ -1780,8 +2070,14 @@ int					PlisgoVFS::Open(	PlisgoFileHandle&	rHandle,
 	}
 
 	pOpenFileData->File = file;
+
+	while(*sPath == L'\\')
+		++sPath;
+
 	pOpenFileData->sPath = sPath;
 	pOpenFileData->nData = nOpenInstaceData;
+
+	boost::trim_right_if(pOpenFileData->sPath, boost::is_any_of(L"\\"));
 
 	rHandle = (PlisgoFileHandle)pOpenFileData;
 
@@ -1800,32 +2096,6 @@ PlisgoVFS::OpenFileData*		PlisgoVFS::GetOpenFileData(PlisgoFileHandle&	rHandle) 
 		return NULL;
 
 	return pOpenFileData;
-}
-
-
-IPtrPlisgoFSFile	PlisgoVFS::GetFileFromHandle(PlisgoFileHandle&	rHandle) const
-{
-	OpenFileData* pOpenFileData = GetOpenFileData(rHandle);
-
-	if (pOpenFileData == NULL)
-		return IPtrPlisgoFSFile();
-
-	return pOpenFileData->File;
-}
-
-
-IPtrPlisgoFSFile	PlisgoVFS::GetParentFromHandle(PlisgoFileHandle&	rHandle) const
-{
-	OpenFileData* pOpenFileData = GetOpenFileData(rHandle);
-
-	if (pOpenFileData == NULL)
-		return IPtrPlisgoFSFile();
-
-	size_t nSlash = pOpenFileData->sPath.rfind(L'\\');
-
-	std::wstring sParentPath = pOpenFileData->sPath.substr(0, nSlash);
-
-	return TracePath(sParentPath.c_str());
 }
 
 
@@ -1934,7 +2204,19 @@ int					PlisgoVFS::Close(PlisgoFileHandle&	rHandle, bool bDeleteOnClose)
 	if (!bDeleteOnClose)
 		return 0;
 	
-	IPtrPlisgoFSFile parent = GetParentFromHandle(rHandle);
+	std::wstring sPathLowerCase = pOpenFileData->sPath;
+
+	boost::trim_left_if(sPathLowerCase, boost::is_any_of(L"\\"));
+	boost::trim_right_if(sPathLowerCase, boost::is_any_of(L"\\"));
+
+	std::transform(sPathLowerCase.begin(),sPathLowerCase.end(),sPathLowerCase.begin(),tolower);
+
+	size_t nSlash = sPathLowerCase.rfind(L'\\');
+
+	if (nSlash == -1)
+		nSlash = 0;
+
+	IPtrPlisgoFSFile parent = TracePath(sPathLowerCase.substr(0,nSlash));
 
 	assert(parent.get() != NULL);
 
@@ -1942,12 +2224,18 @@ int					PlisgoVFS::Close(PlisgoFileHandle&	rHandle, bool bDeleteOnClose)
 
 	assert(pFolder != NULL);
 
-	nError = pFolder->RemoveChild(GetNameFromPath(pOpenFileData->sPath.c_str()));
+	{
+		boost::unique_lock<boost::shared_mutex> lock(m_CacheEntryMutex);
 
-	if (nError != 0)
-		return nError;
+		nError = pFolder->RemoveChild(GetNameFromPath(pOpenFileData->sPath.c_str()));
 
-	RemoveDownstreamMounts(pOpenFileData->sPath);
+		if (nError == 0)
+		{
+			m_CacheEntryMap.clear();
+			RemoveDownstreamMounts(sPathLowerCase);
+		}
+		else return nError;
+	}	
 
 	boost::unique_lock<boost::shared_mutex>	lock(m_OpenFilePoolMutex);
 
@@ -1964,7 +2252,14 @@ int					PlisgoVFS::GetDeleteError(PlisgoFileHandle&	rHandle) const
 	if (pOpenFileData == NULL)
 		return -ERROR_INVALID_HANDLE;
 
-	IPtrPlisgoFSFile parent = GetParentFromHandle(rHandle);
+	const std::wstring sPath = pOpenFileData->sPath;
+
+	size_t nSlash = sPath.rfind(L'\\');
+
+	if (nSlash == -1)
+		nSlash = 0;
+
+	IPtrPlisgoFSFile parent = TracePath(sPath.substr(0, nSlash));
 
 	assert(parent.get() != NULL);
 
@@ -2017,3 +2312,14 @@ int					PlisgoVFS::GetHandleInfo(PlisgoFileHandle&	rHandle, LPBY_HANDLE_FILE_INF
 	return pOpenFileData->File->GetHandleInfo(pInfo, &pOpenFileData->nData);
 }
 
+
+void				PlisgoVFS::AddToCache(const std::wstring& rsLowerPath, IPtrPlisgoFSFile file)
+{
+	boost::unique_lock<boost::shared_mutex> writeLock(m_CacheEntryMutex);
+
+	Cached& rCached = m_CacheEntryMap[rsLowerPath];
+
+	rCached.file = file;
+	
+	GetSystemTimeAsFileTime((FILETIME*)&rCached.nTime);
+}
