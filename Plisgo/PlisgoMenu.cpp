@@ -32,6 +32,10 @@ int gShellIDList = RegisterClipboardFormat(CFSTR_SHELLIDLIST);
 #define HIDA_GetPIDLItem(pida, i) (LPCITEMIDLIST)(((LPBYTE)pida)+(pida)->aoffset[i+1])
 
 
+typedef std::tr1::unordered_map<std::wstring, bool>		DoneCacheMap;
+
+
+
 /*
 	We don't know if the icons in the treenode have changed, so assume they have.
 	This is a hack, but it works and is fast.
@@ -188,7 +192,7 @@ static void			UpdateItem(IShellFolder* pDesktop, const std::wstring& rsFullPath)
 
 
 
-static void			RefreshFreeNode(IShellFolder* pDesktop, HWND hWnd, HTREEITEM hItem, const std::wstring& rsFullPath, std::map<std::wstring, bool>& rDoneCache )
+static void			RefreshFreeNode(IShellFolder* pDesktop, HWND hWnd, HTREEITEM hItem, const std::wstring& rsFullPath, DoneCacheMap& rDoneCache )
 {
 	if (rDoneCache.count(rsFullPath) == 0)
 	{
@@ -225,7 +229,7 @@ static void			RefreshFreeNode(IShellFolder* pDesktop, HWND hWnd, HTREEITEM hItem
 
 
 
-static void			RefreshSelection(IShellFolder* pDesktop, HWND hWnd, const std::wstring& rsBase, const WStringList& rPaths, std::map<std::wstring, bool>& rDoneCache )
+static void			RefreshSelection(IShellFolder* pDesktop, HWND hWnd, const std::wstring& rsBase, const WStringList& rPaths, DoneCacheMap& rDoneCache )
 {
 	if (hWnd == NULL)
 		return;
@@ -266,10 +270,10 @@ struct RefreshFolderSelectionPacket
 															pDesktop(_pDesktop)
 	{}
 
-	const std::wstring&				rsBase;
-	const WStringList&				rsFolders;
-	std::map<std::wstring, bool>	DoneCache;
-	IShellFolder*					pDesktop;
+	const std::wstring&		rsBase;
+	const WStringList&		rsFolders;
+	DoneCacheMap			DoneCache;
+	IShellFolder*			pDesktop;
 };
 
 

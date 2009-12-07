@@ -587,7 +587,7 @@ bool		RefIconList::GetFileIconLocation(IconLocation& rIconLocation, const std::w
 
 	boost::upgrade_lock<boost::shared_mutex> lock(m_Mutex);
 
-	std::map<std::wstring, int>::const_iterator it = m_Extensions.find(sKey);
+	CachedIconsMap::const_iterator it = m_Extensions.find(sKey);
 
 	if (it != m_Extensions.end())
 	{
@@ -946,7 +946,7 @@ IPtrFSIconRegistry	IconRegistry::GetFSIconRegistry(LPCWSTR sFS, int nVersion, st
 	{
 		boost::upgrade_lock<boost::shared_mutex> lock(m_Mutex);
 
-		std::map<std::wstring, boost::weak_ptr<FSIconRegistry> >::const_iterator it = m_FSIconRegistries.find(sKey);
+		FSIconRegistries::const_iterator it = m_FSIconRegistries.find(sKey);
 
 		if (it != m_FSIconRegistries.end())
 		{
@@ -964,7 +964,7 @@ IPtrFSIconRegistry	IconRegistry::GetFSIconRegistry(LPCWSTR sFS, int nVersion, st
 	boost::lock_guard<boost::shared_mutex> rwLock(m_Mutex);
 
 	{
-		std::map<std::wstring, boost::weak_ptr<FSIconRegistry> >::const_iterator it = m_FSIconRegistries.find(sKey);
+		FSIconRegistries::const_iterator it = m_FSIconRegistries.find(sKey);
 
 		if (it != m_FSIconRegistries.end())
 		{

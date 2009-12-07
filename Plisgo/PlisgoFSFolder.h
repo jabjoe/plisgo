@@ -124,10 +124,10 @@ private:
 	UINT									m_nFileDefaultIconImageList;
 	UINT									m_nFileDefaultIconImageIndex;
 
-	typedef std::map<std::wstring, std::pair<UINT,UINT> >			ExtIconIndicesMap;
+	typedef std::tr1::unordered_map<std::wstring, std::pair<UINT,UINT> >	ExtIconIndicesMap;
 
-	ExtIconIndicesMap						m_ExtIconIndices;
+	ExtIconIndicesMap														m_ExtIconIndices;
 
-	IPtrFSIconRegistry						m_IconRegistry;
+	IPtrFSIconRegistry														m_IconRegistry;
 };
 

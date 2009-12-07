@@ -45,7 +45,7 @@ private:
 	IPtrPlisgoFSRoot			ReturnValidRoot(IPtrPlisgoFSRoot root, const std::wstring& rsPath) const;
 
 
-	typedef std::map<std::wstring, IPtrPlisgoFSRoot>	RootCacheMap;
+	typedef std::tr1::unordered_map<std::wstring, IPtrPlisgoFSRoot>	RootCacheMap;
 
 	RootCacheMap					m_RootCache;
 

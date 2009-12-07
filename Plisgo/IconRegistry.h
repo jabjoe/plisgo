@@ -153,15 +153,15 @@ private:
 	typedef std::tr1::unordered_map<std::wstring,int>		CachedIconsMap;
 
 
-	mutable boost::shared_mutex		m_Mutex;
-	UINT							m_nHeight;
-	CComPtr<IImageList>				m_ImageList;
-	std::map<std::wstring, int>		m_Extensions;
-	std::map<int, std::wstring>		m_ExtensionsInverse;
-	std::vector<bool>				m_EntryUsed;
-	std::vector<CachedIcon>			m_CachedIcons;
-	CachedIconsMap					m_CachedIconsMap;
-	ULONG64							m_nLastOldestEntry;
+	mutable boost::shared_mutex				m_Mutex;
+	UINT									m_nHeight;
+	CComPtr<IImageList>						m_ImageList;
+	CachedIconsMap							m_Extensions;
+	std::map<int, std::wstring>				m_ExtensionsInverse;
+	std::vector<bool>						m_EntryUsed;
+	std::vector<CachedIcon>					m_CachedIcons;
+	CachedIconsMap							m_CachedIconsMap;
+	ULONG64									m_nLastOldestEntry;
 };
 
 
@@ -178,8 +178,10 @@ public:
 
 private:
 
-	std::map<std::wstring, boost::weak_ptr<FSIconRegistry> >	m_FSIconRegistries;
-	std::vector<boost::weak_ptr<RefIconList> >					m_IconLists;
-	mutable boost::shared_mutex									m_Mutex;
+	typedef std::tr1::unordered_map<std::wstring, boost::weak_ptr<FSIconRegistry> >	FSIconRegistries;
+
+	FSIconRegistries								m_FSIconRegistries;
+	std::vector<boost::weak_ptr<RefIconList> >		m_IconLists;
+	mutable boost::shared_mutex						m_Mutex;
 };
 
