@@ -597,6 +597,12 @@ bool		RefIconList::GetFileIconLocation(IconLocation& rIconLocation, const std::w
 
 			return rIconLocation.IsValid();
 		}
+		else
+		{
+			rIconLocation = m_CachedIcons[DEFAULTFILEICONINDEX].Location;
+
+			return rIconLocation.IsValid();
+		}
 	}
 	
 	boost::upgrade_to_unique_lock<boost::shared_mutex> rwlock(lock);
@@ -608,6 +614,12 @@ bool		RefIconList::GetFileIconLocation(IconLocation& rIconLocation, const std::w
 		if (it->second > -1)
 		{
 			rIconLocation = m_CachedIcons[it->second].Location;
+
+			return rIconLocation.IsValid();
+		}
+		else
+		{
+			rIconLocation = m_CachedIcons[DEFAULTFILEICONINDEX].Location;
 
 			return rIconLocation.IsValid();
 		}
@@ -625,8 +637,16 @@ bool		RefIconList::GetFileIconLocation(IconLocation& rIconLocation, const std::w
 	}
 	else rIconLocation = m_CachedIcons[DEFAULTFILEICONINDEX].Location;
 
-	const_cast<RefIconList*>(this)->m_Extensions[sKey] = nResult;
-	const_cast<RefIconList*>(this)->m_ExtensionsInverse[nResult] = sKey;
+	if (nResult != -1 && nResult != DEFAULTFILEICONINDEX)
+	{
+		const_cast<RefIconList*>(this)->m_Extensions[sKey] = nResult;
+		const_cast<RefIconList*>(this)->m_ExtensionsInverse[nResult] = sKey;
+	}
+	else
+	{
+		const_cast<RefIconList*>(this)->m_Extensions[sKey] = DEFAULTFILEICONINDEX;
+		rIconLocation = m_CachedIcons[DEFAULTFILEICONINDEX].Location;
+	}
 
 	return rIconLocation.IsValid();
 }
