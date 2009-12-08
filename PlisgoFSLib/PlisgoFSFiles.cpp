@@ -97,18 +97,6 @@ int	PlisgoFSFile::GetHandleInfo(LPBY_HANDLE_FILE_INFORMATION pInfo, ULONGLONG* )
 */
 
 
-class ChildCount : public PlisgoFSFolder::EachChild
-{
-public:
-	ChildCount()	{ m_nChildNum = 0; }
-
-	virtual bool Do(LPCWSTR , IPtrPlisgoFSFile ) { ++m_nChildNum; return true; }
-
-	UINT	m_nChildNum;
-
-};
-
-
 int				PlisgoFSFolder::Open(	DWORD	nDesiredAccess,
 										DWORD	,
 										DWORD	nCreationDisposition,
@@ -122,16 +110,6 @@ int				PlisgoFSFolder::Open(	DWORD	nDesiredAccess,
 		return -ERROR_ACCESS_DENIED;
 
 	return 0;
-}
-
-
-UINT					PlisgoFSFolder::GetChildNum() const
-{
-	ChildCount counter;
-
-	ForEachChild(counter);
-
-	return counter.m_nChildNum;
 }
 
 
@@ -1323,33 +1301,6 @@ IPtrPlisgoFSFile	PlisgoFSRedirectionFolder::GetChild(LPCWSTR sName) const
 	FindClose(hFind);
 	
 	return result;
-}
-
-
-UINT				PlisgoFSRedirectionFolder::GetChildNum() const
-{
-	UINT nResult = 0;
-
-	WIN32_FIND_DATAW	findData;
-
-	std::wstring sRealSearchPath = m_sRealPath + L"\\*";
-
-	HANDLE hFind = FindFirstFileW(sRealSearchPath.c_str(), &findData);
-
-	if (hFind == NULL || hFind == INVALID_HANDLE_VALUE)
-		return 0;
-	
-	if (FindNextFileW(hFind, &findData)) //Skip . and ..
-	{
-		while(FindNextFileW(hFind, &findData)) 
-		{
-			++nResult;
-		}
-	}
-
-	FindClose(hFind);
-
-	return nResult;
 }
 
 

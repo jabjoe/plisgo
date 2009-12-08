@@ -87,28 +87,6 @@ public:
 		return true;
 	}
 
-
-	virtual UINT				GetChildNum() const
-	{
-		IShellInfoFetcher::BasicFolder shelledFiles;
-
-		if (!m_pRoot->GetShellInfoFetcher()->ReadShelled(m_sSubjectPath, &shelledFiles) || shelledFiles.size() == 0)
-			return 0;
-
-		int nResult = 0;
-
-		for(IShellInfoFetcher::BasicFolder::const_iterator it = shelledFiles.begin();
-			it != shelledFiles.end(); ++it)
-		{
-			IPtrPlisgoFSFile file = InternalGetChild(it->sName);
-
-			if (file.get() != NULL)
-				++nResult;
-		}
-
-		return nResult;
-	}
-
 protected:
 
 	virtual IPtrPlisgoFSFile	InternalGetChild(const std::wstring& rsName) const
@@ -336,30 +314,6 @@ public:
 		}
 
 		return IPtrPlisgoFSFile();
-	}
-
-
-	virtual UINT				GetChildNum() const
-	{
-		InitVirtualFolder();
-
-		UINT nResult = m_virtualChildren.GetLength();
-
-		IShellInfoFetcher::BasicFolder shelledFiles;
-
-		if (!m_pRoot->GetShellInfoFetcher()->ReadShelled(m_sSubjectPath, &shelledFiles))
-			return 0;
-
-		// Only folders exist in the .shellinfo folder
-		// but files and folders have entries in the  .column_n  .custom_icons  .overlays_icons  .thumbnails  sub folders
-		for(IShellInfoFetcher::BasicFolder::const_iterator it = shelledFiles.begin();
-			it != shelledFiles.end(); ++it)
-		{
-			if (it->bIsFolder)
-				++nResult;
-		}
-
-		return nResult;
 	}
 
 

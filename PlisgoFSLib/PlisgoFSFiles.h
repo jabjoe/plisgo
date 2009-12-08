@@ -144,7 +144,6 @@ public:
 	virtual bool				ForEachChild(EachChild& rEachChild) const = 0;
 	virtual IPtrPlisgoFSFile	GetChild(LPCWSTR sName) const = 0;
 
-	virtual UINT				GetChildNum() const;
 	virtual int					AddChild(LPCWSTR sName, IPtrPlisgoFSFile file)	{ return -ERROR_ACCESS_DENIED; }
 
 	virtual int					CreateChild(IPtrPlisgoFSFile& rChild, LPCWSTR sName, DWORD nAttr)	{ return -ERROR_ACCESS_DENIED; }
@@ -194,11 +193,6 @@ public:
 	virtual IPtrPlisgoFSFile	GetChild(LPCWSTR sName) const
 	{
 		return m_childList.GetFile(sName);
-	}
-
-	virtual UINT				GetChildNum() const
-	{
-		return m_childList.GetLength();
 	}
 
 	virtual int					AddChild(LPCWSTR sName, IPtrPlisgoFSFile file)
@@ -436,8 +430,6 @@ public:
 	virtual bool				ForEachChild(PlisgoFSFolder::EachChild& rEachChild) const;
 
 	virtual IPtrPlisgoFSFile	GetChild(LPCWSTR sName) const;
-
-	virtual UINT				GetChildNum() const;
 
 	virtual int					AddChild(LPCWSTR sName, IPtrPlisgoFSFile file);
 	virtual int					CreateChild(IPtrPlisgoFSFile& rChild, LPCWSTR sName, DWORD nAttr);

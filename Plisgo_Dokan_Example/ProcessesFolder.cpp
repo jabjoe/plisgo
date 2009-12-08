@@ -371,14 +371,6 @@ IPtrPlisgoFSFile	ProcessesFolder::GetChild(LPCWSTR sName) const
 }
 
 
-UINT				ProcessesFolder::GetChildNum() const
-{ 
-	boost::upgrade_lock<boost::shared_mutex> lock(m_Mutex);
-
-	return (UINT)(m_Processes.size() + m_Extras.GetLength());
-} 
-
-
 
 
 //IShellInfoFetcher Interface

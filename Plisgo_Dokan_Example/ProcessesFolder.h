@@ -46,7 +46,6 @@ public:
 
 	virtual bool				ForEachChild(EachChild& rEachChild) const;
 	virtual IPtrPlisgoFSFile	GetChild(LPCWSTR sName) const;
-	virtual UINT				GetChildNum() const;
 
 
 	//IShellInfoFetcher Interface
