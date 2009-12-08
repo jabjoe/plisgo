@@ -51,13 +51,15 @@
 #include "ProcessesFolder.h"
 
 
-boost::shared_ptr<PlisgoVFS>				g_PlisgoVFS;
-
 
 //Uncomment if you wish to compile against the latest Dokan from SVN
 //#define SVN_DOKAN_VERSION
 
 
+inline PlisgoVFS*	GetPlisgoVFS(PDOKAN_FILE_INFO	pDokanFileInfo)
+{
+	return (PlisgoVFS*)pDokanFileInfo->DokanOptions->GlobalContext;
+}
 
 
 int __stdcall	PlisgoExampleCreateFile(LPCWSTR					sFileName,
@@ -67,7 +69,7 @@ int __stdcall	PlisgoExampleCreateFile(LPCWSTR					sFileName,
 										DWORD					nFlagsAndAttributes,
 										PDOKAN_FILE_INFO		pDokanFileInfo)
 {
-	return g_PlisgoVFS->Open((PlisgoVFS::PlisgoFileHandle&)pDokanFileInfo->Context, sFileName,
+	return GetPlisgoVFS(pDokanFileInfo)->Open((PlisgoVFS::PlisgoFileHandle&)pDokanFileInfo->Context, sFileName,
 							nAccessMode, nShareMode, nCreationDisposition, nFlagsAndAttributes);
 }
 
@@ -75,7 +77,7 @@ int __stdcall	PlisgoExampleCreateFile(LPCWSTR					sFileName,
 int __stdcall	PlisgoExampleCreateDirectory(	LPCWSTR					sFileName,
 												PDOKAN_FILE_INFO		pDokanFileInfo)
 {
-	return g_PlisgoVFS->CreateFolder(sFileName);
+	return GetPlisgoVFS(pDokanFileInfo)->CreateFolder(sFileName);
 }
 
 
@@ -94,7 +96,7 @@ int __stdcall	PlisgoExampleOpenDirectory(	LPCWSTR					sFileName,
 int __stdcall	PlisgoExampleCloseFile(	LPCWSTR					sFileName,
 										PDOKAN_FILE_INFO		pDokanFileInfo)
 {
-	return g_PlisgoVFS->Close((PlisgoVFS::PlisgoFileHandle&)pDokanFileInfo->Context, (pDokanFileInfo->DeleteOnClose)?true:false);
+	return GetPlisgoVFS(pDokanFileInfo)->Close((PlisgoVFS::PlisgoFileHandle&)pDokanFileInfo->Context, (pDokanFileInfo->DeleteOnClose)?true:false);
 }
 
 
@@ -105,7 +107,7 @@ int __stdcall	PlisgoExampleReadFile(	LPCWSTR				sFileName,
 										LONGLONG			nOffset,
 										PDOKAN_FILE_INFO	pDokanFileInfo)
 {
-	return g_PlisgoVFS->Read((PlisgoVFS::PlisgoFileHandle&)pDokanFileInfo->Context,
+	return GetPlisgoVFS(pDokanFileInfo)->Read((PlisgoVFS::PlisgoFileHandle&)pDokanFileInfo->Context,
 								pBuffer, nBufferLength, pnReadLength, nOffset);
 }
 
@@ -117,7 +119,7 @@ int __stdcall	PlisgoExampleWriteFile(	LPCWSTR				sFileName,
 										LONGLONG			nOffset,
 										PDOKAN_FILE_INFO	pDokanFileInfo)
 {
-	return g_PlisgoVFS->Write((PlisgoVFS::PlisgoFileHandle&)pDokanFileInfo->Context,
+	return GetPlisgoVFS(pDokanFileInfo)->Write((PlisgoVFS::PlisgoFileHandle&)pDokanFileInfo->Context,
 								pBuffer, nNumberOfBytesToWrite, pnNumberOfBytesWritten, nOffset);
 }
 
@@ -125,7 +127,7 @@ int __stdcall	PlisgoExampleWriteFile(	LPCWSTR				sFileName,
 int __stdcall	PlisgoExampleFlushFileBuffers(	LPCWSTR				sFileName,
 												PDOKAN_FILE_INFO	pDokanFileInfo)
 {
-	return g_PlisgoVFS->FlushBuffers((PlisgoVFS::PlisgoFileHandle&)pDokanFileInfo->Context);
+	return GetPlisgoVFS(pDokanFileInfo)->FlushBuffers((PlisgoVFS::PlisgoFileHandle&)pDokanFileInfo->Context);
 }
 
 
@@ -133,7 +135,7 @@ int __stdcall	PlisgoExampleGetFileInformation(LPCWSTR							sFileName,
 												LPBY_HANDLE_FILE_INFORMATION	pHandleFileInformation,
 												PDOKAN_FILE_INFO				pDokanFileInfo)
 {
-	return g_PlisgoVFS->GetHandleInfo((PlisgoVFS::PlisgoFileHandle&)pDokanFileInfo->Context, pHandleFileInformation);
+	return GetPlisgoVFS(pDokanFileInfo)->GetHandleInfo((PlisgoVFS::PlisgoFileHandle&)pDokanFileInfo->Context, pHandleFileInformation);
 }
 
 
@@ -182,7 +184,7 @@ int __stdcall	PlisgoExampleFindFiles(	LPCWSTR				sFileName,
 {
 	DokanPerFileCall dokanPerFileCall(FillFindData, pDokanFileInfo);
 
-	return g_PlisgoVFS->ForEachChild((PlisgoVFS::PlisgoFileHandle&)pDokanFileInfo->Context, dokanPerFileCall);
+	return GetPlisgoVFS(pDokanFileInfo)->ForEachChild((PlisgoVFS::PlisgoFileHandle&)pDokanFileInfo->Context, dokanPerFileCall);
 }
 
 
@@ -190,7 +192,7 @@ int __stdcall	PlisgoExampleSetFileAttributes(	LPCWSTR				sFileName,
 												DWORD				nFileAttributes,
 												PDOKAN_FILE_INFO	pDokanFileInfo)
 {
-	return g_PlisgoVFS->SetAttributes((PlisgoVFS::PlisgoFileHandle&)pDokanFileInfo->Context, nFileAttributes);
+	return GetPlisgoVFS(pDokanFileInfo)->SetAttributes((PlisgoVFS::PlisgoFileHandle&)pDokanFileInfo->Context, nFileAttributes);
 }
 
 
@@ -200,14 +202,14 @@ int __stdcall	PlisgoExampleSetFileTime(	LPCWSTR				sFileName,
 											CONST FILETIME*		pLastWriteTime,
 											PDOKAN_FILE_INFO	pDokanFileInfo)
 {
-	return g_PlisgoVFS->SetFileTimes((PlisgoVFS::PlisgoFileHandle&)pDokanFileInfo->Context, pCreationTime, pLastAccessTime, pLastWriteTime);
+	return GetPlisgoVFS(pDokanFileInfo)->SetFileTimes((PlisgoVFS::PlisgoFileHandle&)pDokanFileInfo->Context, pCreationTime, pLastAccessTime, pLastWriteTime);
 }
 
 
 int __stdcall	PlisgoExampleDeleteFile(LPCWSTR				sFileName,
 										PDOKAN_FILE_INFO	pDokanFileInfo)
 {
-	return g_PlisgoVFS->GetDeleteError((PlisgoVFS::PlisgoFileHandle&)pDokanFileInfo->Context);
+	return GetPlisgoVFS(pDokanFileInfo)->GetDeleteError((PlisgoVFS::PlisgoFileHandle&)pDokanFileInfo->Context);
 }
 
 int __stdcall	PlisgoExampleDeleteDirectory(	LPCWSTR				sFileName,
@@ -222,7 +224,7 @@ int __stdcall	PlisgoExampleMoveFile(	LPCWSTR				sSrcFileName,
 										BOOL				bReplaceIfExisting,
 										PDOKAN_FILE_INFO	pDokanFileInfo)
 {
-	return g_PlisgoVFS->Repath(sSrcFileName, sDstFileName, (bReplaceIfExisting == TRUE));
+	return GetPlisgoVFS(pDokanFileInfo)->Repath(sSrcFileName, sDstFileName, (bReplaceIfExisting == TRUE));
 }
 
 
@@ -231,7 +233,7 @@ int __stdcall	PlisgoExampleLockFile(	LPCWSTR				sFileName,
 										LONGLONG			nLength,
 										PDOKAN_FILE_INFO	pDokanFileInfo)
 {
-	return g_PlisgoVFS->LockFile((PlisgoVFS::PlisgoFileHandle&)pDokanFileInfo->Context, nByteOffset, nLength);
+	return GetPlisgoVFS(pDokanFileInfo)->LockFile((PlisgoVFS::PlisgoFileHandle&)pDokanFileInfo->Context, nByteOffset, nLength);
 }
 
 
@@ -240,7 +242,7 @@ int __stdcall	PlisgoExampleUnlockFile(LPCWSTR				sFileName,
 										LONGLONG			nLength,
 										PDOKAN_FILE_INFO	pDokanFileInfo)
 {
-	return g_PlisgoVFS->UnlockFile((PlisgoVFS::PlisgoFileHandle&)pDokanFileInfo->Context, nByteOffset, nLength);
+	return GetPlisgoVFS(pDokanFileInfo)->UnlockFile((PlisgoVFS::PlisgoFileHandle&)pDokanFileInfo->Context, nByteOffset, nLength);
 }
 
 
@@ -250,7 +252,7 @@ int __stdcall	PlisgoExampleSetEndOfFile(	LPCWSTR				sFileName,
 											PDOKAN_FILE_INFO	pDokanFileInfo)
 
 {
-	return g_PlisgoVFS->SetEndOfFile((PlisgoVFS::PlisgoFileHandle&)pDokanFileInfo->Context, nLength);
+	return GetPlisgoVFS(pDokanFileInfo)->SetEndOfFile((PlisgoVFS::PlisgoFileHandle&)pDokanFileInfo->Context, nLength);
 }
 
 
@@ -314,9 +316,7 @@ main(ULONG argc, PCHAR argv[])
 
 	root->AddChild(L"Processes", processes);
 
-	g_PlisgoVFS = boost::make_shared<PlisgoVFS>(root);
-
-	assert(g_PlisgoVFS.get() != NULL);
+	PlisgoVFS vfs(root);
 
 	DOKAN_OPERATIONS	dokanOperations = {	PlisgoExampleCreateFile,
 											PlisgoExampleOpenDirectory,
@@ -340,7 +340,7 @@ main(ULONG argc, PCHAR argv[])
 #endif//SVN_DOKAN_VERSION
 											PlisgoExampleLockFile,
 											PlisgoExampleUnlockFile,
-											NULL, // GetDiskFreeSpace
+										NULL, // GetDiskFreeSpace
 											PlisgoExampleGetVolumeInformation,
 											PlisgoExampleUnmount };
 
@@ -349,10 +349,9 @@ main(ULONG argc, PCHAR argv[])
 	ZeroMemory(&dokanOptions, sizeof(DOKAN_OPTIONS));
 
 	dokanOptions.DriveLetter = L'X';
+	dokanOptions.GlobalContext = (ULONG64)&vfs;
 
 	int status = DokanMain(&dokanOptions, &dokanOperations);
-
-	g_PlisgoVFS.reset();
 
 	return 0;
 }
