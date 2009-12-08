@@ -75,18 +75,7 @@ int __stdcall	PlisgoExampleCreateFile(LPCWSTR					sFileName,
 int __stdcall	PlisgoExampleCreateDirectory(	LPCWSTR					sFileName,
 												PDOKAN_FILE_INFO		pDokanFileInfo)
 {
-	IPtrPlisgoFSFile parent;
-
-	if (g_PlisgoVFS->TracePath(sFileName, &parent).get() != NULL)
-		return -ERROR_ALREADY_EXISTS;
-
-	IPtrPlisgoFSFile child;
-
-	PlisgoFSFolder* pFolder = parent->GetAsFolder();	
-	
-	assert(pFolder != NULL);
-
-	return pFolder->CreateChild(child, GetNameFromPath(sFileName), FILE_ATTRIBUTE_DIRECTORY);
+	return g_PlisgoVFS->CreateFolder(sFileName);
 }
 
 
