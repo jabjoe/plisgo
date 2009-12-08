@@ -58,41 +58,6 @@ boost::shared_ptr<PlisgoVFS>				g_PlisgoVFS;
 //#define SVN_DOKAN_VERSION
 
 
-class DokanPerFileCall : public PlisgoFSFolder::EachChild
-{
-public:
-	DokanPerFileCall(PFillFindData	FillFindData, PDOKAN_FILE_INFO pDokanInfo) :m_FillFindData(FillFindData),
-																				m_pDokanInfo(pDokanInfo)
-	{
-		m_nError		= 0;
-	}
-
-	virtual bool Do(LPCWSTR sName, IPtrPlisgoFSFile file)
-	{
-		if (file.get() == NULL)
-			return false;
-
-		WIN32_FIND_DATAW data = {0};
-
-		file->GetFileInfo(&data);
-
-		wcscpy_s(data.cFileName, MAX_PATH, sName);
-
-		m_nError = m_FillFindData(&data, m_pDokanInfo);
-
-		return (m_nError == 0);
-	}
-
-	int	GetError() const	{ return m_nError; }
-
-private:
-	const PFillFindData		m_FillFindData;
-	const PDOKAN_FILE_INFO	m_pDokanInfo;
-	int						m_nError;
-};
-
-
-
 
 
 int __stdcall	PlisgoExampleCreateFile(LPCWSTR					sFileName,
@@ -183,49 +148,53 @@ int __stdcall	PlisgoExampleGetFileInformation(LPCWSTR							sFileName,
 }
 
 
+
+class DokanPerFileCall : public PlisgoFSFolder::EachChild
+{
+public:
+	DokanPerFileCall(PFillFindData	FillFindData, PDOKAN_FILE_INFO pDokanInfo) :m_FillFindData(FillFindData),
+																				m_pDokanInfo(pDokanInfo)
+	{
+		m_nError		= 0;
+	}
+
+	virtual bool Do(LPCWSTR sName, IPtrPlisgoFSFile file)
+	{
+		WIN32_FIND_DATAW data = {0};
+
+		if (file.get() == NULL)
+		{
+			GetSystemTimeAsFileTime(&data.ftCreationTime);
+
+			data.ftLastAccessTime = data.ftLastWriteTime = data.ftCreationTime;
+		}
+		else file->GetFileInfo(&data);
+
+		wcscpy_s(data.cFileName, MAX_PATH, sName);
+
+		m_nError = m_FillFindData(&data, m_pDokanInfo);
+
+		return (m_nError == 0);
+	}
+
+	int	GetError() const	{ return m_nError; }
+
+private:
+	const PFillFindData		m_FillFindData;
+	const PDOKAN_FILE_INFO	m_pDokanInfo;
+	int						m_nError;
+};
+
+
+
 int __stdcall	PlisgoExampleFindFiles(	LPCWSTR				sFileName,
 										PFillFindData		FillFindData,
 										PDOKAN_FILE_INFO	pDokanFileInfo)
 {
-	IPtrPlisgoFSFile file	= g_PlisgoVFS->GetFileFromHandle((PlisgoVFS::PlisgoFileHandle&)pDokanFileInfo->Context);
-	IPtrPlisgoFSFile parent	= g_PlisgoVFS->GetParentFromHandle((PlisgoVFS::PlisgoFileHandle&)pDokanFileInfo->Context);
-
-	if (file.get() == NULL)
-		return -ERROR_FILE_NOT_FOUND;
-
-	WIN32_FIND_DATAW data = {0};
-
-	file->GetFileInfo(&data);
-	wcscpy_s(data.cFileName, MAX_PATH, L".");
-
-	int nError = FillFindData(&data, pDokanFileInfo);
-
-	if (nError != 0)
-		return nError;
-
-	if (parent.get() != NULL)
-		parent->GetFileInfo(&data);
-
-	wcscpy_s(data.cFileName, MAX_PATH, L"..");
-
-	nError = FillFindData(&data, pDokanFileInfo);
-
-	if (nError != 0)
-		return nError;
-
-	PlisgoFSFolder* pAsFolder = file->GetAsFolder();
-
-	if (pAsFolder == NULL)
-		return -ERROR_ACCESS_DENIED;
-
 	DokanPerFileCall dokanPerFileCall(FillFindData, pDokanFileInfo);
 
-	pAsFolder->ForEachChild(dokanPerFileCall);
-
-	return dokanPerFileCall.GetError();
+	return g_PlisgoVFS->ForEachChild((PlisgoVFS::PlisgoFileHandle&)pDokanFileInfo->Context, dokanPerFileCall);
 }
-
-
 
 
 int __stdcall	PlisgoExampleSetFileAttributes(	LPCWSTR				sFileName,
