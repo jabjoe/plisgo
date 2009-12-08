@@ -1673,9 +1673,7 @@ int					PlisgoVFS::CreateFolder(LPCWSTR sPath)
 
 	LPCWSTR sName = GetNameFromPath(sPath);
 
-	std::wstring sPathLowerCase = sPath;
-
-	sPathLowerCase.resize(sName-sPath);
+	std::wstring sPathLowerCase(sPath, (uintptr_t)(sName-sPath));
 
 	std::transform(sPathLowerCase.begin(),sPathLowerCase.end(),sPathLowerCase.begin(),tolower);
 
@@ -1977,8 +1975,14 @@ int					PlisgoVFS::Open(	PlisgoFileHandle&	rHandle,
 										DWORD				nCreationDisposition,
 										DWORD				nFlagsAndAttributes)
 {
-	IPtrPlisgoFSFile	parent;
-	IPtrPlisgoFSFile	file = TracePath(sPath, &parent);
+	std::wstring sPathLowerCase = sPath;
+
+	std::transform(sPathLowerCase.begin(),sPathLowerCase.end(),sPathLowerCase.begin(),tolower);
+
+	boost::trim_left_if(sPathLowerCase, boost::is_any_of(L"\\"));
+	boost::trim_right_if(sPathLowerCase, boost::is_any_of(L"\\"));
+
+	IPtrPlisgoFSFile	file = TracePath(sPathLowerCase);
 
 	int nError = 0;
 	ULONG64 nOpenInstaceData = 0;
@@ -1988,6 +1992,13 @@ int					PlisgoVFS::Open(	PlisgoFileHandle&	rHandle,
 		if (nCreationDisposition == OPEN_EXISTING ||
 			nCreationDisposition == TRUNCATE_EXISTING)
 			return -ERROR_FILE_NOT_FOUND;
+
+		size_t nSlash = sPathLowerCase.rfind(L'\\');
+
+		if (nSlash == -1)
+			nSlash = 0;
+
+		IPtrPlisgoFSFile parent = TracePath(sPathLowerCase.substr(0, nSlash));
 
 		if (parent.get() == NULL)
 			return -ERROR_PATH_NOT_FOUND;
@@ -2022,13 +2033,8 @@ int					PlisgoVFS::Open(	PlisgoFileHandle&	rHandle,
 
 	pOpenFileData->File = file;
 
-	while(*sPath == L'\\')
-		++sPath;
-
-	pOpenFileData->sPath = sPath;
+	pOpenFileData->sPath = sPathLowerCase;
 	pOpenFileData->nData = nOpenInstaceData;
-
-	boost::trim_right_if(pOpenFileData->sPath, boost::is_any_of(L"\\"));
 
 	rHandle = (PlisgoFileHandle)pOpenFileData;
 
@@ -2155,19 +2161,14 @@ int					PlisgoVFS::Close(PlisgoFileHandle&	rHandle, bool bDeleteOnClose)
 	if (!bDeleteOnClose)
 		return 0;
 	
-	std::wstring sPathLowerCase = pOpenFileData->sPath;
+	const std::wstring& rsPath = pOpenFileData->sPath;
 
-	boost::trim_left_if(sPathLowerCase, boost::is_any_of(L"\\"));
-	boost::trim_right_if(sPathLowerCase, boost::is_any_of(L"\\"));
-
-	std::transform(sPathLowerCase.begin(),sPathLowerCase.end(),sPathLowerCase.begin(),tolower);
-
-	size_t nSlash = sPathLowerCase.rfind(L'\\');
+	size_t nSlash = rsPath.rfind(L'\\');
 
 	if (nSlash == -1)
 		nSlash = 0;
 
-	IPtrPlisgoFSFile parent = TracePath(sPathLowerCase.substr(0,nSlash));
+	IPtrPlisgoFSFile parent = TracePath(rsPath.substr(0,nSlash));
 
 	assert(parent.get() != NULL);
 
@@ -2183,7 +2184,7 @@ int					PlisgoVFS::Close(PlisgoFileHandle&	rHandle, bool bDeleteOnClose)
 		if (nError == 0)
 		{
 			m_CacheEntryMap.clear();
-			RemoveDownstreamMounts(sPathLowerCase);
+			RemoveDownstreamMounts(pOpenFileData->sPath);
 		}
 		else return nError;
 	}	
