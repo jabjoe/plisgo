@@ -352,6 +352,7 @@ main(ULONG argc, PCHAR argv[])
 
 	int status = DokanMain(&dokanOptions, &dokanOperations);
 
+	g_PlisgoVFS.reset();
 
 	return 0;
 }
