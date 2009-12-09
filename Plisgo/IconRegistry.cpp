@@ -557,33 +557,45 @@ RefIconList::RefIconList(UINT nHeight)
 }
 
 
-bool		RefIconList::GetFileIconLocation(IconLocation& rIconLocation, const std::wstring& rsPath) const
+
+static void		GetLowerCaseExtension(std::wstring& rsExt, const std::wstring& rsPath)
 {
 	size_t nDot = rsPath.rfind(L'.');
 
-	if (nDot != -1)
+	if (nDot == -1)
+		nDot = 0;
+
+	LPCWSTR sExt = &rsPath[nDot];
+
+	if (nDot > 0 && ExtIsShortcut(sExt))
 	{
-		LPCWSTR sExt = &rsPath[nDot];
+		size_t nPrevDot = rsPath.rfind(L'.', nDot-1);
 
-		if (ExtIsShortcut(sExt) || ExtIsCodeImage(sExt) || ExtIsIconFile(sExt))
-		{
-			rIconLocation.sPath		= rsPath;
-			rIconLocation.nIndex	= 0;
-
-			int nTemp;
-
-			if (GetIconLocationIndex(nTemp, rIconLocation))
-				return true;
-		}
+		rsExt.assign(&rsPath[nPrevDot], nDot-nPrevDot);
 	}
-	else nDot = 0;
+	else rsExt = sExt;
 
-	size_t nLen = rsPath.length()-nDot;
+	std::transform(rsExt.begin(),rsExt.end(),rsExt.begin(),tolower);
+}
 
-	std::wstring sKey(nLen,L' ');
 
-	std::transform(rsPath.begin()+nDot,rsPath.end(),sKey.begin(),tolower);
 
+bool		RefIconList::GetFileIconLocation(IconLocation& rIconLocation, const std::wstring& rsPath) const
+{
+	std::wstring sKey;
+
+	GetLowerCaseExtension(sKey, rsPath);
+
+	if (ExtIsCodeImage(sKey.c_str()) || ExtIsIconFile(sKey.c_str()))
+	{
+		rIconLocation.sPath		= rsPath;
+		rIconLocation.nIndex	= 0;
+
+		int nTemp;
+
+		if (GetIconLocationIndex(nTemp, rIconLocation))
+			return true;
+	}
 
 	boost::upgrade_lock<boost::shared_mutex> lock(m_Mutex);
 
