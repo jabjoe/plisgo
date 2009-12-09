@@ -171,6 +171,7 @@ public:
 	IPtrPlisgoFSFile	GetFile(LPCWSTR sName) const;
 	IPtrPlisgoFSFile	GetFile(UINT nIndex) const;
 	UINT				GetLength() const;
+	void				Clear();
 
 private:
 	mutable boost::shared_mutex					m_Mutex;

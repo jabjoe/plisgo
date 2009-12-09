@@ -374,6 +374,14 @@ UINT				PlisgoFSFileList::GetLength() const
 	return (UINT)m_files.size();
 }
 
+
+void				PlisgoFSFileList::Clear()
+{
+	boost::unique_lock<boost::shared_mutex> lock(m_Mutex);
+
+	m_files.clear();
+}
+
 /*
 ****************************************************************************
 */
