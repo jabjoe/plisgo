@@ -148,6 +148,8 @@ public:
 
 	bool						SetColumnType(UINT nColumnIndex, ColumnType eType);
 
+	bool						SetColumnDefaultWidth(UINT nColumnIndex, int nWidth);
+
 	bool						EnableThumbnails();
 	bool						EnableCustomIcons();
 	bool						EnableOverlays();

@@ -748,6 +748,31 @@ bool				RootPlisgoFSFolder::SetColumnType(UINT nColumnIndex, ColumnType eType)
 }
 
 
+bool				RootPlisgoFSFolder::SetColumnDefaultWidth(UINT nColumnIndex, int nWidth)
+{
+	boost::unique_lock<boost::shared_mutex> lock(m_Mutex);
+
+	if (nColumnIndex >= m_nColumnNum)
+		return false;
+
+	if (nWidth < 0)
+		return false;
+
+	std::wstring sName = (boost::wformat(L".column_width_%1%") %nColumnIndex).str();
+
+	if (GetChild(sName.c_str()).get() != NULL)
+		return false;
+
+	char sBuffer[MAX_PATH];
+
+	sprintf_s(sBuffer, MAX_PATH, "%i", nWidth);
+
+	AddChild(sName.c_str(), IPtrPlisgoFSFile(new PlisgoFSStringFile(sBuffer, true)));
+
+	return true;
+}
+
+
 bool				RootPlisgoFSFolder::EnableThumbnails()
 {
 	boost::unique_lock<boost::shared_mutex> lock(m_Mutex);

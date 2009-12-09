@@ -1154,35 +1154,42 @@ LRESULT		 CPlisgoView::OnCreate(	UINT uMsg, WPARAM wParam,
 
 	for(ULONG n = 0; n < m_PlisgoFSFolder->GetColumnNum(); ++n)
 	{
-		const std::wstring&					rsText		= m_PlisgoFSFolder->GetColumnHeader(n);
-		const PlisgoFSRoot::ColumnAlignment	eAlignment	= m_PlisgoFSFolder->GetColumnAlignment(n);
+		const std::wstring&					rsText			= m_PlisgoFSFolder->GetColumnHeader(n);
+		const PlisgoFSRoot::ColumnAlignment	eAlignment		= m_PlisgoFSFolder->GetColumnAlignment(n);
+		const int							nDefaultWidth	= m_PlisgoFSFolder->GetColumnDefaultWidth(n);
 
 		LVCOLUMNW   lvColumn = {0};
 
+		if (eAlignment == PlisgoFSRoot::RIGHT)
+			lvColumn.fmt |= LVCFMT_RIGHT;
+		else if (eAlignment == PlisgoFSRoot::LEFT)
+			lvColumn.fmt |= LVCFMT_LEFT;
+		else
+			lvColumn.fmt |= LVCFMT_CENTER;
+
+		lvColumn.mask |= LVCF_WIDTH;
+
 		if (rsText.length() > 0)
 		{
-			lvColumn.mask		= LVCF_TEXT|LVCF_FMT;
+			lvColumn.mask		|= LVCF_TEXT|LVCF_FMT;
 			lvColumn.pszText	= (LPWSTR)rsText.c_str();
 		}
 		else
 		{
-			lvColumn.mask		= LVCF_TEXT;
+			lvColumn.mask		|= LVCF_TEXT;
 			lvColumn.pszText	= L"";
 		}
 
-		if (eAlignment == PlisgoFSRoot::RIGHT)
-			lvColumn.fmt = LVCFMT_RIGHT;
-		else if (eAlignment == PlisgoFSRoot::LEFT)
-			lvColumn.fmt = LVCFMT_LEFT;
-		else
-			lvColumn.fmt = LVCFMT_CENTER;
+		const int nCharWidth = ListView_GetStringWidth(m_hList, "~");
 
-		lvColumn.mask |= LVCF_WIDTH;
+		if (nDefaultWidth == -1)
+		{
+			const int nWidth = ListView_GetStringWidth(m_hList, lvColumn.pszText);
 
-		const int nWidth = ListView_GetStringWidth(m_hList, lvColumn.pszText);
-
-		lvColumn.cx = nWidth + 16; //8 pixel on each side of the text.
-		
+			lvColumn.cx = nWidth + nCharWidth*2;
+		}
+		else lvColumn.cx = nCharWidth*nDefaultWidth;
+	
 		ListView_InsertColumn(m_hList, m_nColumnIDMap.size()+n, &lvColumn);
 	}
 

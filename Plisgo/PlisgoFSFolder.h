@@ -57,6 +57,7 @@ public:
 	const std::wstring&	GetColumnHeader(int nIndex) const				{ return m_Columns[nIndex].sHeader; }
 	ColumnAlignment		GetColumnAlignment(int nIndex) const			{ return m_Columns[nIndex].eAlignment; }
 	ColumnType			GetColumnType(int nIndex) const					{ return m_Columns[nIndex].eType; }
+	int					GetColumnDefaultWidth(int nIndex) const			{ return m_Columns[nIndex].nWidth; }
 
 	IPtrFSIconRegistry	GetFSIconRegistry() const						{ return m_IconRegistry; }
 
@@ -107,11 +108,12 @@ private:
 
 	struct ColumnDef
 	{
-		ColumnDef() { eAlignment = PlisgoFSRoot::CENTER; eType = PlisgoFSRoot::TEXT;}
+		ColumnDef() { eAlignment = PlisgoFSRoot::CENTER; eType = PlisgoFSRoot::TEXT; nWidth =-1; }
 
 		std::wstring	sHeader;
 		ColumnAlignment	eAlignment;
 		ColumnType		eType;
+		int				nWidth;
 	};
 
 	std::vector<ColumnDef>					m_Columns;

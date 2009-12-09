@@ -208,6 +208,12 @@ PlisgoFSRoot::PlisgoFSRoot(const std::wstring& rsPath, IconRegistry* pIconRegist
 				else if (nType == L'f')
 					rColumnDef.eType = FLOAT;
 			}
+
+			sTemp.clear();
+
+			wsprintf(sBuffer, L".column_width_%i", nIndex);
+
+			ReadIntFromFile(rColumnDef.nWidth, sPath + sBuffer);
 		}
 		while(FindNextFileW(hFind, &findData) != 0);
 
