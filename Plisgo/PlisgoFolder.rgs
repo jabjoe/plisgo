@@ -23,7 +23,7 @@ HKCR
 			'TypeLib' = s '{68DDD719-C3B0-48D0-B5BB-1351B3AE71E8}'
 			ForceRemove ShellFolder
 			{
-				val Attributes = d '42949672992'
+				val Attributes = d '4160749584'
 				val DefaultIcon = s '%MODULE%,-1'
 			}
 		}
