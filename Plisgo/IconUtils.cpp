@@ -48,6 +48,97 @@ bool		ExtIsIconFile(LPCWSTR sExt)
 }
 
 
+static HICON	CreateIconFromBitMap(HBITMAP hBitmap, const UINT nAimHeight)
+{
+	BITMAP bm = {0};
+
+	GetObject(hBitmap, sizeof(BITMAP), &bm);
+
+
+	UINT nHeight = bm.bmHeight;
+	UINT nWidth = bm.bmWidth;
+
+	if (nHeight != nAimHeight || nWidth != nAimHeight || bm.bmBitsPixel != 32)
+	{
+		if (nHeight==nWidth)
+		{
+			HBITMAP hNewBitmap = (HBITMAP)CopyImage(hBitmap, IMAGE_BITMAP, nAimHeight, nAimHeight, 0);
+
+			DeleteObject(hBitmap);
+
+			if (hNewBitmap == NULL)
+				return false;
+
+			hBitmap = hNewBitmap;
+		}
+		else
+		{
+			UINT nTargetWidth;
+			UINT nTargetHeight;
+
+			if (nHeight>nWidth)
+			{
+				nTargetWidth = (UINT)(nWidth * (nAimHeight/(float)nHeight));
+				nTargetHeight = nAimHeight;
+			}
+			else
+			{
+				nTargetHeight = (UINT)(nHeight * (nAimHeight/(float)nWidth));
+				nTargetWidth = nAimHeight;
+			}
+		
+			HDC hSrcDC = CreateCompatibleDC(0);
+			HDC hDstDC = CreateCompatibleDC(0);
+
+			assert(hSrcDC != NULL && hDstDC != NULL);
+
+			HBITMAP hNewBitmap = CreateAlphaBitmap(hDstDC, nAimHeight, nAimHeight, NULL);
+
+			assert(hNewBitmap != NULL);
+
+			HGDIOBJ hOldSrcSel = SelectObject(hSrcDC, hBitmap);
+			HGDIOBJ hOldDstSel = SelectObject(hDstDC, hNewBitmap);
+
+			const LONG nXOffset = max((nAimHeight-nTargetWidth)/2,0);
+			const LONG nYOffset = max((nAimHeight-nTargetHeight)/2,0);
+
+			BLENDFUNCTION bdf = {0};
+
+			bdf.BlendOp = AC_SRC_OVER;
+			bdf.SourceConstantAlpha = 255;
+			bdf.AlphaFormat = AC_SRC_ALPHA;
+
+			AlphaBlend(	hDstDC, nXOffset, nYOffset, nAimHeight-nXOffset*2, nAimHeight-nYOffset*2, 
+						hSrcDC, 0, 0, nWidth, nHeight, bdf);
+
+			SelectObject(hSrcDC, hOldSrcSel);
+			SelectObject(hDstDC, hOldDstSel);
+
+			DeleteDC(hSrcDC);
+			DeleteDC(hDstDC);
+
+			DeleteObject(hBitmap);
+
+			hBitmap = hNewBitmap;
+		}
+	}
+
+	ICONINFO newIcon = {0};
+
+	newIcon.hbmColor = hBitmap;
+	newIcon.hbmMask = CreateBitmap(nAimHeight,nAimHeight,1,1,NULL);
+
+	assert(newIcon.hbmMask != NULL);
+
+	HICON hIcon = CreateIconIndirect(&newIcon);
+
+	DeleteObject(hBitmap);
+	DeleteObject(newIcon.hbmMask);
+
+	return hIcon;
+}
+
+
 static bool		ReadShortcutTarget(std::wstring& rsTarget, LPCWSTR sLinkFile)
 {
 	CComPtr<IShellLink>		pSL;
@@ -901,9 +992,15 @@ HICON			GetSpecificIcon( const std::wstring& rsFile, const int nIndex, const UIN
 			else
 				hIcon = ExtractIcon(ghInstance, rsFile.c_str(), nIndex);
 		}
-		else hIcon = ExtractIcon(ghInstance, rsFile.c_str(), nIndex);
+		else
+		{
+			hIcon = ExtractIconFromImageListFile(rsFile, (UINT)nIndex, nHeight);
+		}
 	}
-	else hIcon = ExtractIcon(ghInstance, rsFile.c_str(), nIndex);
+
+	//Last try to find some icon for this!
+	if (hIcon == NULL)
+		hIcon = ExtractIcon(ghInstance, rsFile.c_str(), nIndex);
 
 	return hIcon;
 }
@@ -1163,11 +1260,84 @@ cleanup:
 }
 
 
-HIMAGELIST		LoadImageList(const std::wstring& rsFile, UINT nHeight)
+HICON			ExtractIconFromImageListFile(const std::wstring& rsFile, const UINT nIndex, const UINT nAimHeight)
+{
+	HICON hIcon = NULL;
+
+	Gdiplus::GdiplusStartupInput GDiplusStartupInput;
+	ULONG_PTR nDiplusToken;
+
+	Gdiplus::GdiplusStartup(&nDiplusToken, &GDiplusStartupInput, NULL);
+
+	Gdiplus::Bitmap* pBitmap = Gdiplus::Bitmap::FromFile(rsFile.c_str(), TRUE);
+
+	if (pBitmap != NULL)
+	{
+		const UINT nHeight = pBitmap->GetHeight();
+		const UINT nWidth = pBitmap->GetWidth();
+
+		const UINT nIconNum = nWidth/nHeight;
+
+		if ((nWidth%nHeight) == 0)
+		{
+			if (nIndex < nIconNum)
+			{
+				Gdiplus::Bitmap* pSubBitmap = pBitmap->Clone(nIndex*nHeight, 0, nHeight, nHeight, PixelFormat32bppARGB);
+
+				if (pSubBitmap != NULL)
+				{
+					HBITMAP hBitmap = NULL;
+
+					ICONINFO newIcon = {0};
+
+					newIcon.fIcon = TRUE;
+					newIcon.hbmMask = CreateBitmap(nAimHeight,nAimHeight,1,1,NULL);
+
+					assert(newIcon.hbmMask != NULL);
+
+					//GetHICON was causing funny alpha issues on some files. The alpha wasn't in the color or mask bitmap from GetIconInfo...
+					pSubBitmap->GetHBITMAP(Gdiplus::Color::Transparent, &hBitmap);
+
+					assert(hBitmap != NULL);
+
+					newIcon.hbmColor = (HBITMAP)CopyImage(hBitmap, IMAGE_BITMAP, nAimHeight, nAimHeight, LR_COPYFROMRESOURCE);
+
+					assert(newIcon.hbmColor != NULL);
+
+					hIcon = CreateIconIndirect(&newIcon);
+
+					DeleteObject(hBitmap);
+					DeleteObject(newIcon.hbmColor);
+					DeleteObject(newIcon.hbmMask);
+
+					delete pSubBitmap;
+				}
+			}
+		}
+		else
+		{
+			//Best I can do at this point
+			HBITMAP hBitmap = NULL;
+
+			pBitmap->GetHBITMAP(Gdiplus::Color(), &hBitmap);
+
+			hIcon = CreateIconFromBitMap(hBitmap, nAimHeight);
+		}
+
+		delete pBitmap;
+	}
+
+	Gdiplus::GdiplusShutdown(nDiplusToken);
+
+	return hIcon;
+}
+
+
+HIMAGELIST		LoadImageList(const std::wstring& rsFile, const UINT nAimHeight)
 {
 	if (rsFile.find(L".bmp") != -1)
 	{
-		return ImageList_LoadImage(	NULL, rsFile.c_str(), nHeight ,0,
+		return ImageList_LoadImage(	NULL, rsFile.c_str(), nAimHeight ,0,
 									CLR_DEFAULT, IMAGE_BITMAP,
 									LR_CREATEDIBSECTION|LR_LOADFROMFILE|LR_LOADTRANSPARENT);
 	}
@@ -1187,7 +1357,7 @@ HIMAGELIST		LoadImageList(const std::wstring& rsFile, UINT nHeight)
 			UINT nHeight = pBitmap->GetHeight();
 			UINT nWidth = pBitmap->GetWidth();
 
-			hImageList = ImageList_Create(nHeight, nHeight, ILC_COLOR32|ILC_MASK, 0, 4);
+			hImageList = ImageList_Create(nAimHeight, nAimHeight, ILC_COLOR32|ILC_MASK, 0, 4);
 
 			UINT nIconNum = nWidth/nHeight;
 
@@ -1278,92 +1448,7 @@ HICON			LoadAsIcon(const std::wstring& rsPath, const UINT nAimHeight)
 		if (hBitmap == NULL)
 			return NULL;
 	}
-	
 
-	BITMAP bm = {0};
-
-	GetObject(hBitmap, sizeof(BITMAP), &bm);
-
-
-	UINT nHeight = bm.bmHeight;
-	UINT nWidth = bm.bmWidth;
-
-	if (nHeight != nAimHeight || nWidth != nAimHeight || bm.bmBitsPixel != 32)
-	{
-		if (nHeight==nWidth)
-		{
-			HBITMAP hNewBitmap = (HBITMAP)CopyImage(hBitmap, IMAGE_BITMAP, nAimHeight, nAimHeight, 0);
-
-			DeleteObject(hBitmap);
-
-			if (hNewBitmap == NULL)
-				return false;
-
-			hBitmap = hNewBitmap;
-		}
-		else
-		{
-			UINT nTargetWidth;
-			UINT nTargetHeight;
-
-			if (nHeight>nWidth)
-			{
-				nTargetWidth = (UINT)(nWidth * (nAimHeight/(float)nHeight));
-				nTargetHeight = nAimHeight;
-			}
-			else
-			{
-				nTargetHeight = (UINT)(nHeight * (nAimHeight/(float)nWidth));
-				nTargetWidth = nAimHeight;
-			}
-		
-			HDC hSrcDC = CreateCompatibleDC(0);
-			HDC hDstDC = CreateCompatibleDC(0);
-
-			assert(hSrcDC != NULL && hDstDC != NULL);
-
-			HBITMAP hNewBitmap = CreateAlphaBitmap(hDstDC, nAimHeight, nAimHeight, NULL);
-
-			assert(hNewBitmap != NULL);
-
-			HGDIOBJ hOldSrcSel = SelectObject(hSrcDC, hBitmap);
-			HGDIOBJ hOldDstSel = SelectObject(hDstDC, hNewBitmap);
-
-			const LONG nXOffset = max((nAimHeight-nTargetWidth)/2,0);
-			const LONG nYOffset = max((nAimHeight-nTargetHeight)/2,0);
-
-			BLENDFUNCTION bdf = {0};
-
-			bdf.BlendOp = AC_SRC_OVER;
-			bdf.SourceConstantAlpha = 255;
-			bdf.AlphaFormat = AC_SRC_ALPHA;
-
-			AlphaBlend(	hDstDC, nXOffset, nYOffset, nAimHeight-nXOffset*2, nAimHeight-nYOffset*2, 
-						hSrcDC, 0, 0, nWidth, nHeight, bdf);
-
-			SelectObject(hSrcDC, hOldSrcSel);
-			SelectObject(hDstDC, hOldDstSel);
-
-			DeleteDC(hSrcDC);
-			DeleteDC(hDstDC);
-
-			DeleteObject(hBitmap);
-
-			hBitmap = hNewBitmap;
-		}
-	}
-
-	ICONINFO newIcon = {0};
-
-	newIcon.hbmColor = hBitmap;
-	newIcon.hbmMask = CreateBitmap(nAimHeight,nAimHeight,1,1,NULL);
-
-	assert(newIcon.hbmMask != NULL);
-
-	HICON hIcon = CreateIconIndirect(&newIcon);
-
-	DeleteObject(hBitmap);
-	DeleteObject(newIcon.hbmMask);
-
-	return hIcon;
+	return CreateIconFromBitMap(hBitmap, nAimHeight);
 }
+	

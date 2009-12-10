@@ -35,7 +35,8 @@ struct IconLocation
 	std::wstring	sPath;
 	int				nIndex;
 
-	bool IsValid() const { return (sPath.length() > 0); }
+	bool	IsValid() const { return (sPath.length() > 0); }
+	ULONG64	GetHash() const;
 };
 
 
@@ -50,7 +51,9 @@ public:
 					IconRegistry*		pMain,
 					const std::wstring& rsRootPath);
 
-	const IconRegistry*		GetMainIconRegistry() const		{ return m_pMain; }
+	~FSIconRegistry();
+
+	IconRegistry*			GetMainIconRegistry() const		{ return m_pMain; }
 
 
 	const std::wstring&		GetFSName() const				{ return m_sFSName; }
@@ -59,43 +62,25 @@ public:
 	bool					ReadIconLocation(IconLocation& rIconLocation, const std::wstring& rsPligoFile, const ULONG nHeight);
 
 	bool					GetIconLocation(IconLocation& rIconLocation, UINT nList, UINT nIndex, const ULONG nHeight) const;
-	bool					GetIconLocation(IconLocation& rIconLocation, const IconLocation& rBase, IPtrRefIconList iconList, UINT nOverlayList, UINT nOverlayIndex) const;
 
-	bool					GetFSIcon(HICON& rhIcon, UINT nList, UINT nIndex, UINT nHeight) const;
+	bool					GetInstancePath(std::wstring& rsResult) const;
 
 protected:
 	
 	void					AddInstancePath(std::wstring sRootPath);
+	void					RemoveInstancePath(std::wstring sRootPath);
 
 private:
 
-	bool					LookupKey(std::wstring& rsPath, const std::wstring& rsKey) const;
-
-	bool					GetFSIcon_RW(HICON& rhIcon, UINT nList, UINT nIndex, UINT nHeight);
-	const std::wstring&		GetInstancePath_RW();
-
-
-	struct VersionImageList
+	struct ImageListVersion
 	{
-		VersionImageList()
-		{
-			nHeight = 0;
-		}
-
-		VersionImageList(UINT _nHeight)
-		{
-			nHeight = _nHeight;
-		}
-
-		CComPtr<IImageList>	ImageList;
-		UINT				nHeight;
+		std::wstring	sExt;
+		UINT			nHeight;
 	};
 
-	typedef std::vector<VersionImageList>						VersionedImageList;
-	typedef std::tr1::unordered_map<std::wstring, std::wstring>	BurnReadyCached;
+	typedef std::vector<ImageListVersion>	VersionedImageList;
 
-	bool					GetBestImageList_RO(VersionedImageList::const_iterator& rBestFit, UINT nList, UINT nHeight) const;
-	bool					GetBestImageList_RW(VersionedImageList::const_iterator& rBestFit, UINT nList, UINT nHeight);
+	bool					GetBestImageList(std::wstring& rsImageListFile, UINT nList, UINT nHeight) const;
 
 
 	std::wstring							m_sFSName;
@@ -104,7 +89,6 @@ private:
 	WStringList								m_Paths;
 
 	std::vector<VersionedImageList>			m_ImageLists;
-	BurnReadyCached							m_BurnReadyCached;
 
 	IconRegistry*							m_pMain;
 	mutable boost::shared_mutex				m_Mutex;
@@ -127,10 +111,12 @@ public:
 	bool					GetFolderIconLocation(IconLocation& rIconLocation, bool bOpen) const;
 
 	bool					GetIcon(HICON& rhResult, const int nIndex) const;
-
+	bool					GetIcon(HICON& rhResult, const IconLocation& rIconLocation) const;
 
 	bool					GetIconLocation(IconLocation& rIconLocation, const int nIndex) const;
 	bool					GetIconLocationIndex(int& rnIndex, const IconLocation& rIconLocation) const;
+
+	bool					CombineIconLocations(IconLocation& rDst, const IconLocation& rFirst, const IconLocation& rSecond);
 
 	void					RemoveOlderThan(ULONG64 n100ns);
 
@@ -172,13 +158,14 @@ public:
 
 	IconRegistry();
 
-	IPtrFSIconRegistry		GetFSIconRegistry(LPCWSTR sFS, int nVersion, std::wstring& rsFirstPath) const;
+	IPtrFSIconRegistry		GetFSIconRegistry(LPCWSTR sFS, int nVersion, const std::wstring& rsInstancePath) const;
+	void					ReleaseFSIconRegistry(IPtrFSIconRegistry& rFSIconRegistry, const std::wstring& rsInstancePath); 
 
 	IPtrRefIconList			GetRefIconList(ULONG nHeight) const;
 
 private:
 
-	typedef std::tr1::unordered_map<std::wstring, boost::weak_ptr<FSIconRegistry> >	FSIconRegistries;
+	typedef std::tr1::unordered_map<std::wstring, boost::shared_ptr<FSIconRegistry> >	FSIconRegistries;
 
 	FSIconRegistries								m_FSIconRegistries;
 	std::vector<boost::weak_ptr<RefIconList> >		m_IconLists;

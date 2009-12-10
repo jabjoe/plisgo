@@ -47,33 +47,43 @@ HRESULT		GetShellIShellFolder2Implimentation(IShellFolder2** ppResult)
 
 
 
-bool	ReadTextFromFile(std::wstring& rsResult, const std::wstring& rsFile)
+bool	ReadTextFromFile(std::wstring& rsResult, LPCWSTR sFile)
 {
-	HANDLE hFile = CreateFileW(rsFile.c_str(), FILE_READ_DATA, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
+	HANDLE hFile = CreateFileW(sFile, FILE_READ_DATA, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
 
 	if (hFile == NULL || hFile == INVALID_HANDLE_VALUE)
 		return false;
 	
-	CHAR buffer[MAX_PATH];
-
-	DWORD nRead = 0;
-
 	bool bResult = false;
 
-	while(ReadFile(hFile, buffer, MAX_PATH-1, &nRead, NULL) && nRead > 0)
+	LARGE_INTEGER nSize;
+
+	nSize.LowPart = GetFileSize(hFile, (LPDWORD)&nSize.HighPart);
+
+	if (nSize.HighPart == 0 && nSize.LowPart < 1024*1024) //Check it's not bigger than a meg
 	{
-		buffer[nRead] = 0;
+		rsResult.reserve((unsigned int)nSize.QuadPart);
 
-		WCHAR wBuffer[MAX_PATH];
+		CHAR buffer[MAX_PATH];
 
-		nRead = MultiByteToWideChar(CP_UTF8, 0, buffer, (int)nRead, wBuffer, MAX_PATH);
+		DWORD nRead = 0;
 
-		wBuffer[nRead] = 0;
 
-		rsResult += wBuffer;
-		bResult = true;
+		while(ReadFile(hFile, buffer, MAX_PATH-1, &nRead, NULL) && nRead > 0)
+		{
+			buffer[nRead] = 0;
 
-		SetFilePointer(hFile, nRead, 0, FILE_CURRENT);
+			WCHAR wBuffer[MAX_PATH];
+
+			nRead = MultiByteToWideChar(CP_UTF8, 0, buffer, (int)nRead, wBuffer, MAX_PATH);
+
+			wBuffer[nRead] = 0;
+
+			rsResult += wBuffer;
+			bResult = true;
+
+			SetFilePointer(hFile, nRead, 0, FILE_CURRENT);
+		}
 	}
 
 	CloseHandle(hFile);
@@ -82,9 +92,9 @@ bool	ReadTextFromFile(std::wstring& rsResult, const std::wstring& rsFile)
 }
 
 
-bool	ReadIntFromFile(int& rnResult, const std::wstring& rsFile)
+bool	ReadIntFromFile(int& rnResult, LPCWSTR sFile)
 {
-	HANDLE hFile = CreateFileW(rsFile.c_str(), FILE_READ_DATA, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
+	HANDLE hFile = CreateFileW(sFile, FILE_READ_DATA, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
 
 	if (hFile == NULL || hFile == INVALID_HANDLE_VALUE)
 		return false;
@@ -108,9 +118,9 @@ bool	ReadIntFromFile(int& rnResult, const std::wstring& rsFile)
 }
 
 
-bool	ReadDoubleFromFile(double& rnResult, const std::wstring& rsFile)
+bool	ReadDoubleFromFile(double& rnResult, LPCWSTR sFile)
 {
-	HANDLE hFile = CreateFileW(rsFile.c_str(), FILE_READ_DATA, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
+	HANDLE hFile = CreateFileW(sFile, FILE_READ_DATA, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
 
 	if (hFile == NULL || hFile == INVALID_HANDLE_VALUE)
 		return false;
@@ -131,32 +141,6 @@ bool	ReadDoubleFromFile(double& rnResult, const std::wstring& rsFile)
 	CloseHandle(hFile);
 
 	return true;
-}
-
-
-bool	ReadIconIndices(std::wstring sFile, UINT& rnList, UINT& rnEntry)
-{
-	HANDLE hFile = CreateFileW(sFile.c_str(), FILE_READ_DATA, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
-
-	if (hFile == NULL || hFile == INVALID_HANDLE_VALUE)
-		return false;
-	
-	CHAR buffer[MAX_PATH];
-
-	DWORD nRead = 0;
-
-	bool bResult = false;
-
-	if (ReadFile(hFile, buffer, MAX_PATH-1, &nRead, NULL))
-	{
-		buffer[nRead] = 0;
-
-		bResult = ReadIndicesPair(buffer, rnList, rnEntry);
-	}
-
-	CloseHandle(hFile);
-	
-	return bResult;
 }
 
 

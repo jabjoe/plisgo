@@ -205,7 +205,9 @@ public:
 		if (sPath == NULL || sPath[0] == L'\0')
 			return true;
 
-		HWND hWnd = GetProcessWindow(_wtoi(&sPath[1]));
+		DWORD nProcess = _wtoi(&sPath[1]);
+
+		HWND hWnd = GetProcessWindow(nProcess);
 
 		if (hWnd != NULL)
 		{
@@ -214,10 +216,12 @@ public:
 			if (IsIconic(hWnd))
 				ShowWindow(hWnd, SW_RESTORE);
 
+			MessageBox(NULL, L"Love to know how this should be done,\nbecause none of the ways I found work 100%.", L"This should be simple! Not my fault!", MB_OK);
+
+			AllowSetForegroundWindow(nProcess);
 			BringWindowToTop(hWnd);
 			SetForegroundWindow(hWnd);
-
-			SwitchToThisWindow(hWnd, FALSE);
+			SwitchToThisWindow(hWnd, TRUE);
 		}
 		
 		return true;
@@ -259,11 +263,13 @@ ProcessesFolder::ProcessesFolder()
 
 	plisgoRoot->AddColumn(L"Exe File");
 	plisgoRoot->SetColumnAlignment(0, RootPlisgoFSFolder::LEFT);
+	plisgoRoot->SetColumnDefaultWidth(0, 20);
 	plisgoRoot->AddColumn(L"Thread Num");
 	plisgoRoot->SetColumnType(1, RootPlisgoFSFolder::INT);
 	plisgoRoot->AddColumn(L"Parent Process");
 	plisgoRoot->SetColumnType(2, RootPlisgoFSFolder::INT);
 	plisgoRoot->AddColumn(L"Window Text");
+	plisgoRoot->SetColumnDefaultWidth(3, 20);
 
 	plisgoRoot->AddCustomDefaultIcon(0, 0);
 
@@ -545,16 +551,21 @@ bool				ProcessesFolder::GetCustomIcon(const std::wstring& rsFilePath, IconLocat
 
 	while (nLength = GetProcessImageFileName(hProcess, (LPWSTR)sFile.c_str(), sFile.length()))
 	{
-		DWORD nError = GetLastError();
-
-		if (nError == 0)
-			break;
-		
-		if (nError != ERROR_INSUFFICIENT_BUFFER)
+		if (nLength == 0)
 		{
-			nLength = 0;
-			break;
+			DWORD nError = GetLastError();
+
+			if (nError == 0)
+				break;
+			
+			if (nError != ERROR_INSUFFICIENT_BUFFER)
+			{
+				nLength = 0;
+				break;
+			}
+			else sFile.resize(sFile.size()*2);
 		}
+		else break;
 	}
 
 	if (nLength)

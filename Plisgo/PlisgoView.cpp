@@ -1128,7 +1128,7 @@ LRESULT		 CPlisgoView::OnCreate(	UINT uMsg, WPARAM wParam,
 
 		lvColumn.mask |= LVCF_WIDTH;
 
-		switch(m_nColumnIDMap.size())
+		switch(n)
 		{
 		case 0: lvColumn.cx = 180; break; //Name
 		case 1: lvColumn.cx = 60; break; //Size
@@ -1137,13 +1137,11 @@ LRESULT		 CPlisgoView::OnCreate(	UINT uMsg, WPARAM wParam,
 		case 4: lvColumn.cx = 100; break; //Time
 		case 5: lvColumn.cx = 100; break; //Time
 		case 6: lvColumn.cx = 60; break; //Attrib
-		default:
-			{
-				const int nWidth = ListView_GetStringWidth(m_hList, lvColumn.pszText);
-
-				lvColumn.cx = nWidth + (nWidth>>3);
-			}
+		default: lvColumn.cx = 0;
 		}
+
+		if (lvColumn.cx == 0)
+			break;
 
 		m_nColumnIDMap.push_back(n);
 

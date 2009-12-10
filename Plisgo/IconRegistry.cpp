@@ -65,6 +65,45 @@ static bool		GetIconFromImageListOfSize(IImageList* pImageList, HICON& rhDst, UI
 	}
 }
 
+
+static void		GetLowerCaseExtension(std::wstring& rsExt, const std::wstring& rsPath)
+{
+	size_t nDot = rsPath.rfind(L'.');
+
+	if (nDot == -1)
+		nDot = 0;
+
+	LPCWSTR sExt = &rsPath[nDot];
+
+	if (nDot > 0 && ExtIsShortcut(sExt))
+	{
+		size_t nPrevDot = rsPath.rfind(L'.', nDot-1);
+
+		rsExt.assign(&rsPath[nPrevDot], nDot-nPrevDot);
+	}
+	else rsExt = sExt;
+
+	std::transform(rsExt.begin(),rsExt.end(),rsExt.begin(),tolower);
+}
+
+
+ULONG64	IconLocation::GetHash() const
+{
+	ULONG64 nResult = 0;
+
+	//No it's not thread safe
+
+	for(std::wstring::const_iterator it = sPath.begin();
+		it != sPath.end(); ++it)
+	{
+		AddToPreHash64(nResult, tolower(*it));
+	}
+
+	AddToPreHash64(nResult, nIndex);
+
+	return HashFromPreHash(nResult);
+}
+
 /*
 *************************************************************************
 						FSIconRegistry
@@ -124,7 +163,16 @@ FSIconRegistry::FSIconRegistry( LPCWSTR				sFSName,
 			while(nIndex >= m_ImageLists.size() )
 				m_ImageLists.push_back(VersionedImageList());
 		
-			m_ImageLists[nIndex].push_back(VersionImageList(nHeight));
+			VersionedImageList& rVersionedImageList = m_ImageLists[nIndex];
+
+			const size_t nVersionIndex = rVersionedImageList.size();
+
+			rVersionedImageList.resize(rVersionedImageList.size()+1);
+
+			ImageListVersion& rEntry = rVersionedImageList[nVersionIndex];
+
+			rEntry.sExt		= wcsrchr(findData.cFileName, L'.');
+			rEntry.nHeight	= nHeight;
 		}
 		while(FindNextFileW(hFind, &findData) != 0);
 
@@ -133,8 +181,13 @@ FSIconRegistry::FSIconRegistry( LPCWSTR				sFSName,
 }
 
 
+FSIconRegistry::~FSIconRegistry()
+{
 
-bool	FSIconRegistry::GetBestImageList_RO(VersionedImageList::const_iterator& rBestFit, UINT nList, UINT nHeight) const
+}
+
+
+bool	FSIconRegistry::GetBestImageList(std::wstring& rsImageListFile, UINT nList, UINT nHeight) const
 {
 	if (nList >= m_ImageLists.size())
 		return false;
@@ -144,105 +197,41 @@ bool	FSIconRegistry::GetBestImageList_RO(VersionedImageList::const_iterator& rBe
 	if (rVersionedList.size() == 0)
 		return false;
 
-	VersionedImageList::const_iterator it = rVersionedList.begin();
+	std::wstring sInstancePath;
+
+	if (!GetInstancePath(sInstancePath))
+		return false;
+
+	VersionedImageList::const_iterator it		= rVersionedList.begin();
+	VersionedImageList::const_iterator bestIt	= it;
+
+	if (it == rVersionedList.end())
+		return false;
 	
-	rBestFit = it;
-
-	if (it != rVersionedList.end())
+	while(it != rVersionedList.end())
 	{
-		do
+		if (it->nHeight == nHeight)
 		{
-			if (it->nHeight == nHeight)
-			{
-				rBestFit = it;
-				break;
-			}
-			else if ( (rBestFit->nHeight > nHeight && it->nHeight < rBestFit->nHeight && it->nHeight > nHeight)
-									||
-					 (rBestFit->nHeight < nHeight && it->nHeight > rBestFit->nHeight) )
-			{
-				rBestFit = it;
-			}
-
-			it++;
+			bestIt = it;
+			break;
 		}
-		while(it != rVersionedList.end());
-	}
+		else if ( (bestIt->nHeight > nHeight && it->nHeight < bestIt->nHeight && it->nHeight > nHeight)
+								||
+				 (bestIt->nHeight < nHeight && it->nHeight > bestIt->nHeight) )
+		{
+			bestIt = it;
+		}
+
+		it++;
+	}	
+
+	rsImageListFile = (boost::wformat(L"%1%.icons_%2%_%3%%4%") %sInstancePath %nList %bestIt->nHeight %bestIt->sExt).str();
 
 	return true;
 }
 
 
-bool	FSIconRegistry::GetBestImageList_RW(VersionedImageList::const_iterator& rBestFit, UINT nList, UINT nHeight)
-{
-	if (nList >= m_ImageLists.size())
-		return false;
-
-	VersionedImageList& rVersionedList = m_ImageLists[nList];
-
-	if (rVersionedList.size() == 0)
-		return false;
-
-	if (rBestFit->ImageList != NULL)
-		return true;
-	
-	//Check address
-	if (rBestFit < rVersionedList.begin() && rBestFit >= rVersionedList.end())
-		return false;
-	
-	const size_t nBestFitIndex = rBestFit-rVersionedList.begin();
-
-	VersionImageList& rEntry = const_cast<FSIconRegistry*>(this)->m_ImageLists[nList][nBestFitIndex];
-
-	if (rEntry.ImageList != NULL) //If we used rBestFit it might be what's in cache (due to const) and be out of date.
-	{
-		rBestFit = rVersionedList.begin()+nBestFitIndex;
-
-		return true;
-	}
-
-	const std::wstring& rsPath = const_cast<FSIconRegistry*>(this)->GetInstancePath_RW();
-
-	std::wstring sTemp = (boost::wformat(L"%1%.icons_%2%_%3%.*") %rsPath %nList %rBestFit->nHeight).str();
-	
-	WIN32_FIND_DATA findData;
-
-	HANDLE hFind = FindFirstFileW(sTemp.c_str(), &findData);
-
-	if (hFind != NULL && hFind != INVALID_HANDLE_VALUE)
-	{
-		std::wstring sFile(rsPath + findData.cFileName);
-
-		FindClose(hFind);
-
-		HIMAGELIST hImageList = LoadImageList(sFile, rBestFit->nHeight);
-
-		if (hImageList != NULL)
-		{
-			rEntry.ImageList = reinterpret_cast<IImageList*>(hImageList);
-			rBestFit = rVersionedList.begin()+nBestFitIndex; //Force cache refresh
-
-			ImageList_Destroy(hImageList); //Dec ref count
-
-			return true;
-		}
-	}
-
-	//It's hosed, remove it.
-	const_cast<FSIconRegistry*>(this)->m_ImageLists[nList].erase(rBestFit);
-
-	//Try again
-	if (!GetBestImageList_RO(rBestFit, nList, nHeight))
-		return false;
-	
-	if (rBestFit->ImageList == NULL)
-		return GetBestImageList_RW(rBestFit, nList, nHeight);
-	else
-		return true;
-}
-
-
-void		FSIconRegistry::AddInstancePath(std::wstring sRootPath)
+void	FSIconRegistry::AddInstancePath(std::wstring sRootPath)
 {
 	boost::unique_lock<boost::shared_mutex> lock(m_Mutex);
 
@@ -268,61 +257,61 @@ void		FSIconRegistry::AddInstancePath(std::wstring sRootPath)
 }
 
 
-const std::wstring&		FSIconRegistry::GetInstancePath_RW()
+void	FSIconRegistry::RemoveInstancePath(std::wstring sRootPath)
 {
+	boost::unique_lock<boost::shared_mutex> lock(m_Mutex);
+
+	std::transform(sRootPath.begin(),sRootPath.end(),sRootPath.begin(), tolower);
+
+	if (sRootPath.length() && *(sRootPath.end()-1) != L'\\')
+		sRootPath += L'\\';
+
 	//Trim dead paths
 	for(WStringList::iterator it = m_Paths.begin(); it != m_Paths.end();)
-	{
-		if (GetFileAttributes((*it).c_str()) == INVALID_FILE_ATTRIBUTES)
-			it = m_Paths.erase(it);
-		else
-			++it;
-	}
-
-	assert(m_Paths.begin() != m_Paths.end());
-
-	return *m_Paths.begin();
+		if (GetFileAttributes((*it).c_str()) != INVALID_FILE_ATTRIBUTES)
+		{
+			if (*it == sRootPath)
+				it = m_Paths.erase(it);
+			else
+				++it;
+		}
+		else it = m_Paths.erase(it);
 }
 
 
-
-bool		FSIconRegistry::GetFSIcon(HICON& rhIcon, UINT nList, UINT nIndex, UINT nHeight) const
+bool	FSIconRegistry::GetInstancePath(std::wstring& rsResult) const
 {
 	boost::upgrade_lock<boost::shared_mutex> lock(m_Mutex);
 
-	VersionedImageList::const_iterator itBestFit;
-
-	if (!GetBestImageList_RO(itBestFit, nList, nHeight))
-		return false;
-
-	if (itBestFit->ImageList == NULL)
+	for(WStringList::const_iterator it = m_Paths.begin(); it != m_Paths.end();)
 	{
-		boost::upgrade_to_unique_lock<boost::shared_mutex> rwLock(lock);
+		//Trim dead paths
+		if (GetFileAttributes((*it).c_str()) == INVALID_FILE_ATTRIBUTES)
+		{
+			{
+				boost::upgrade_to_unique_lock<boost::shared_mutex> rwLock(lock);
 
-		if (!const_cast<FSIconRegistry*>(this)->GetBestImageList_RW(itBestFit, nList, nHeight))
-			return false;
+				for(WStringList::const_iterator it2 = m_Paths.begin(); it2 != m_Paths.end();)
+					if (GetFileAttributes((*it2).c_str()) == INVALID_FILE_ATTRIBUTES)
+						it2 = const_cast<FSIconRegistry*>(this)->m_Paths.erase(it2);
+					else
+						++it2;
+			}
+
+			it = m_Paths.begin();
+		}
+		else
+		{
+			rsResult = *it;
+			return true;
+		}
 	}
 
-	return GetIconFromImageListOfSize(itBestFit->ImageList, rhIcon, nIndex, nHeight);
+	return false;
 }
 
 
-bool		FSIconRegistry::GetFSIcon_RW(HICON& rhIcon, UINT nList, UINT nIndex, UINT nHeight)
-{
-	VersionedImageList::const_iterator itBestFit;
-
-	if (!GetBestImageList_RO(itBestFit, nList, nHeight))
-		return false;
-
-	if (itBestFit->ImageList == NULL)
-		if (!const_cast<FSIconRegistry*>(this)->GetBestImageList_RW(itBestFit, nList, nHeight))
-			return false;
-
-	return GetIconFromImageListOfSize(itBestFit->ImageList, rhIcon, nIndex, nHeight);
-}
-
-
-bool		FSIconRegistry::ReadIconLocation(IconLocation& rIconLocation, const std::wstring& rsPligoFile, const ULONG nHeight)
+bool	FSIconRegistry::ReadIconLocation(IconLocation& rIconLocation, const std::wstring& rsPligoFile, const ULONG nHeight)
 {
 	HANDLE hFile = CreateFileW(rsPligoFile.c_str(), FILE_READ_DATA, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
 
@@ -386,141 +375,15 @@ bool		FSIconRegistry::ReadIconLocation(IconLocation& rIconLocation, const std::w
 }
 
 
-bool		FSIconRegistry::GetIconLocation(IconLocation& rIconLocation, UINT nList, UINT nIndex, const ULONG nHeight) const
+bool	FSIconRegistry::GetIconLocation(IconLocation& rIconLocation, UINT nList, UINT nIndex, const ULONG nHeight) const
 {
-	int nResult = DEFAULTFILEICONINDEX;
-
-	if (nList == -1 || nIndex == -1 )
+	if (!GetBestImageList(rIconLocation.sPath, nList, nHeight))
 		return false;
 
-	const std::wstring sKey = (boost::wformat(L"%1%:%2%:%3%") %nList %nIndex %nHeight).str();
-	
-	WCHAR sBuffer[MAX_PATH];
-
-	sBuffer[0] = L'\0';
-
-	GetTempPath(MAX_PATH, sBuffer);
-
-	rIconLocation.nIndex	= 0;
-	
-	boost::upgrade_lock<boost::shared_mutex> lock(m_Mutex);
-
-	bool bResult = true;
-
-	if (!LookupKey(rIconLocation.sPath, sKey))
-	{
-		boost::upgrade_to_unique_lock<boost::shared_mutex> rwLock(lock);
-
-		if (!LookupKey(rIconLocation.sPath, sKey)) //Check nothing has changed getting rw lock
-		{
-			rIconLocation.sPath	= (boost::wformat(L"%1%plisgo_cache_%2%_%3%_%4%_%5%_%6%.ico") %sBuffer %m_sFSName %m_nVersion %nHeight %nList %nIndex).str();
-	
-			HICON hBaseImage;
-
-			bResult = false;
-
-			if (const_cast<FSIconRegistry*>(this)->GetFSIcon_RW(hBaseImage, nList, nIndex, nHeight))
-			{
-				if (WriteToIconFile(rIconLocation.sPath, hBaseImage, false))
-				{
-					const_cast<FSIconRegistry*>(this)->m_BurnReadyCached[sKey] = rIconLocation.sPath;
-					bResult = true;
-				}
-
-				if (hBaseImage != NULL)
-					DestroyIcon(hBaseImage);
-			}
-		}
-	}
-	
-
-	return bResult;
-}
-
-
-bool		FSIconRegistry::LookupKey(std::wstring& rsPath, const std::wstring& rsKey) const
-{
-	BurnReadyCached::const_iterator it = m_BurnReadyCached.find(rsKey);
-
-	if (it == m_BurnReadyCached.end())
-		return false;
-
-	rsPath = it->second;
+	rIconLocation.nIndex = nIndex;
 
 	return true;
 }
-
-
-bool		FSIconRegistry::GetIconLocation(IconLocation& rIconLocation, const IconLocation& rBase, IPtrRefIconList iconList, UINT nOverlayList, UINT nOverlayIndex) const
-{
-	if (!rBase.IsValid() || nOverlayList == -1 || nOverlayIndex == -1) 
-		return false;
-
-	const UINT nHeight = iconList->GetHeight();
-
-	const std::wstring sKey = (boost::wformat(L"%1%:%2%:%3%:%4%:%5%") %rBase.sPath %rBase.nIndex %nOverlayList %nOverlayIndex %nHeight).str();
-
-	boost::upgrade_lock<boost::shared_mutex> lock(m_Mutex);
-
-	rIconLocation.nIndex	= 0;
-
-	bool bResult = true;
-
-	if (!LookupKey(rIconLocation.sPath, sKey))
-	{
-		boost::upgrade_to_unique_lock<boost::shared_mutex> rwLock(lock);
-
-		if (!LookupKey(rIconLocation.sPath, sKey))
-		{
-			bResult = false;
-
-			const std::wstring	sBaseHashKey	= (boost::wformat(L"%1%:%2%") %rBase.sPath %rBase.nIndex ).str();
-			const ULONG64		nBaseHash		= SimpleHash64(sBaseHashKey.c_str());
-	
-			WCHAR sBuffer[MAX_PATH];
-
-			sBuffer[0] = L'\0';
-
-			GetTempPath(MAX_PATH, sBuffer);
-
-			rIconLocation.sPath	= (boost::wformat(L"%1%plisgo_cache_%2%_%3%_%4%_%5%_%6%_%7%.ico") %sBuffer %m_sFSName %m_nVersion %nHeight %nBaseHash %nOverlayList %nOverlayIndex).str();
-
-			HICON hOverlay = NULL;
-
-			if (const_cast<FSIconRegistry*>(this)->GetFSIcon_RW(hOverlay, nOverlayList, nOverlayIndex, nHeight))
-			{
-				HICON hBase = NULL;
-
-				int nStdIndex;
-
-				if (iconList->GetIconLocationIndex(nStdIndex, rBase) &&
-					iconList->GetIcon(hBase, nStdIndex))
-				{
-					HICON hBoth = BurnTogether(hBase, hOverlay, nHeight);
-
-					if (hBoth != NULL)
-					{
-						if (WriteToIconFile(rIconLocation.sPath, hBoth, false))
-						{
-							const_cast<FSIconRegistry*>(this)->m_BurnReadyCached[sKey] = rIconLocation.sPath;
-							bResult = true;
-						}
-
-						DestroyIcon(hBoth);
-					}
-
-					DestroyIcon(hBase);
-				}
-
-				DestroyIcon(hOverlay);
-			}
-		}
-	}
-	
-
-	return bResult;
-}
-
 
 /*
 *************************************************************************
@@ -557,30 +420,7 @@ RefIconList::RefIconList(UINT nHeight)
 }
 
 
-
-static void		GetLowerCaseExtension(std::wstring& rsExt, const std::wstring& rsPath)
-{
-	size_t nDot = rsPath.rfind(L'.');
-
-	if (nDot == -1)
-		nDot = 0;
-
-	LPCWSTR sExt = &rsPath[nDot];
-
-	if (nDot > 0 && ExtIsShortcut(sExt))
-	{
-		size_t nPrevDot = rsPath.rfind(L'.', nDot-1);
-
-		rsExt.assign(&rsPath[nPrevDot], nDot-nPrevDot);
-	}
-	else rsExt = sExt;
-
-	std::transform(rsExt.begin(),rsExt.end(),rsExt.begin(),tolower);
-}
-
-
-
-bool		RefIconList::GetFileIconLocation(IconLocation& rIconLocation, const std::wstring& rsPath) const
+bool	RefIconList::GetFileIconLocation(IconLocation& rIconLocation, const std::wstring& rsPath) const
 {
 	std::wstring sKey;
 
@@ -664,7 +504,7 @@ bool		RefIconList::GetFileIconLocation(IconLocation& rIconLocation, const std::w
 }
 
 
-bool		RefIconList::AddEntry_RW(int& rnIndex, HICON hIcon)
+bool	RefIconList::AddEntry_RW(int& rnIndex, HICON hIcon)
 {
 	assert(hIcon != NULL);
 
@@ -684,7 +524,7 @@ bool		RefIconList::AddEntry_RW(int& rnIndex, HICON hIcon)
 }
 
 
-int			RefIconList::GetFreeSlot()
+int		RefIconList::GetFreeSlot()
 {
 	for(std::vector<bool>::iterator it = m_EntryUsed.begin();
 		it != m_EntryUsed.end(); ++it)
@@ -714,7 +554,7 @@ int			RefIconList::GetFreeSlot()
 }
 
 
-bool		RefIconList::GetFolderIconLocation(IconLocation& rIconLocation, bool bOpen) const
+bool	RefIconList::GetFolderIconLocation(IconLocation& rIconLocation, bool bOpen) const
 {
 	const CachedIcon& rCachedIcon = m_CachedIcons[(bOpen)?DEFAULTOPENFOLDERICONINDEX:DEFAULTCLOSEDFOLDERICONINDEX];
 
@@ -724,7 +564,7 @@ bool		RefIconList::GetFolderIconLocation(IconLocation& rIconLocation, bool bOpen
 }
 
 
-bool		RefIconList::GetIconLocation(IconLocation& rIconLocation, const int nIndex) const
+bool	RefIconList::GetIconLocation(IconLocation& rIconLocation, const int nIndex) const
 {
 	boost::upgrade_lock<boost::shared_mutex> lock(m_Mutex);
 
@@ -750,7 +590,7 @@ bool		RefIconList::GetIconLocation(IconLocation& rIconLocation, const int nIndex
 }
 
 
-bool		RefIconList::GetIcon(HICON& rhResult, const int nIndex) const
+bool	RefIconList::GetIcon(HICON& rhResult, const int nIndex) const
 {
 	boost::upgrade_lock<boost::shared_mutex> lock(m_Mutex);
 
@@ -762,7 +602,18 @@ bool		RefIconList::GetIcon(HICON& rhResult, const int nIndex) const
 }
 
 
-bool		RefIconList::GetIconLocationIndex(int& rnIndex, const IconLocation& rIconLocation) const
+bool	RefIconList::GetIcon(HICON& rhResult, const IconLocation& rIconLocation) const
+{
+	int nIndex = 0;
+
+	if (!GetIconLocationIndex(nIndex, rIconLocation))
+		return false;
+
+	return GetIcon(rhResult, nIndex);
+}
+
+
+bool	RefIconList::GetIconLocationIndex(int& rnIndex, const IconLocation& rIconLocation) const
 {
 	boost::upgrade_lock<boost::shared_mutex> lock(m_Mutex);
 
@@ -786,7 +637,7 @@ bool		RefIconList::GetIconLocationIndex(int& rnIndex, const IconLocation& rIconL
 }
 
 
-bool		RefIconList::GetIconLocationIndex_RW(int& rnIndex, const IconLocation& rIconLocation, const std::wstring& rsKey)
+bool	RefIconList::GetIconLocationIndex_RW(int& rnIndex, const IconLocation& rIconLocation, const std::wstring& rsKey)
 {
 	CachedIconsMap::const_iterator it = m_CachedIconsMap.find(rsKey);
 
@@ -846,7 +697,7 @@ bool		RefIconList::GetIconLocationIndex_RW(int& rnIndex, const IconLocation& rIc
 }
 
 
-void		RefIconList::RemoveOlderThan(ULONG64 n100ns)
+void	RefIconList::RemoveOlderThan(ULONG64 n100ns)
 {
 	ULONG64 nNow;
 
@@ -915,7 +766,163 @@ void		RefIconList::RemoveOlderThan(ULONG64 n100ns)
 }
 
 
-bool		RefIconList::CachedIcon::IsValid() const
+bool	ReadTimesFromInfoFile(LPCWSTR sFile, ULONG64& rnBaseTime, ULONG64& rsOverTime)
+{
+	HANDLE hFile = CreateFileW(sFile, FILE_READ_DATA, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
+
+	if (hFile == NULL || hFile == INVALID_HANDLE_VALUE)
+		return false;
+
+	DWORD nRead = 0;
+
+	bool bResult (	ReadFile(hFile, &rnBaseTime, sizeof(ULONG64), &nRead, NULL) && nRead == sizeof(ULONG64) &&
+					ReadFile(hFile, &rsOverTime, sizeof(ULONG64), &nRead, NULL) && nRead == sizeof(ULONG64) );
+
+	CloseHandle(hFile);
+
+	return bResult;
+}
+
+
+static bool WriteIconLocationToInfoFile(HANDLE hFile, const IconLocation& rIconLocation)
+{
+	DWORD nWritten = 0;
+	ULONG32 nLength = (rIconLocation.sPath.length()+1)*sizeof(WCHAR);
+
+	WriteFile(hFile, &nLength, sizeof(ULONG32), &nWritten, NULL);
+
+	if (nWritten != sizeof(ULONG32))
+		return false;
+
+	WriteFile(hFile, rIconLocation.sPath.c_str(), nLength, &nWritten, NULL);
+	
+	if (nWritten != nLength)
+		return false;
+
+	nLength = (ULONG32)rIconLocation.nIndex;
+	WriteFile(hFile, &nLength, sizeof(ULONG32), &nWritten, NULL);
+
+	return (nWritten == sizeof(ULONG32));
+}
+
+
+
+static bool	WriteInfoFile(LPCWSTR sFile, const IconLocation& rFirst, ULONG64 nFirstTime, const IconLocation& rSecond, ULONG64 sSecondTime)
+{
+	HANDLE hFile = CreateFileW(sFile, FILE_WRITE_DATA, FILE_SHARE_READ|FILE_SHARE_WRITE, NULL, OPEN_ALWAYS, 0, NULL);
+
+	if (hFile == NULL || hFile == INVALID_HANDLE_VALUE)
+		return false;
+
+	DWORD nWritten = 0;
+
+	bool bResult = false;
+
+	if (WriteFile(hFile, &nFirstTime, sizeof(ULONG64), &nWritten, NULL) && nWritten == sizeof(ULONG64) &&
+		WriteFile(hFile, &sSecondTime, sizeof(ULONG64), &nWritten, NULL) && nWritten == sizeof(ULONG64))
+	{
+		bResult = true;
+
+		//This bit doesn't matter as much, it's to be used for book keeping
+		if (WriteIconLocationToInfoFile(hFile, rFirst))
+			WriteIconLocationToInfoFile(hFile, rSecond);
+	}
+
+	CloseHandle(hFile);
+
+	return bResult;
+}
+
+
+
+
+bool	RefIconList::CombineIconLocations(IconLocation& rDst, const IconLocation& rFirst, const IconLocation& rSecond)
+{
+	if (!rFirst.IsValid() || !rSecond.IsValid())
+		return false;
+
+	WIN32_FILE_ATTRIBUTE_DATA baseInfo = {0};
+	WIN32_FILE_ATTRIBUTE_DATA overInfo = {0};
+
+	if (!GetFileAttributesEx(rFirst.sPath.c_str(), GetFileExInfoStandard, &baseInfo) ||
+		!GetFileAttributesEx(rSecond.sPath.c_str(), GetFileExInfoStandard, &overInfo))
+	{
+		return false;
+	}
+
+	const ULONG64 nBaseHash = rFirst.GetHash();
+	const ULONG64 nOverHash = rSecond.GetHash();
+
+	DWORD nTempSize = ExpandEnvironmentStrings(L"%TEMP%", NULL, 0);
+
+	std::wstring sTemp(nTempSize,L' ');
+
+	ExpandEnvironmentStrings(L"%TEMP%", (LPWSTR)sTemp.c_str(), sTemp.length());
+	
+	sTemp.resize(nTempSize-1); //Remove extra /0
+
+	const std::wstring sFile((boost::wformat(L"%1%\\plisgo_%2%_%3%_%4%") %sTemp %nBaseHash %nOverHash %m_nHeight).str());
+
+
+	ULONG64 nBaseTime;
+	ULONG64 nOverTime;
+
+	rDst.nIndex = 0;
+	rDst.sPath = sFile;
+	rDst.sPath += L".ico";
+
+	std::wstring sTxtFile = sFile;
+	sTxtFile+= L".info";
+
+
+	if (ReadTimesFromInfoFile(sTxtFile.c_str(), nBaseTime, nOverTime))
+	{
+		if (nBaseTime == *(ULONG64*)&baseInfo.ftLastWriteTime &&
+			nOverTime == *(ULONG64*)&overInfo.ftLastWriteTime)
+		{
+			if (GetFileAttributes(rDst.sPath.c_str()) != INVALID_FILE_ATTRIBUTES)
+				return true;
+		}
+	}
+
+	HICON hBase = NULL;
+
+	if (!GetIcon(hBase, rFirst))
+		return false;
+
+	bool bResult = false;
+
+	HICON hSecond = NULL;
+
+	if (GetIcon(hSecond, rSecond))
+	{
+		HICON hResult = BurnTogether(hBase, hSecond, m_nHeight);
+
+		if (hResult != NULL)
+		{
+			if (WriteToIconFile(rDst.sPath.c_str(), hResult))
+			{
+				WriteInfoFile(	sTxtFile.c_str(),
+								rFirst,
+								*(ULONG64*)&baseInfo.ftLastWriteTime,
+								rSecond,
+								*(ULONG64*)&overInfo.ftLastWriteTime);
+				bResult = true;
+			}
+
+			DestroyIcon(hResult);
+		}
+
+		DestroyIcon(hSecond);
+	}
+	
+	DestroyIcon(hBase);
+
+	return bResult;
+}
+
+
+bool	RefIconList::CachedIcon::IsValid() const
 {
 	if (Location.sPath.length() == 0)
 		return false;
@@ -937,67 +944,84 @@ IconRegistry::IconRegistry()
 }
 
 
-IPtrFSIconRegistry	IconRegistry::GetFSIconRegistry(LPCWSTR sFS, int nVersion, std::wstring& rsFirstPath) const
+IPtrFSIconRegistry	IconRegistry::GetFSIconRegistry(LPCWSTR sFS, int nVersion, const std::wstring& rsInstancePath) const
 {
 	IPtrFSIconRegistry result;
 
 	if (sFS == NULL || nVersion < 1)
 		return IPtrFSIconRegistry();
 
+	std::wstring sKey = (boost::wformat(L"%1%:%2%") %sFS %nVersion).str();
 
-	WCHAR buffer[MAX_PATH];
+	std::transform(sKey.begin(),sKey.end(),sKey.begin(), tolower);
 
-	FillLowerCopy(buffer, MAX_PATH, sFS);
-	
-	size_t nLen = wcslen(buffer);
-
-	wsprintf(&buffer[nLen], L"%i", nVersion);
-
-	std::wstring sKey = buffer;
-
-	{
-		boost::upgrade_lock<boost::shared_mutex> lock(m_Mutex);
-
-		FSIconRegistries::const_iterator it = m_FSIconRegistries.find(sKey);
-
-		if (it != m_FSIconRegistries.end())
-		{
-			result = it->second.lock();
-
-			if (result.get() != NULL)
-			{
-				result->AddInstancePath(rsFirstPath);
-
-				return result;
-			}
-		}
-	}
-
-	boost::lock_guard<boost::shared_mutex> rwLock(m_Mutex);
+	boost::upgrade_lock<boost::shared_mutex> lock(m_Mutex);
 
 	{
 		FSIconRegistries::const_iterator it = m_FSIconRegistries.find(sKey);
 
 		if (it != m_FSIconRegistries.end())
 		{
-			result = it->second.lock();
+			result = it->second;
+			
+			result->AddInstancePath(rsInstancePath);
 
-			if (result.get() != NULL)
-			{
-				result->AddInstancePath(rsFirstPath);
-
-				return result;
-			}
+			return result;
 		}
 	}
 
-	result.reset(new FSIconRegistry(sFS, nVersion, const_cast<IconRegistry*>(this), rsFirstPath));
+	boost::upgrade_to_unique_lock<boost::shared_mutex> rwLock(lock);
+
+	{
+		FSIconRegistries::const_iterator it = m_FSIconRegistries.find(sKey);
+
+		if (it != m_FSIconRegistries.end())
+		{
+			result = it->second;
+			
+			result->AddInstancePath(rsInstancePath);
+
+			return result;
+		}
+	}
+
+	result.reset(new FSIconRegistry(sFS, nVersion, const_cast<IconRegistry*>(this), rsInstancePath));
 	
 	const_cast<IconRegistry*>(this)->m_FSIconRegistries[sKey] = result;
 
 	return result;
 }
 
+
+void				IconRegistry::ReleaseFSIconRegistry(IPtrFSIconRegistry& rFSIconRegistry,
+														const std::wstring& rsInstancePath)
+{
+	assert(rFSIconRegistry.get() != NULL);
+
+	std::wstring sKey = (boost::wformat(L"%1%:%2%") %rFSIconRegistry->GetFSName() %rFSIconRegistry->GetFSVersion()).str();
+
+	std::transform(sKey.begin(),sKey.end(),sKey.begin(), tolower);
+
+	boost::unique_lock<boost::shared_mutex> lock(m_Mutex);
+
+	rFSIconRegistry->RemoveInstancePath(rsInstancePath);
+
+	if (m_FSIconRegistries.size() && (m_FSIconRegistries.find(sKey) != m_FSIconRegistries.end()))
+	{
+		std::wstring sCurrentInstacePath;
+
+		if (!rFSIconRegistry->GetInstancePath(sCurrentInstacePath))
+		{
+			//No instance paths left, remove from map
+
+			m_FSIconRegistries.erase(sKey);
+		}
+	}
+	else
+	{
+		//It has already been removed. TODO
+	}
+}
 
 
 IPtrRefIconList		IconRegistry::GetRefIconList(ULONG nHeight) const

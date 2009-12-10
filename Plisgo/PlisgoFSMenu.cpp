@@ -29,7 +29,7 @@ PlisgoFSMenu::PlisgoFSMenu(IPtrFSIconRegistry FSIcons, const std::wstring& rsPat
 {
 	m_sPath = rsPath;
 
-	if (ReadTextFromFile(m_sText, rsPath + L"\\.text"))
+	if (ReadTextFromFile(m_sText, (rsPath + L"\\.text").c_str()))
 	{
 		m_bEnabled = false;
 
@@ -72,7 +72,7 @@ PlisgoFSMenu::PlisgoFSMenu(IPtrFSIconRegistry FSIcons, const std::wstring& rsPat
 
 		int nEnabled = 0;
 
-		if (ReadIntFromFile(nEnabled, rsPath + L"\\.enabled"))
+		if (ReadIntFromFile(nEnabled, (rsPath + L"\\.enabled").c_str()))
 			m_bEnabled = (nEnabled != 0);
 		else
 			m_bEnabled = true;
@@ -114,14 +114,24 @@ PlisgoFSMenu::PlisgoFSMenu(IPtrFSIconRegistry FSIcons, const std::wstring& rsPat
 
 		if (m_bEnabled)
 		{
-			UINT nList = -1;
-			UINT nEntry = -1;
+			IconLocation iconLocation;
 
-			if (FSIcons.get() != NULL && ReadIconIndices(rsPath + L"\\.icon", nList, nEntry))
+			if (FSIcons.get() != NULL)
 			{
 				const int nIconHeight = TOPOWEROFTWO(GetSystemMetrics(SM_CYMENUCHECK) + GetSystemMetrics(SM_CYEDGE));
 
-				FSIcons->GetFSIcon(m_hIcon, nList, nEntry, nIconHeight);
+				if (FSIcons->ReadIconLocation(iconLocation, rsPath + L"\\.icon", nIconHeight))
+				{
+					const IconRegistry* pIconRegistry = FSIcons->GetMainIconRegistry();
+
+					assert(pIconRegistry != NULL);
+
+					IPtrRefIconList iconList = pIconRegistry->GetRefIconList(nIconHeight);
+
+					assert(iconList.get() != NULL);
+
+					iconList->GetIcon(m_hIcon, iconLocation);
+				}
 			}
 
 			LoadMenus(m_children, FSIcons, rsPath+L"\\", rSelection);

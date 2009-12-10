@@ -139,8 +139,8 @@ inline bool			ReadIndicesPair(CHAR* sBuffer, UINT& rnList, UINT& rnEntry)
 	{
 		*sDevide++ = 0;
 
-		rnList	= (UINT)atoi(sBuffer);
-		rnEntry	= (UINT)atoi(sDevide);
+		rnList	= (UINT)atol(sBuffer);
+		rnEntry	= (UINT)atol(sDevide);
 		
 		return true;
 	}
@@ -168,33 +168,40 @@ inline void			EnsureWin32Path(std::wstring& rsPath)
 }
 
 
+inline void		AddToPreHash64(ULONG64& rnHash, int n)
+{
+	rnHash += n;
+	rnHash += (rnHash << 10);
+	rnHash ^= (rnHash >> 6);
+}
+
+inline ULONG64	HashFromPreHash(ULONG64 nHash)
+{
+	nHash += (nHash << 3);
+	nHash ^= (nHash >> 11);
+	nHash += (nHash << 15);
+
+	return nHash;
+}
+
+
+
 inline ULONG64		SimpleHash64(const wchar_t* sKey)
 {
 	ULONG64 nResult = 0;
 
 	if (sKey)
-	{
 		for(; *sKey != L'\0'; ++sKey)
-		{
-			nResult += tolower(*sKey);
-			nResult += (nResult << 10);
-			nResult ^= (nResult >> 6);
-		}
-	}
+			AddToPreHash64(nResult, tolower(*sKey));
 
-	nResult += (nResult << 3);
-	nResult ^= (nResult >> 11);
-	nResult += (nResult << 15);
-
-	return nResult;
+	return HashFromPreHash(nResult);
 }
 
 extern HRESULT		GetShellIShellFolder2Implimentation(IShellFolder2** ppResult);
 
-extern bool			ReadTextFromFile(std::wstring& rsResult, const std::wstring& rsFile);
-extern bool			ReadIntFromFile(int& rnResult, const std::wstring& rsFile);
-extern bool			ReadDoubleFromFile(double& rnResult, const std::wstring& rsFile);
-extern bool			ReadIconIndices(std::wstring sFile, UINT& rnList, UINT& rnEntry);
+extern bool			ReadTextFromFile(std::wstring& rsResult, LPCWSTR sFile);
+extern bool			ReadIntFromFile(int& rnResult, LPCWSTR sFile);
+extern bool			ReadDoubleFromFile(double& rnResult, LPCWSTR sFile);
 
 extern HRESULT		GetWStringPathFromIDL(std::wstring& rResult, LPCITEMIDLIST pIDL);
 

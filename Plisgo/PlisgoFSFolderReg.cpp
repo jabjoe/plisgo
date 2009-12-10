@@ -48,6 +48,88 @@ void				PlisgoFSFolderReg::Shutdown()
 	delete gpPlisgoFSFolderReg;
 }
 
+static bool bThreadToRun = true;
+
+DWORD WINAPI PlisgoFSFolderReg::ClearningThreadCB(void*)
+{
+	while(bThreadToRun)
+	{
+		Sleep(10000); //Run once every 10 seconds
+		gpPlisgoFSFolderReg->RunRootCacheClean();
+	}
+
+	return 0;
+}
+
+
+PlisgoFSFolderReg::PlisgoFSFolderReg()
+{
+	m_hCleaningThread = CreateThread(NULL, 0, ClearningThreadCB, NULL, 0, NULL);
+}
+
+
+PlisgoFSFolderReg::~PlisgoFSFolderReg()
+{
+	bThreadToRun = false;
+
+	ResumeThread(m_hCleaningThread);
+
+	WaitForSingleObject(m_hCleaningThread, 200); //Give it a chance to shutdown
+
+	CloseHandle(m_hCleaningThread);
+}
+
+
+void				PlisgoFSFolderReg::RunRootCacheClean()
+{
+	boost::upgrade_lock<boost::shared_mutex> lock(m_Mutex);
+
+	bool bCleaningToBeDone = false;
+
+	for(RootCacheMap::const_iterator it = m_RootCache.begin();
+		it != m_RootCache.end(); ++it)
+	{
+		if( GetFileAttributes(it->second->GetPath().c_str()) != INVALID_FILE_ATTRIBUTES)
+		{
+			if( GetFileAttributes((it->second->GetPath() + L".plisgofs").c_str()) == INVALID_FILE_ATTRIBUTES)
+			{
+				bCleaningToBeDone = true;
+				break;
+			}
+		}
+		else
+		{
+			bCleaningToBeDone = true;
+			break;
+		}
+	}
+
+	if (bCleaningToBeDone)
+	{
+		boost::upgrade_to_unique_lock<boost::shared_mutex> rwLock(lock);
+
+		bCleaningToBeDone = false;
+
+		for(RootCacheMap::const_iterator it = m_RootCache.begin();
+			it != m_RootCache.end();)
+		{
+			if( GetFileAttributes(it->second->GetPath().c_str()) != INVALID_FILE_ATTRIBUTES)
+			{
+				if( GetFileAttributes((it->second->GetPath() + L".plisgofs").c_str()) == INVALID_FILE_ATTRIBUTES)
+					bCleaningToBeDone = true;
+			}
+			else bCleaningToBeDone = true;
+
+			if (bCleaningToBeDone)
+			{
+				it = m_RootCache.erase(it);
+				bCleaningToBeDone = false;
+			}
+			else ++it;
+		}
+	}
+}
+
 
 IPtrPlisgoFSRoot	PlisgoFSFolderReg::ReturnValidRoot(IPtrPlisgoFSRoot root, const std::wstring& rsPath) const
 {

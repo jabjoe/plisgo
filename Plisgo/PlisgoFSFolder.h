@@ -61,8 +61,11 @@ public:
 
 	IPtrFSIconRegistry	GetFSIconRegistry() const						{ return m_IconRegistry; }
 
-	bool				GetFolderIcon(UINT& rnList, UINT& rnIndex, bool bOpen = false) const;
-	bool				GetExtensionIcon(LPCWSTR sExt, UINT& rnList, UINT& rnIndex) const;
+//	bool				GetExtensionIcon(LPCWSTR sExt, UINT& rnList, UINT& rnIndex) const;
+
+	bool				GetFolderIcon(IconLocation& rIconLocation, const UINT nHeight, bool bOpen = false) const;
+	bool				GetExtensionIcon(IconLocation& rIconLocation, LPCWSTR sExt, const UINT nHeight) const;
+
 
 	void				GetMenuItems(IPtrPlisgoFSMenuList& rMenus, const WStringList& rSelection);
 
@@ -118,18 +121,6 @@ private:
 
 	std::vector<ColumnDef>					m_Columns;
 
-	UINT									m_nFolderClosedIconImageList;
-	UINT									m_nFolderClosedIconImageIndex;
-	UINT									m_nFolderOpenIconImageList;
-	UINT									m_nFolderOpenIconImageIndex;
-
-	UINT									m_nFileDefaultIconImageList;
-	UINT									m_nFileDefaultIconImageIndex;
-
-	typedef std::tr1::unordered_map<std::wstring, std::pair<UINT,UINT> >	ExtIconIndicesMap;
-
-	ExtIconIndicesMap														m_ExtIconIndices;
-
-	IPtrFSIconRegistry														m_IconRegistry;
+	IPtrFSIconRegistry						m_IconRegistry;
 };
 

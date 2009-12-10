@@ -134,8 +134,8 @@ PlisgoFSRoot::PlisgoFSRoot(const std::wstring& rsPath, IconRegistry* pIconRegist
 
 	std::wstring sPath = m_sPath + L".plisgofs\\";
 
-	if (!ReadTextFromFile(m_sFSName, sPath + L".fsname") ||
-		!ReadIntFromFile(m_nFSVersion, sPath + L".version") || m_nFSVersion != PLISGO_APIVERSION)
+	if (!ReadTextFromFile(m_sFSName, (sPath + L".fsname").c_str()) ||
+		!ReadIntFromFile(m_nFSVersion, (sPath + L".version").c_str()) || m_nFSVersion != PLISGO_APIVERSION)
 	{
 		m_sFSName.resize(0);
 
@@ -159,7 +159,7 @@ PlisgoFSRoot::PlisgoFSRoot(const std::wstring& rsPath, IconRegistry* pIconRegist
 		{
 			std::wstring sHeader;
 			
-			ReadTextFromFile(sHeader, sPath + findData.cFileName);
+			ReadTextFromFile(sHeader, (sPath + findData.cFileName).c_str());
 
 			int nIndex = _wtoi(findData.cFileName + 15);//".column_header_"
 
@@ -176,7 +176,7 @@ PlisgoFSRoot::PlisgoFSRoot(const std::wstring& rsPath, IconRegistry* pIconRegist
 
 			wsprintf(sBuffer, L".column_alignment_%i", nIndex);
 
-			ReadTextFromFile(sTemp, sPath + sBuffer);
+			ReadTextFromFile(sTemp, (sPath + sBuffer).c_str());
 
 			if (sTemp.length())
 			{
@@ -192,7 +192,7 @@ PlisgoFSRoot::PlisgoFSRoot(const std::wstring& rsPath, IconRegistry* pIconRegist
 
 			wsprintf(sBuffer, L".column_type_%i", nIndex);
 
-			ReadTextFromFile(sTemp, sPath + sBuffer);
+			ReadTextFromFile(sTemp, (sPath + sBuffer).c_str());
 
 			if (sTemp.length())
 			{
@@ -213,61 +213,7 @@ PlisgoFSRoot::PlisgoFSRoot(const std::wstring& rsPath, IconRegistry* pIconRegist
 
 			wsprintf(sBuffer, L".column_width_%i", nIndex);
 
-			ReadIntFromFile(rColumnDef.nWidth, sPath + sBuffer);
-		}
-		while(FindNextFileW(hFind, &findData) != 0);
-
-		FindClose(hFind);
-	}
-
-	sTemp = sPath + L".type_icons\\";
-
-	if (!ReadIconIndices(	sTemp + L".folder_icon_closed",
-							m_nFolderClosedIconImageList,
-							m_nFolderClosedIconImageIndex))
-	{
-		m_nFolderClosedIconImageList = -1;
-		m_nFolderClosedIconImageIndex = -1;
-	}
-
-	if (!ReadIconIndices(	sTemp + L".folder_icon_open",
-							m_nFolderOpenIconImageList,
-							m_nFolderOpenIconImageIndex))
-	{
-		m_nFolderOpenIconImageList = -1;
-		m_nFolderOpenIconImageIndex = -1;
-	}
-
-	if (!ReadIconIndices(	sTemp + L".default_file",
-							m_nFileDefaultIconImageList,
-							m_nFileDefaultIconImageIndex))
-	{
-		m_nFileDefaultIconImageList = -1;
-		m_nFileDefaultIconImageIndex = -1;
-	}
-	
-	sTemp += L".*";
-
-	hFind = FindFirstFileW(sTemp.c_str(), &findData);
-
-	if (hFind != NULL && hFind != INVALID_HANDLE_VALUE)
-	{
-		do
-		{
-			UINT nList;
-			UINT nIndex;
-
-			//ever heard of longer then 4?
-			//This is just a quick and easy way of ignoring .folder_icon_open, .folder_icon_closed and .default_file
-			if (wcslen(findData.cFileName) > 6 && 
-				ReadIconIndices(sPath + findData.cFileName, nList, nIndex))
-			{
-				WCHAR buffer[MAX_PATH];
-
-				FillLowerCopy(buffer, MAX_PATH, &findData.cFileName[1]);
-
-				m_ExtIconIndices[buffer] = std::pair<UINT,UINT>(nList, nIndex);
-			}
+			ReadIntFromFile(rColumnDef.nWidth, (sPath + sBuffer).c_str());
 		}
 		while(FindNextFileW(hFind, &findData) != 0);
 
@@ -278,6 +224,9 @@ PlisgoFSRoot::PlisgoFSRoot(const std::wstring& rsPath, IconRegistry* pIconRegist
 
 PlisgoFSRoot::~PlisgoFSRoot()
 {
+	std::wstring sPath = m_sPath + L".plisgofs\\";
+
+	m_IconRegistry->GetMainIconRegistry()->ReleaseFSIconRegistry(m_IconRegistry, sPath);
 }
 
 
@@ -287,53 +236,23 @@ void	PlisgoFSRoot::GetMenuItems(IPtrPlisgoFSMenuList& rMenus, const WStringList&
 }
 
 
-bool	PlisgoFSRoot::GetFolderIcon(UINT& rnList, UINT& rnIndex, bool bOpen) const
+bool	PlisgoFSRoot::GetFolderIcon(IconLocation& rIconLocation, const UINT nHeight, bool bOpen ) const
 {
 	if (bOpen)
-	{
-		if (m_nFolderOpenIconImageList == -1 || m_nFolderOpenIconImageIndex == -1)
-			return false;
-
-		rnList = m_nFolderOpenIconImageList;
-		rnIndex = m_nFolderOpenIconImageIndex;
-	}
+		return m_IconRegistry->ReadIconLocation(rIconLocation, (m_sPath + L".plisgofs\\.type_icons\\.folder_icon_open").c_str(), nHeight);
 	else
-	{
-		if (m_nFolderClosedIconImageList == -1 || m_nFolderClosedIconImageIndex == -1)
-			return false;
-
-		rnList = m_nFolderClosedIconImageList;
-		rnIndex = m_nFolderClosedIconImageIndex;
-	}
-
-	return true;
+		return m_IconRegistry->ReadIconLocation(rIconLocation, (m_sPath + L".plisgofs\\.type_icons\\.folder_icon_closed").c_str(), nHeight);
 }
 
 
-bool	PlisgoFSRoot::GetExtensionIcon(LPCWSTR sExt, UINT& rnList, UINT& rnIndex) const
+bool	PlisgoFSRoot::GetExtensionIcon(IconLocation& rIconLocation, LPCWSTR sExt, const UINT nHeight) const
 {
-	rnList = m_nFileDefaultIconImageList;
-	rnIndex = m_nFileDefaultIconImageIndex;
+	if (sExt != NULL)
+		if (m_IconRegistry->ReadIconLocation(rIconLocation, (m_sPath + L".plisgofs\\.type_icons\\" + sExt).c_str(), nHeight))
+			return true;
+	
+	return m_IconRegistry->ReadIconLocation(rIconLocation, (m_sPath + L".plisgofs\\.type_icons\\.default_file").c_str(), nHeight);
 
-	if (sExt == NULL || sExt[0] == L'\0')
-		return (rnList != -1 && rnIndex != -1);
-
-	WCHAR buffer[MAX_PATH];
-
-	if (sExt[0] == L'.')
-		++sExt;
-
-	FillLowerCopy(buffer, MAX_PATH, sExt);
-
-	ExtIconIndicesMap::const_iterator it = m_ExtIconIndices.find(buffer);
-
-	if (it == m_ExtIconIndices.end())
-		return (rnList != -1 && rnIndex != -1);
-
-	rnList = it->second.first;
-	rnIndex = it->second.second;
-
-	return (rnList != -1 && rnIndex != -1);
 }
 
 
@@ -360,7 +279,7 @@ bool	PlisgoFSRoot::GetPathColumnTextEntry(std::wstring& rsResult, const std::wst
 	if (!GetPathColumnEntryPath(sPath, rsPath, nIndex))
 		return false;
 
-	return ReadTextFromFile(rsResult, sPath);
+	return ReadTextFromFile(rsResult, sPath.c_str());
 }
 
 
@@ -371,7 +290,7 @@ bool	PlisgoFSRoot::GetPathColumnIntEntry(int& rnResult, const std::wstring& rsPa
 	if (!GetPathColumnEntryPath(sPath, rsPath, nIndex))
 		return false;
 
-	return ReadIntFromFile(rnResult, sPath);
+	return ReadIntFromFile(rnResult, sPath.c_str());
 }
 
 
@@ -382,7 +301,7 @@ bool	PlisgoFSRoot::GetPathColumnFloatEntry(double& rnResult, const std::wstring&
 	if (!GetPathColumnEntryPath(sPath, rsPath, nIndex))
 		return false;
 
-	return ReadDoubleFromFile(rnResult, sPath);
+	return ReadDoubleFromFile(rnResult, sPath.c_str());
 }
 
 
@@ -433,38 +352,15 @@ bool	PlisgoFSRoot::GetThumbnailIconLocation(	IconLocation&		rIconLocation,
 												const std::wstring& rsName,
 												const UINT			nHeight) const
 {
-	std::wstring sFile;
-
-	if (!GetThumbnailFile(sFile, rsShellInfoFolder, rsName))
+	if (!GetThumbnailFile(rIconLocation.sPath, rsShellInfoFolder, rsName))
 		return false;
 
-	WCHAR sBuffer[MAX_PATH];
-
-	sBuffer[0] = L'\0';
-
-	GetTempPath(MAX_PATH, sBuffer);
-
-	WIN32_FILE_ATTRIBUTE_DATA data = {0};
-
-	if (!GetFileAttributesEx(sFile.c_str(), GetFileExInfoStandard, &data))
+	if (GetFileAttributes(rIconLocation.sPath.c_str()) == INVALID_FILE_ATTRIBUTES)
 		return false;
 
-	const std::wstring sKey = (boost::wformat(L"%1%:%2%") %sFile %*(ULONG64*)&data.ftLastWriteTime).str();
-
-	const ULONG64 nBaseHash = SimpleHash64(sKey.c_str());
-
-	rIconLocation.sPath		= (boost::wformat(L"%1%plisgo_thumb_%2%_%3%_%4%_%5%.ico") %sBuffer %m_sFSName %m_nFSVersion %nBaseHash %nHeight).str();
 	rIconLocation.nIndex	= 0;
 
-	if (::GetFileAttributes(rIconLocation.sPath.c_str()) != INVALID_FILE_ATTRIBUTES)
-		return true;
-
-	HICON hIcon = LoadAsIcon(sFile, nHeight);
-
-	if (hIcon == NULL)
-		return false;
-	
-	return WriteToIconFile(rIconLocation.sPath, hIcon, false);
+	return true;
 }
 
 
@@ -478,14 +374,7 @@ bool	PlisgoFSRoot::GetMountIconLocation(	IconLocation&		rIconLocation,
 	if (root.get() == NULL)
 		return false;
 
-	IPtrFSIconRegistry FSIcons = root->GetFSIconRegistry();
-
-	UINT nList, nIndex;
-
-	if (!root->GetFolderIcon(nList, nIndex, bOpen))
-		return false;
-
-	return FSIcons->GetIconLocation(rIconLocation, nList, nIndex, iconList->GetHeight());
+	return  root->GetFolderIcon(rIconLocation, iconList->GetHeight(), bOpen);
 }
 
 
@@ -582,14 +471,9 @@ bool	PlisgoFSRoot::GetPathIconLocation(IconLocation& rIconLocation, const std::w
 			size_t nPos = sName.rfind(L'.');
 
 			if (nPos != -1)
-				sExt = &sName.c_str()[nPos+1];
+				sExt = &sName.c_str()[nPos];
 
-			{
-				UINT nList, nIndex;
-
-				if (GetExtensionIcon(sExt, nList, nIndex))
-					bBaseRetrieved = m_IconRegistry->GetIconLocation(rIconLocation, nList, nIndex, iconList->GetHeight());
-			}
+			bBaseRetrieved = GetExtensionIcon(rIconLocation, sExt, iconList->GetHeight());
 
 			if (!bBaseRetrieved)
 				bBaseRetrieved = iconList->GetFileIconLocation(rIconLocation, rsPath);
@@ -598,16 +482,16 @@ bool	PlisgoFSRoot::GetPathIconLocation(IconLocation& rIconLocation, const std::w
 	
 	if (!bBaseRetrieved)
 		return false;
-	
-	UINT nOverlayList	= -1;
-	UINT nOverlayIndex	= -1;
 
-	if (ReadIconIndices(sShellInfoFolder + L".overlay_icons\\" + sName, nOverlayList, nOverlayIndex))
+	IconLocation overlay;
+
+	if (m_IconRegistry->ReadIconLocation(overlay, sShellInfoFolder + L".overlay_icons\\" + sName, iconList->GetHeight()))
 	{
-		IconLocation BaseLocation = rIconLocation;
+		IconLocation base = rIconLocation;
 
-		m_IconRegistry->GetIconLocation(rIconLocation, BaseLocation, iconList, nOverlayList, nOverlayIndex);
+		if (!iconList->CombineIconLocations(rIconLocation, base, overlay))
+			rIconLocation = base;
 	}
-	
+
 	return true;
 }

@@ -39,7 +39,16 @@ public:
 
 	IPtrPlisgoFSRoot			GetPlisgoFSRoot(LPCWSTR sPath) const;
 
+
+protected:
+	static DWORD WINAPI			ClearningThreadCB(void*);
+
+	void						RunRootCacheClean();
+
 private:
+	PlisgoFSFolderReg();
+	~PlisgoFSFolderReg();
+
 	IPtrPlisgoFSRoot			CreateRoot(const std::wstring& rsRoot);
 
 	IPtrPlisgoFSRoot			ReturnValidRoot(IPtrPlisgoFSRoot root, const std::wstring& rsPath) const;
@@ -52,4 +61,6 @@ private:
 	IconRegistry					m_IconRegistry;
 
 	mutable boost::shared_mutex		m_Mutex;
+
+	HANDLE							m_hCleaningThread;
 };

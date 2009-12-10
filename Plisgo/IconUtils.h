@@ -43,4 +43,5 @@ extern bool			ExtIsCodeImage(LPCWSTR sExt);
 extern bool			ExtIsShortcut(LPCWSTR sExt);
 extern bool			ExtIsIconFile(LPCWSTR sExt);
 
-extern HIMAGELIST	LoadImageList(const std::wstring& rsFile, UINT nHeight);
+extern HICON		ExtractIconFromImageListFile(const std::wstring& rsFile, const UINT nIndex, const UINT nAimHeight);
+extern HIMAGELIST	LoadImageList(const std::wstring& rsFile, const UINT nHeight);

@@ -78,9 +78,11 @@ public:
 		for(IShellInfoFetcher::BasicFolder::const_iterator it = shelledFiles.begin();
 			it != shelledFiles.end(); ++it)
 		{
-			IPtrPlisgoFSFile file = InternalGetChild(it->sName);
+			std::wstring sName = it->sName;
 
-			if (file.get() != NULL && !rEachChild.Do(it->sName, file))
+			IPtrPlisgoFSFile file = InternalGetChild(sName);
+
+			if (file.get() != NULL && !rEachChild.Do(sName.c_str(), file))
 				return false;
 		}
 
@@ -89,7 +91,7 @@ public:
 
 protected:
 
-	virtual IPtrPlisgoFSFile	InternalGetChild(const std::wstring& rsName) const
+	virtual IPtrPlisgoFSFile	InternalGetChild(std::wstring& rsName) const
 	{
 		return GetChild(rsName.c_str());
 	}
@@ -208,7 +210,7 @@ public:
 
 protected:
 
-	virtual IPtrPlisgoFSFile	InternalGetChild(const std::wstring& rsName) const
+	virtual IPtrPlisgoFSFile	InternalGetChild(std::wstring& rsName) const
 	{
 		WCHAR* ExtTypes[3] = {L".jpg", L".bmp", L".png"};
 
@@ -217,7 +219,11 @@ protected:
 			IPtrPlisgoFSFile result = GetChild((rsName + ExtTypes[n]).c_str());
 
 			if (result.get() != NULL)
+			{
+				rsName += ExtTypes[n];
+
 				return result;
+			}
 		}
 
 		return IPtrPlisgoFSFile();
