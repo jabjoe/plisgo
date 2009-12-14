@@ -41,6 +41,13 @@ bool		ExtIsShortcut(LPCWSTR sExt)
 }
 
 
+bool		ExtIsShortcutUrl(LPCWSTR sExt)
+{
+	return (sExt != NULL && sExt[0] != L'\0' &&
+		(tolower(sExt[1]) == L'u' && tolower(sExt[2]) == L'r' && tolower(sExt[3]) == L'l'));
+}
+
+
 bool		ExtIsIconFile(LPCWSTR sExt)
 {
 	return (sExt != NULL && sExt[0] != L'\0' &&

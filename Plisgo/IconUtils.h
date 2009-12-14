@@ -41,6 +41,7 @@ extern bool			WriteToIconFile(const std::wstring& rsFile, HICON hIcon, bool bApp
 
 extern bool			ExtIsCodeImage(LPCWSTR sExt);
 extern bool			ExtIsShortcut(LPCWSTR sExt);
+extern bool			ExtIsShortcutUrl(LPCWSTR sExt);
 extern bool			ExtIsIconFile(LPCWSTR sExt);
 
 extern HICON		ExtractIconFromImageListFile(const std::wstring& rsFile, const UINT nIndex, const UINT nAimHeight);

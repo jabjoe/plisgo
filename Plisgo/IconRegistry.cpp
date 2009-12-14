@@ -434,6 +434,49 @@ bool	RefIconList::GetFileIconLocation(IconLocation& rIconLocation, const std::ws
 		if (GetIconLocationIndex(nTemp, rIconLocation))
 			return true;
 	}
+	else if (ExtIsShortcutUrl(sKey.c_str()))
+	{
+		std::wstring sFileData;
+
+		if (ReadTextFromFile(sFileData, rsPath.c_str()))
+		{
+			std::transform(sFileData.begin(),sFileData.end(),sFileData.begin(),tolower);
+
+			size_t nStartPos = sFileData.find(L"\niconfile");
+			
+			if (nStartPos != -1)
+			{
+				size_t nPos = nStartPos + 9;
+
+				for(WCHAR c = sFileData[nPos]; c == L' ' || c == L'='; ++nPos, c = sFileData[nPos]);
+
+				size_t nEndPos = sFileData.find(L'\r', nPos );
+
+				if (nEndPos != -1)
+					rIconLocation.sPath = sFileData.substr(nPos, nEndPos-nPos);
+				else
+					rIconLocation.sPath = sFileData.substr(nPos);
+
+				if (GetFileAttributes(rIconLocation.sPath.c_str()) != INVALID_FILE_ATTRIBUTES)
+				{
+					rIconLocation.nIndex = 0;
+
+					nStartPos = sFileData.find(L"\niconindex");
+
+					if (nStartPos != -1)
+					{
+						nPos = nStartPos + 10;
+
+						for(WCHAR c = sFileData[nPos]; c == L' ' || c == L'='; ++nPos, c = sFileData[nPos]);
+
+						rIconLocation.nIndex = _wtoi(&sFileData.c_str()[nPos]);
+					}
+					
+					return true;
+				}
+			}
+		}
+	}
 
 	boost::upgrade_lock<boost::shared_mutex> lock(m_Mutex);
 
