@@ -73,16 +73,18 @@ bool	ReadTextFromFile(std::wstring& rsResult, LPCWSTR sFile)
 		{
 			buffer[nRead] = 0;
 
-			WCHAR wBuffer[MAX_PATH];
+			DWORD nWRead = MultiByteToWideChar(CP_UTF8, 0, buffer, (int)nRead, NULL, 0);
 
-			nRead = MultiByteToWideChar(CP_UTF8, 0, buffer, (int)nRead, wBuffer, MAX_PATH);
+			WCHAR* wBuffer = (WCHAR*)_malloca(sizeof(WCHAR)*(nWRead+1));
 
-			wBuffer[nRead] = 0;
+			nWRead = MultiByteToWideChar(CP_UTF8, 0, buffer, (int)nRead, wBuffer, nWRead);
+
+			wBuffer[nWRead] = 0;
 
 			rsResult += wBuffer;
 			bResult = true;
 
-			SetFilePointer(hFile, nRead, 0, FILE_CURRENT);
+			_freea(wBuffer);
 		}
 	}
 
