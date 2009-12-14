@@ -230,10 +230,6 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath=".\IconUtils.cpp"
-				>
-			</File>
-			<File
 				RelativePath=".\Plisgo.cpp"
 				>
 			</File>
@@ -325,10 +321,6 @@
 			>
 			<File
 				RelativePath=".\dllmain.h"
-				>
-			</File>
-			<File
-				RelativePath=".\IconUtils.h"
 				>
 			</File>
 			<File

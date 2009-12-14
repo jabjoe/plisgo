@@ -58,10 +58,12 @@ static const int PLISGO_APIVERSION = 2;
 #include <boost/format.hpp>
 #include <fstream>
 #include <unordered_map>
+#include "../Common/Utils.h"
+#include "../Common/PathUtils.h"
+#include "../Common/IconUtils.h"
 
 using namespace ATL;
 
-extern HINSTANCE ghInstance;
 
 #include "resource.h"
 #include "Plisgo_i.h"
@@ -158,16 +160,6 @@ inline int			PrePathCharacter(int c)
 };
 
 
-inline void			EnsureWin32Path(std::wstring& rsPath)
-{
-	size_t n = rsPath.length();
-
-	while(n--)
-		if (rsPath[n] == L'/')
-			rsPath[n] = L'\\';
-}
-
-
 inline void		AddToPreHash64(ULONG64& rnHash, int n)
 {
 	rnHash += n;
@@ -202,9 +194,5 @@ extern HRESULT		GetShellIShellFolder2Implimentation(IShellFolder2** ppResult);
 extern bool			ReadTextFromFile(std::wstring& rsResult, LPCWSTR sFile);
 extern bool			ReadIntFromFile(int& rnResult, LPCWSTR sFile);
 extern bool			ReadDoubleFromFile(double& rnResult, LPCWSTR sFile);
-
-extern HRESULT		GetWStringPathFromIDL(std::wstring& rResult, LPCITEMIDLIST pIDL);
-
-extern void			EnsureFullPath(std::wstring& rsFile);
 
 #define TOPOWEROFTWO(_x) ((_x%2)?_x+1:_x)

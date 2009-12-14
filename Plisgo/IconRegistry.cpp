@@ -23,7 +23,6 @@
 #include "stdafx.h"
 #include "IconRegistry.h"
 #include "PlisgoFSFolder.h"
-#include "IconUtils.h"
 
 
 #define NO_OVERLAYINDEX	0xFFFF

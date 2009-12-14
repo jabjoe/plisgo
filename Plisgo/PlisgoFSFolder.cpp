@@ -23,7 +23,6 @@
 #include "stdafx.h"
 #include "PlisgoFSFolder.h"
 #include "PlisgoFSFolderReg.h"
-#include "IconUtils.h"
 
 
 

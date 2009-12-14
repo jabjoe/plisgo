@@ -1,29 +1,30 @@
 /*
-    Copyright 2009 Eurocom Entertainment Software Limited
+	Copyright 2009 Eurocom Entertainment Software Limited
 
-    This file is part of Plisgo.
+    This file is part of Plisgo's Utils.
 
     Eurocom Entertainment Software Limited, hereby disclaims all
-    copyright interest in “Plisgo” written by Joe Burmeister.
+    copyright interest in “Plisgo's Utils” written by Joe Burmeister.
 
-    Plisgo is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+    PlisgoFSLib is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Lesser General Public License as
+	published by the Free Software Foundation, either version 3 of the
+	License, or (at your option) any later version.
 
-    Plisgo is distributed in the hope that it will be useful,
+    Plisgo's Utils is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+    GNU Lesser General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with Plisgo.  If not, see <http://www.gnu.org/licenses/>.
+    You should have received a copy of the GNU Lesser General Public
+	License along with Plisgo's Utils.  If not, see
+	<http://www.gnu.org/licenses/>.
 */
 
-#include "stdafx.h"
+#include "Utils.h"
+#include "PathUtils.h"
 #include "IconUtils.h"
 
-#define GETOFFSET(_struct, _member)	((size_t)&((_struct*)NULL)->_member)
 
 
 bool		ExtIsCodeImage(LPCWSTR sExt)
@@ -168,13 +169,13 @@ static bool		ReadShortcutTarget(std::wstring& rsTarget, LPCWSTR sLinkFile)
 
 	rsTarget.assign(MAX_PATH, L' ');
 
-	hr = pSL->GetPath(const_cast<wchar_t*>(rsTarget.c_str()), rsTarget.length(), NULL, SLGP_SHORTPATH);
+	hr = pSL->GetPath(const_cast<wchar_t*>(rsTarget.c_str()), (int)rsTarget.length(), NULL, SLGP_SHORTPATH);
 
 	while (hr == TBS_E_INSUFFICIENT_BUFFER)
 	{
 		rsTarget.assign(rsTarget.length()*2,L' ');
 
-		hr = pSL->GetPath(const_cast<wchar_t*>(rsTarget.c_str()), rsTarget.length(), NULL, SLGP_SHORTPATH);
+		hr = pSL->GetPath(const_cast<wchar_t*>(rsTarget.c_str()), (int)rsTarget.length(), NULL, SLGP_SHORTPATH);
 	}
 
 	if (hr == S_OK)
@@ -291,7 +292,7 @@ BOOL CALLBACK	IndexedOfTypeCB(  HMODULE hModule, LPCWSTR lpszType, LPTSTR lpszNa
 
 	if (pPacket->nIndex < 0)
 	{
-		if (IS_INTRESOURCE(lpszName) && abs(pPacket->nIndex) == (int)lpszName)
+		if (IS_INTRESOURCE(lpszName) && abs(pPacket->nIndex) == *(int*)&lpszName)
 		{
 			pPacket->sName = lpszName;
 
@@ -441,7 +442,7 @@ static bool		WriteIconDirFull(const std::wstring& rsFile, const std::vector<std:
 		WriteWord(hFile, 1) && //idType
 		WriteWord(hFile, (WORD)rEnties.size()) )  //idCount
 	{
-		size_t nOffset = GetIconDirSize(rEnties.size())-sizeof(WORD); //No padding on disc;
+		size_t nOffset = GetIconDirSize((WORD)rEnties.size())-sizeof(WORD); //No padding on disc;
 
 		bResult = true;
 
@@ -450,7 +451,7 @@ static bool		WriteIconDirFull(const std::wstring& rsFile, const std::vector<std:
 		{
 			ICONDIRENTRY entry = it->second;
 
-			entry.dwImageOffset = nOffset;
+			entry.dwImageOffset = (DWORD)nOffset;
 
 			nOffset += entry.dwBytesInRes;
 
@@ -647,7 +648,7 @@ bool			WriteToIconFile(const std::wstring& rsFile, HICON hIcon, bool bAppend)
 
 	entry.bWidth = (BYTE)nWidth;
 	entry.bHeight = (BYTE)nHeight;
-	entry.dwBytesInRes = nDataSize;
+	entry.dwBytesInRes = (DWORD)nDataSize;
 	entry.wBitCount = 32;
 
 	entriesData.push_back(std::pair<void*,ICONDIRENTRY>(pData, entry));
@@ -681,7 +682,7 @@ static HICON	LoadIcon(HMODULE hModule, DWORD nIconID)
 
 		BITMAPINFOHEADER* pHeader = (BITMAPINFOHEADER*)pData;
 
-		hResult = CreateIconFromResourceEx(pData, nSize, TRUE, 0x00030000, pHeader->biWidth, pHeader->biHeight/2, LR_DEFAULTCOLOR); 
+		hResult = CreateIconFromResourceEx(pData, (DWORD)nSize, TRUE, 0x00030000, pHeader->biWidth, pHeader->biHeight/2, LR_DEFAULTCOLOR); 
 
         FreeResource(hGlobal);
 	}
@@ -782,7 +783,7 @@ int				AddIconToResourcedFile(const std::wstring& rsFile, HICON hIcon)
 	if (CreateIconStream(pData, nDataSize, nWidth, nHeight, hIcon))
 	{
 		//Add to resource
-		UpdateResource(hHandle, RT_ICON, MAKEINTRESOURCE(nIconNum), MAKELANGID(LANG_NEUTRAL, SUBLANG_NEUTRAL), pData, nDataSize);
+		UpdateResource(hHandle, RT_ICON, MAKEINTRESOURCE(nIconNum), MAKELANGID(LANG_NEUTRAL, SUBLANG_NEUTRAL), pData, (DWORD)nDataSize);
 		free(pData);
 
 		size_t nIconDirSize = (sizeof(WORD) * 3) + (sizeof(ICONDIRENTRY) * 1);
@@ -798,7 +799,7 @@ int				AddIconToResourcedFile(const std::wstring& rsFile, HICON hIcon)
 
 		pEntry->bHeight			= (BYTE)nWidth;
 		pEntry->bWidth			= (BYTE)nHeight;
-		pEntry->dwBytesInRes	= nDataSize;
+		pEntry->dwBytesInRes	= (DWORD)nDataSize;
 		pEntry->nID				= (WORD)nIconNum;
 		pEntry->wBitCount		= 32;
 		pEntry->wPlanes			= 1;
@@ -808,7 +809,7 @@ int				AddIconToResourcedFile(const std::wstring& rsFile, HICON hIcon)
 		nDataSize = nIconDirSize;
 
 		//nIconGroupNum need one adding because it's one based not zero based
-		UpdateResource(hHandle, RT_GROUP_ICON, MAKEINTRESOURCE(nIconGroupNum+1), MAKELANGID(LANG_NEUTRAL, SUBLANG_NEUTRAL), pData, nDataSize);
+		UpdateResource(hHandle, RT_GROUP_ICON, MAKEINTRESOURCE(nIconGroupNum+1), MAKELANGID(LANG_NEUTRAL, SUBLANG_NEUTRAL), pData, (DWORD)nDataSize);
 
 		free(pData);
 
@@ -838,7 +839,7 @@ static bool		ExtractIconInfoFromKey( std::wstring& rsIconFilePath, int& rnIconIn
 	{
 		rsIconFilePath.assign(rsIconFilePath.length()+MAX_PATH, L' ');
 
-		nValueBufferSize = rsIconFilePath.length() * sizeof(WCHAR);
+		nValueBufferSize = (DWORD)rsIconFilePath.length() * sizeof(WCHAR);
 
 		nStat = RegQueryValueEx(hDefaultIconKey, NULL, NULL, NULL, (LPBYTE)rsIconFilePath.c_str(), &nValueBufferSize);
 	}
@@ -953,7 +954,7 @@ bool			ExtractIconInfoForExt( std::wstring& rsIconFilePath, int& rnIconIndex, LP
 
 		rsIconFilePath.resize(nSize);
 
-		ExpandEnvironmentStrings(sIconFilePath.c_str(), (LPWSTR)rsIconFilePath.c_str(), rsIconFilePath.length());
+		ExpandEnvironmentStrings(sIconFilePath.c_str(), (LPWSTR)rsIconFilePath.c_str(), (DWORD)rsIconFilePath.length());
 		
 		rsIconFilePath.resize(nSize-1);
 
