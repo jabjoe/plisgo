@@ -348,8 +348,6 @@ bool	FSIconRegistry::ReadIconLocation(IconLocation& rIconLocation, const std::ws
 				sWBuffer[nRead] = 0;
 
 				sText += sWBuffer;
-
-				SetFilePointer(hFile, nRead, 0, FILE_CURRENT);
 			}
 			while(ReadFile(hFile, sBuffer, MAX_PATH-1, &nRead, NULL) && nRead > 0);
 
