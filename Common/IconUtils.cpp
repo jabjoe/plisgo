@@ -1183,7 +1183,7 @@ HICON			EnsureIconSizeResolution(HICON hIcon, LONG nHeight)
 
 		GetObject(iconinfo.hbmColor, sizeof(bm), &bm);
 
-		//if (bm.bmHeight < nHeight)
+		if (bm.bmHeight < nHeight)
 		{
 			HDC hDC = CreateCompatibleDC(0);
 

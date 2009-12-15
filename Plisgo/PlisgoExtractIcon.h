@@ -26,6 +26,7 @@
 
 #include "Plisgo_i.h"
 #include "PlisgoFSFolder.h"
+#include "IconRegistry.h"
 
 
 #if defined(_WIN32_WCE) && !defined(_CE_DCOM) && !defined(_CE_ALLOW_SINGLE_THREADED_OBJECTS_IN_MTA)
@@ -80,13 +81,15 @@ public:
     // IExtractIcon
     STDMETHOD(GetIconLocation)( UINT uFlags, LPTSTR szIconFile, UINT cchMax, int* piIndex, UINT* pwFlags );
 
-    STDMETHOD(Extract)( LPCTSTR pszFile, UINT nIconIndex, HICON* phiconLarge,
-		HICON* phiconSmall, UINT nIconSize )	{ return S_FALSE; }
+    STDMETHOD(Extract)( LPCTSTR pszFile, UINT nIconIndex, HICON* pHiconLarge,
+						HICON* pHiconSmall, UINT nIconSize );
 
 protected:
 
 	std::wstring			m_sPath;
 	IPtrPlisgoFSRoot		m_PlisgoFSFolder;
+	bool					m_bOpen;
+	bool					m_bExtract;
 };
 
 OBJECT_ENTRY_AUTO(__uuidof(PlisgoExtractIcon), CPlisgoExtractIcon)

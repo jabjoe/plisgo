@@ -42,7 +42,7 @@ STDMETHODIMP CPlisgoExtractIcon::GetIconLocation( UINT uFlags, LPWSTR szIconFile
 	if (piIndex == NULL)
 		return ERROR_INVALID_PARAMETER;
 
-	bool bOpen = (uFlags&GIL_OPENICON)?true:false;
+	m_bOpen = (uFlags&GIL_OPENICON)?true:false;
 
 	IPtrRefIconList iconList = m_PlisgoFSFolder->GetFSIconRegistry()->GetMainIconRegistry()->GetRefIconList(16);
 
@@ -51,16 +51,75 @@ STDMETHODIMP CPlisgoExtractIcon::GetIconLocation( UINT uFlags, LPWSTR szIconFile
 
 	IconLocation Location;
 
-	*pwFlags = 0; //Let Windows do (and cache) the icon extraction.
+	m_bExtract = true;
+	
 
-	if (m_PlisgoFSFolder->GetPathIconLocation(Location, m_sPath, iconList, bOpen))
+	if (m_PlisgoFSFolder->GetPathIconLocation(Location, m_sPath, iconList, m_bOpen))
 	{
-		wcscpy_s(szIconFile, cchMax, Location.sPath.c_str());
+		*pwFlags = 1; //We have to do the extractions
+		//Might need to put something in szIconFile and piIndex for caching
 
-		*piIndex = Location.nIndex;
+		size_t nExt = Location.sPath.rfind(L'.');
+
+		if (nExt != -1)
+		{
+			LPCWSTR sExt = &Location.sPath.c_str()[nExt];
+
+			if (ExtIsCodeImage(sExt) || ExtIsIconFile(sExt))
+			{
+				if (Location.sPath.length() < cchMax)
+				{
+					wcscpy_s(szIconFile, cchMax, Location.sPath.c_str());
+
+					*piIndex = Location.nIndex;
+
+					*pwFlags = 0; //Let Windows do (and cache) the icon extraction.
+
+					m_bExtract = false;
+				}
+			}
+		}
 
 		return E_PENDING;
 	}
 
 	return E_FAIL;
+}
+
+
+STDMETHODIMP CPlisgoExtractIcon::Extract(	LPCTSTR pszFile, UINT nIconIndex, HICON* pHiconLarge,
+											HICON* pHiconSmall, UINT nIconSize )
+{
+	if (!m_bExtract)
+		return S_FALSE;
+
+	if (pHiconLarge != NULL)
+	{
+		IPtrRefIconList iconList = m_PlisgoFSFolder->GetFSIconRegistry()->GetMainIconRegistry()->GetRefIconList(32);
+
+		IconLocation Location;
+
+		if (!m_PlisgoFSFolder->GetPathIconLocation(Location, m_sPath, iconList, m_bOpen))
+			return E_FAIL;
+
+		if (!iconList->GetIcon(*pHiconSmall, Location))
+			return E_FAIL;			
+	}
+
+	if (pHiconSmall != NULL)
+	{
+		IPtrRefIconList iconList = m_PlisgoFSFolder->GetFSIconRegistry()->GetMainIconRegistry()->GetRefIconList(16);
+
+		IconLocation Location;
+
+		if (!m_PlisgoFSFolder->GetPathIconLocation(Location, m_sPath, iconList, m_bOpen))
+			return E_FAIL;
+
+		if (!iconList->GetIcon(*pHiconSmall, Location))
+			return E_FAIL;	
+	}
+
+	return S_OK;
+
+
 }
