@@ -75,7 +75,8 @@ public:
 				BasicFileInfo& rEntry = pResult->at(nIndex);
 
 				rEntry.bIsFolder	= (nIsFolder)?true:false;
-				rEntry.sName		= sName;
+
+				memcpy_s(rEntry.sName, MAX_PATH, sName, MAX_PATH);
 
 				++nRequestIndex;
 			}
@@ -643,7 +644,7 @@ int		PlisgoVirtualFileFlushSetAttributes(PlisgoVirtualFile* pFile, DWORD nAttr)
 	if (pFile == NULL)
 		return -ERROR_BAD_ARGUMENTS;
 
-	return pFile->file->SetFileAttributesW(nAttr, &pFile->nInstanceData);
+	return pFile->file->SetAttributes(nAttr, &pFile->nInstanceData);
 }
 
 
