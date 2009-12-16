@@ -133,6 +133,8 @@ PlisgoFSRoot::PlisgoFSRoot(const std::wstring& rsPath, IconRegistry* pIconRegist
 
 	std::wstring sPath = m_sPath + L".plisgofs\\";
 
+	m_nFSVersion = -1;
+
 	if (!ReadTextFromFile(m_sFSName, (sPath + L".fsname").c_str()) ||
 		!ReadIntFromFile(m_nFSVersion, (sPath + L".version").c_str()) || m_nFSVersion != PLISGO_APIVERSION)
 	{
@@ -145,6 +147,8 @@ PlisgoFSRoot::PlisgoFSRoot(const std::wstring& rsPath, IconRegistry* pIconRegist
 	m_sFSName.erase(std::remove_if(m_sFSName.begin(), m_sFSName.end(), NotAlphaNumeric), m_sFSName.end());
 
 	m_IconRegistry = pIconRegistry->GetFSIconRegistry(m_sFSName.c_str(), m_nFSVersion, sPath);
+
+	assert(m_IconRegistry.get() != NULL);
 
 	std::wstring sTemp(sPath + L".column_header_*");
 
@@ -225,7 +229,8 @@ PlisgoFSRoot::~PlisgoFSRoot()
 {
 	std::wstring sPath = m_sPath + L".plisgofs\\";
 
-	m_IconRegistry->GetMainIconRegistry()->ReleaseFSIconRegistry(m_IconRegistry, sPath);
+	if (m_IconRegistry.get() != NULL)
+		m_IconRegistry->GetMainIconRegistry()->ReleaseFSIconRegistry(m_IconRegistry, sPath);
 }
 
 
