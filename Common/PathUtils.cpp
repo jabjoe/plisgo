@@ -185,19 +185,28 @@ void		EnsureFullPath(std::wstring& rsFile)
 
 		while(sTemp != NULL)
 		{
+			while(*sTemp == L';')
+				++sTemp;
+
 			LPWSTR sNext = wcschr(sTemp,L';');
 
-			if (sNext != NULL)
-				*sNext++ = '\0';
-			
-			std::wstring sTest = sTemp;
-			
-			sTest += L"\\" + rsFile;
+			std::wstring sTest;
 
-			if (GetFileAttributes(sTest.c_str()) != INVALID_FILE_ATTRIBUTES)
+			if (sNext != NULL)
+				sTest.assign(sTemp, sNext-sTemp);
+			else
+				sTest.assign(sTemp);
+			
+			if (sTest.length())
 			{
-				rsFile = sTest;
-				break;
+				sTest += L"\\" + rsFile;
+
+				if (GetFileAttributes(sTest.c_str()) != INVALID_FILE_ATTRIBUTES)
+				{
+					rsFile = sTest;
+					break;
+				}
+				else sTemp = sNext;
 			}
 			else sTemp = sNext;
 		}
