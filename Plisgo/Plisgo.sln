@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 10.00
 # Visual Studio 2008
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Plisgo", "Plisgo.vcproj", "{D1465A99-3739-470B-B64B-2D15AD3ABD2C}"
 	ProjectSection(ProjectDependencies) = postProject
-		{7648522A-73FC-4B46-9B9C-EEA832ED96D1} = {7648522A-73FC-4B46-9B9C-EEA832ED96D1}
+		{EAEBCFA2-F068-40FE-9289-F43E3935BDD1} = {EAEBCFA2-F068-40FE-9289-F43E3935BDD1}
 	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PlisgoPS", "PlisgoPS.vcproj", "{81A1123D-AA5C-47DA-9A4C-EBC06444B3AF}"
@@ -11,7 +11,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PlisgoPS", "PlisgoPS.vcproj
 		{D1465A99-3739-470B-B64B-2D15AD3ABD2C} = {D1465A99-3739-470B-B64B-2D15AD3ABD2C}
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Utils", "..\Common\Utils.vcproj", "{7648522A-73FC-4B46-9B9C-EEA832ED96D1}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Utils", "..\Common\Utils.vcproj", "{EAEBCFA2-F068-40FE-9289-F43E3935BDD1}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -27,10 +27,10 @@ Global
 		{81A1123D-AA5C-47DA-9A4C-EBC06444B3AF}.Debug|Win32.Build.0 = Debug|Win32
 		{81A1123D-AA5C-47DA-9A4C-EBC06444B3AF}.Release|Win32.ActiveCfg = Release|Win32
 		{81A1123D-AA5C-47DA-9A4C-EBC06444B3AF}.Release|Win32.Build.0 = Release|Win32
-		{7648522A-73FC-4B46-9B9C-EEA832ED96D1}.Debug|Win32.ActiveCfg = Debug|Win32
-		{7648522A-73FC-4B46-9B9C-EEA832ED96D1}.Debug|Win32.Build.0 = Debug|Win32
-		{7648522A-73FC-4B46-9B9C-EEA832ED96D1}.Release|Win32.ActiveCfg = Release|Win32
-		{7648522A-73FC-4B46-9B9C-EEA832ED96D1}.Release|Win32.Build.0 = Release|Win32
+		{EAEBCFA2-F068-40FE-9289-F43E3935BDD1}.Debug|Win32.ActiveCfg = Debug|Win32
+		{EAEBCFA2-F068-40FE-9289-F43E3935BDD1}.Debug|Win32.Build.0 = Debug|Win32
+		{EAEBCFA2-F068-40FE-9289-F43E3935BDD1}.Release|Win32.ActiveCfg = Release|Win32
+		{EAEBCFA2-F068-40FE-9289-F43E3935BDD1}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

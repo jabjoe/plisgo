@@ -29,7 +29,9 @@ extern HBITMAP		CreateAlphaBitmap(HDC hDC, LONG nWidth, LONG nHeight, DWORD** pp
 
 extern HICON		EnsureIconSizeResolution(HICON hIcon, LONG nHeight);
 
-extern HICON		BurnTogether(HICON hFirst, HICON hSecond, UINT nHeight);
+
+
+extern HICON		BurnTogether(HICON hFirst, POINT &rFirst, HICON hSecond, POINT &rSecond, UINT nHeight);
 
 extern HICON		LoadAsIcon(const std::wstring& rsFile, UINT nHeight);
 

@@ -698,6 +698,8 @@ bool	RefIconList::GetIconLocationIndex_RW(int& rnIndex, const IconLocation& rIco
 		return false;
 	}
 
+	hResult = EnsureIconSizeResolution(hResult, m_nHeight);
+
 	bool bResult = false;
 
 	rnIndex = -1;
@@ -876,7 +878,9 @@ static bool	WriteInfoFile(LPCWSTR sFile, const IconLocation& rFirst, ULONG64 nFi
 
 
 
-bool	RefIconList::CombineIconLocations(IconLocation& rDst, const IconLocation& rFirst, const IconLocation& rSecond)
+bool	RefIconList::MakeOverlaid(	IconLocation&		rDst,
+									const IconLocation& rFirst,	
+									const IconLocation& rSecond)
 {
 	if (!rFirst.IsValid() || !rSecond.IsValid())
 		return false;
@@ -899,10 +903,11 @@ bool	RefIconList::CombineIconLocations(IconLocation& rDst, const IconLocation& r
 
 	ExpandEnvironmentStrings(L"%TEMP%", (LPWSTR)sTemp.c_str(), sTemp.length());
 	
-	sTemp.resize(nTempSize-1); //Remove extra /0
+	sTemp.resize(nTempSize-1); //Remove extra
 
-	const std::wstring sFile((boost::wformat(L"%1%\\plisgo_%2%_%3%_%4%") %sTemp %nBaseHash %nOverHash %m_nHeight).str());
+	const std::wstring sPlisgoTemp = (boost::wformat(L"%1%\\plisgo") %sTemp).str();
 
+	const std::wstring sFile((boost::wformat(L"%1%\\%2%_%3%_%4%") %sPlisgoTemp %nBaseHash %nOverHash %m_nHeight).str());
 
 	ULONG64 nBaseTime;
 	ULONG64 nOverTime;
@@ -925,38 +930,59 @@ bool	RefIconList::CombineIconLocations(IconLocation& rDst, const IconLocation& r
 		}
 	}
 
-	HICON hBase = NULL;
-
-	if (!GetIcon(hBase, rFirst))
-		return false;
+	if (GetFileAttributes(sPlisgoTemp.c_str()) == INVALID_FILE_ATTRIBUTES)
+		CreateDirectory(sPlisgoTemp.c_str(), NULL);
 
 	bool bResult = false;
 
-	HICON hSecond = NULL;
+	HICON hBase = NULL;
 
-	if (GetIcon(hSecond, rSecond))
+	if (GetIcon(hBase, rFirst) && hBase != NULL)
 	{
-		HICON hResult = BurnTogether(hBase, hSecond, m_nHeight);
+		HICON hSecond = GetSpecificIcon(rSecond.sPath, rSecond.nIndex, m_nHeight);
 
-		if (hResult != NULL)
+		if (hSecond != NULL)
 		{
-			if (WriteToIconFile(rDst.sPath.c_str(), hResult))
+			POINT basePos = {0};
+			POINT overlayPos = {m_nHeight,m_nHeight};
+
+			ICONINFO iconinfo;
+
+			if (GetIconInfo(hSecond, &iconinfo))
 			{
-				WriteInfoFile(	sTxtFile.c_str(),
-								rFirst,
-								*(ULONG64*)&baseInfo.ftLastWriteTime,
-								rSecond,
-								*(ULONG64*)&overInfo.ftLastWriteTime);
-				bResult = true;
+				BITMAP bm;
+
+				GetObject(iconinfo.hbmColor, sizeof(bm), &bm);
+
+				overlayPos.x -= bm.bmHeight;
+				overlayPos.y -= bm.bmHeight;
+
+				DeleteObject(iconinfo.hbmColor);
+				DeleteObject(iconinfo.hbmMask);
 			}
 
-			DestroyIcon(hResult);
+			HICON hResult = BurnTogether(hBase, basePos, hSecond, overlayPos, m_nHeight);
+
+			if (hResult != NULL)
+			{
+				if (WriteToIconFile(rDst.sPath.c_str(), hResult))
+				{
+					WriteInfoFile(	sTxtFile.c_str(),
+									rFirst,
+									*(ULONG64*)&baseInfo.ftLastWriteTime,
+									rSecond,
+									*(ULONG64*)&overInfo.ftLastWriteTime);
+					bResult = true;
+				}
+
+				DestroyIcon(hResult);
+			}
+
+			DestroyIcon(hSecond);
 		}
 
-		DestroyIcon(hSecond);
-	}
-	
-	DestroyIcon(hBase);
+		DestroyIcon(hBase);
+	}	
 
 	return bResult;
 }

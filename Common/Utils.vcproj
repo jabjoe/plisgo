@@ -3,7 +3,7 @@
 	ProjectType="Visual C++"
 	Version="9.00"
 	Name="Utils"
-	ProjectGUID="{7648522A-73FC-4B46-9B9C-EEA832ED96D1}"
+	ProjectGUID="{EAEBCFA2-F068-40FE-9289-F43E3935BDD1}"
 	RootNamespace="PlisgoLibFS"
 	Keyword="Win32Proj"
 	TargetFrameworkVersion="131072"

@@ -1219,7 +1219,7 @@ HICON			EnsureIconSizeResolution(HICON hIcon, LONG nHeight)
 }
 
 
-HICON			BurnTogether(HICON hFirst, HICON hSecond, UINT nHeight)
+HICON			BurnTogether(HICON hFirst, POINT &rFirst, HICON hSecond, POINT &rSecond, UINT nHeight)
 {
 	HICON hResult = NULL;
 	ICONINFO newIcon = {0};
@@ -1245,8 +1245,8 @@ HICON			BurnTogether(HICON hFirst, HICON hSecond, UINT nHeight)
 
 	hOld = SelectObject(hMemDC, newIcon.hbmColor);
 
-	ManualIconBlitTo32Alphaed(hMemDC, pBits, nHeight, nHeight, 0,0, hFirst);
-	ManualIconBlitTo32Alphaed(hMemDC, pBits, nHeight, nHeight, 0,0, hSecond);
+	ManualIconBlitTo32Alphaed(hMemDC, pBits, nHeight, nHeight, rFirst.x, rFirst.y, hFirst);
+	ManualIconBlitTo32Alphaed(hMemDC, pBits, nHeight, nHeight, rSecond.x, rSecond.y, hSecond);
 
 	hResult = CreateIconIndirect(&newIcon);
 
@@ -1294,27 +1294,20 @@ HICON			ExtractIconFromImageListFile(const std::wstring& rsFile, const UINT nInd
 
 				if (pSubBitmap != NULL)
 				{
-					HBITMAP hBitmap = NULL;
-
 					ICONINFO newIcon = {0};
 
 					newIcon.fIcon = TRUE;
-					newIcon.hbmMask = CreateBitmap(nAimHeight,nAimHeight,1,1,NULL);
+					newIcon.hbmMask = CreateBitmap(nHeight,nHeight,1,1,NULL);
 
 					assert(newIcon.hbmMask != NULL);
 
 					//GetHICON was causing funny alpha issues on some files. The alpha wasn't in the color or mask bitmap from GetIconInfo...
-					pSubBitmap->GetHBITMAP(Gdiplus::Color::Transparent, &hBitmap);
-
-					assert(hBitmap != NULL);
-
-					newIcon.hbmColor = (HBITMAP)CopyImage(hBitmap, IMAGE_BITMAP, nAimHeight, nAimHeight, LR_COPYFROMRESOURCE);
+					pSubBitmap->GetHBITMAP(Gdiplus::Color::Transparent, &newIcon.hbmColor);
 
 					assert(newIcon.hbmColor != NULL);
 
 					hIcon = CreateIconIndirect(&newIcon);
 
-					DeleteObject(hBitmap);
 					DeleteObject(newIcon.hbmColor);
 					DeleteObject(newIcon.hbmMask);
 

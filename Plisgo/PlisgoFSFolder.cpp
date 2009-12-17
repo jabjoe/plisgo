@@ -493,8 +493,33 @@ bool	PlisgoFSRoot::GetPathIconLocation(IconLocation& rIconLocation, const std::w
 	{
 		IconLocation base = rIconLocation;
 
-		if (!iconList->CombineIconLocations(rIconLocation, base, overlay))
+		if (!iconList->MakeOverlaid(rIconLocation, base, overlay))
 			rIconLocation = base;
+	}
+	else
+	{
+		LPCWSTR sExt = NULL;
+
+		size_t nPos = sName.rfind(L'.');
+
+		if (nPos != -1)
+			sExt = &sName.c_str()[nPos];
+
+		if (sExt != NULL && (ExtIsShortcut(sExt) || ExtIsShortcutUrl(sExt)))
+		{
+			IconLocation overlay;
+
+			overlay.sPath = L"shell32.dll";
+
+			EnsureFullPath(overlay.sPath);
+
+			overlay.nIndex = 29;
+
+			IconLocation base = rIconLocation;
+
+			if (!iconList->MakeOverlaid(rIconLocation, base, overlay))
+				rIconLocation = base;
+		}
 	}
 
 	return true;

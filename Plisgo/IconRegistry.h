@@ -116,7 +116,9 @@ public:
 	bool					GetIconLocation(IconLocation& rIconLocation, const int nIndex) const;
 	bool					GetIconLocationIndex(int& rnIndex, const IconLocation& rIconLocation) const;
 
-	bool					CombineIconLocations(IconLocation& rDst, const IconLocation& rFirst, const IconLocation& rSecond);
+	bool					MakeOverlaid(	IconLocation&		rDst,
+											const IconLocation& rFirst,	
+											const IconLocation& rSecond);
 
 	void					RemoveOlderThan(ULONG64 n100ns);
 
