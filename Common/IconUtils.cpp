@@ -908,7 +908,7 @@ static bool		ExtractIconInfoForExtFromSubKey(std::wstring& rsIconFilePath, int& 
 
 
 
-//Instead of SHGetFileInfo so there is no MAX_PATH limit
+//Instead of SHGetFileInfo so there is no MAX_PATH limit, and works more often!
 bool			ExtractIconInfoForExt( std::wstring& rsIconFilePath, int& rnIconIndex, LPCWSTR sExt )
 {
 	if (sExt == NULL)
