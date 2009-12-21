@@ -462,6 +462,7 @@ public:
 	{
 		assert(root.get() != NULL);
 		m_Root = root;
+		m_OpenFileNum = 0;
 	}
 
 	IPtrPlisgoFSFile			TracePath(LPCWSTR sPath, IPtrPlisgoFSFile* pParent = NULL) const;
@@ -565,6 +566,7 @@ private:
 
 	mutable boost::shared_mutex				m_OpenFilePoolMutex;
 	boost::object_pool<OpenFileData>		m_OpenFilePool;
+	volatile LONG							m_OpenFileNum;
 
 
 	struct Cached

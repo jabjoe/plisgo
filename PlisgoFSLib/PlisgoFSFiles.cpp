@@ -2057,6 +2057,8 @@ int					PlisgoVFS::Open(	PlisgoFileHandle&	rHandle,
 		return -ERROR_TOO_MANY_OPEN_FILES;
 	}
 
+	InterlockedIncrement(&m_OpenFileNum);
+
 	pOpenFileData->File = file;
 
 	pOpenFileData->sPath = sPathLowerCase;
@@ -2184,40 +2186,42 @@ int					PlisgoVFS::Close(PlisgoFileHandle&	rHandle, bool bDeleteOnClose)
 	if (nError != 0)
 		return nError;
 
-	if (!bDeleteOnClose)
-		return 0;
-	
-	const std::wstring& rsPath = pOpenFileData->sPath;
-
-	size_t nSlash = rsPath.rfind(L'\\');
-
-	if (nSlash == -1)
-		nSlash = 0;
-
-	IPtrPlisgoFSFile parent = TracePath(rsPath.substr(0,nSlash));
-
-	assert(parent.get() != NULL);
-
-	PlisgoFSFolder* pFolder = parent->GetAsFolder();
-
-	assert(pFolder != NULL);
-
+	if (bDeleteOnClose)
 	{
-		boost::unique_lock<boost::shared_mutex> lock(m_CacheEntryMutex);
+		const std::wstring& rsPath = pOpenFileData->sPath;
 
-		nError = pFolder->RemoveChild(GetNameFromPath(pOpenFileData->sPath.c_str()));
+		size_t nSlash = rsPath.rfind(L'\\');
 
-		if (nError == 0)
+		if (nSlash == -1)
+			nSlash = 0;
+
+		IPtrPlisgoFSFile parent = TracePath(rsPath.substr(0,nSlash));
+
+		assert(parent.get() != NULL);
+
+		PlisgoFSFolder* pFolder = parent->GetAsFolder();
+
+		assert(pFolder != NULL);
+
 		{
-			m_CacheEntryMap.clear();
-			RemoveDownstreamMounts(pOpenFileData->sPath);
-		}
-		else return nError;
-	}	
+			boost::unique_lock<boost::shared_mutex> lock(m_CacheEntryMutex);
+
+			nError = pFolder->RemoveChild(GetNameFromPath(pOpenFileData->sPath.c_str()));
+
+			if (nError == 0)
+			{
+				m_CacheEntryMap.clear();
+				RemoveDownstreamMounts(pOpenFileData->sPath);
+			}
+			else return nError;
+		}	
+	}
 
 	boost::unique_lock<boost::shared_mutex>	lock(m_OpenFilePoolMutex);
 
 	m_OpenFilePool.destroy(pOpenFileData);
+
+	InterlockedDecrement(&m_OpenFileNum);
 
 	return 0;
 }
