@@ -55,6 +55,9 @@ static const int PLISGO_APIVERSION = 2;
 #include <boost/thread/shared_mutex.hpp>
 #include <boost/thread/locks.hpp>
 #include <boost/algorithm/string/trim.hpp>
+#include <boost/interprocess/sync/file_lock.hpp>
+#include <boost/interprocess/sync/sharable_lock.hpp>
+#include <boost/interprocess/sync/scoped_lock.hpp>
 #include <boost/format.hpp>
 #include <fstream>
 #include <unordered_map>

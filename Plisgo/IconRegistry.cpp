@@ -85,6 +85,235 @@ static void		GetLowerCaseExtension(std::wstring& rsExt, const std::wstring& rsPa
 	std::transform(rsExt.begin(),rsExt.end(),rsExt.begin(),tolower);
 }
 
+static void GetPlisgoFileLock(std::string& rsFile)
+{
+	char sTemp[MAX_PATH];
+
+	GetTempPathA(MAX_PATH, sTemp);
+
+	strcat_s(sTemp, MAX_PATH, "plisgo");
+
+	if (GetFileAttributesA(sTemp) == INVALID_FILE_ATTRIBUTES)
+		CreateDirectoryA(sTemp, NULL);
+
+	rsFile.assign(sTemp);
+	rsFile += "\\lock";
+
+	if (GetFileAttributesA(rsFile.c_str()) == INVALID_FILE_ATTRIBUTES)
+	{
+		HANDLE hFile = CreateFileA(rsFile.c_str(), FILE_GENERIC_WRITE, FILE_SHARE_READ|FILE_SHARE_WRITE, NULL, CREATE_ALWAYS, 0, NULL);
+
+		if (hFile != NULL)
+			CloseHandle(hFile);
+	}
+}
+
+
+
+static bool OldAndShouldBeDeleted(const std::string& rsInfoFile)
+{
+	bool bDelete = false;
+
+	HANDLE hFile = CreateFileA(rsInfoFile.c_str() , FILE_GENERIC_READ, FILE_SHARE_READ|FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL);
+
+	if (hFile != NULL && hFile != INVALID_HANDLE_VALUE)
+	{
+		LARGE_INTEGER nSize = {0};
+
+		GetFileSizeEx(hFile, &nSize);
+
+		if (nSize.HighPart == 0 && nSize.LowPart != 0)
+		{
+			DWORD nDataSize = nSize.LowPart - sizeof(ULONG64)*2;
+
+			BYTE* sData = (BYTE*)malloc(nDataSize);
+		
+			if (sData != NULL)
+			{
+				DWORD nRead = 0;
+				ULONG64 nBaseTime;
+				ULONG64 nOverTime;
+				ULONG32 nLength = 0;
+
+				if (ReadFile(hFile, &nBaseTime, sizeof(ULONG64), &nRead, NULL) && nRead == sizeof(ULONG64) &&
+					ReadFile(hFile, &nOverTime, sizeof(ULONG64), &nRead, NULL) && nRead == sizeof(ULONG64) &&
+					ReadFile(hFile, &nLength, sizeof(ULONG32), &nRead, NULL) && nRead == sizeof(ULONG32) &&
+					ReadFile(hFile, sData, nDataSize, &nRead, NULL)) 
+				{
+					WCHAR* sBase = (WCHAR*)sData;
+
+					if (nRead > ((nLength * sizeof(WCHAR)) + (sizeof(ULONG32)*2)))
+					{
+						WCHAR* sOver = (WCHAR*)&((ULONG32*)&sBase[nLength])[2]; //Skip Base Index and Over Length
+
+						WIN32_FILE_ATTRIBUTE_DATA baseInfo = {0};
+						WIN32_FILE_ATTRIBUTE_DATA overInfo = {0};
+
+						if (GetFileAttributesEx(sBase, GetFileExInfoStandard, &baseInfo) &&
+							GetFileAttributesEx(sOver, GetFileExInfoStandard, &overInfo))
+						{
+							if (nBaseTime != *(ULONG64*)&baseInfo.ftLastWriteTime ||
+								nOverTime != *(ULONG64*)&overInfo.ftLastWriteTime)
+								bDelete = true;	
+						}
+						else bDelete = true;						
+					}
+				}
+
+				free(sData);
+			}
+		}
+
+		CloseHandle(hFile);
+	}
+
+	return bDelete;
+}
+
+
+static DWORD WINAPI CleanUpOldPlisgoTempFilesCB( LPVOID pData )
+{
+	volatile bool& rbRun = *(volatile bool*)pData;
+
+	char sTemp[MAX_PATH];
+
+	GetTempPathA(MAX_PATH, sTemp);
+
+	strcat_s(sTemp, MAX_PATH, "plisgo");
+
+	if (GetFileAttributesA(sTemp) == INVALID_FILE_ATTRIBUTES)
+		CreateDirectoryA(sTemp, NULL);
+
+	strcat_s(sTemp, MAX_PATH, "\\");
+
+	while(rbRun)
+	{
+		std::string sLockFile;
+
+		GetPlisgoFileLock(sLockFile);
+
+		boost::interprocess::file_lock fileLock(sLockFile.c_str());
+
+		WIN32_FIND_DATAA findData;
+
+		HANDLE hFind = FindFirstFileA((std::string(sTemp) += "*.info").c_str(), &findData);
+
+		if (hFind != NULL && hFind != INVALID_HANDLE_VALUE)
+		{
+			if (FindNextFileA(hFind, &findData))
+			{
+				while(FindNextFileA(hFind, &findData) != 0)
+				{
+					std::string sInfoFile(sTemp);
+					sInfoFile+= findData.cFileName;
+
+					bool bDelete = false;
+
+					{
+						boost::interprocess::sharable_lock<boost::interprocess::file_lock> lock(fileLock);
+
+						bDelete = OldAndShouldBeDeleted(sInfoFile);
+					}
+
+					if (bDelete)
+					{
+						boost::interprocess::scoped_lock<boost::interprocess::file_lock> lock(fileLock);
+
+						if (OldAndShouldBeDeleted(sInfoFile))
+						{
+							DeleteFileA(sInfoFile.c_str());
+							size_t nDot = sInfoFile.rfind(L'.');
+							if (nDot != -1)
+								DeleteFileA((sInfoFile.substr(0, nDot) += ".ico").c_str());
+						}
+					}
+				}
+			}
+
+			FindClose(hFind);
+		}
+	}
+
+	return 0;
+}
+
+
+static bool WriteIconLocationToInfoFile(HANDLE hFile, const IconLocation& rIconLocation)
+{
+	DWORD nWritten = 0;
+	ULONG32 nLength = rIconLocation.sPath.length()+1;
+
+	WriteFile(hFile, &nLength, sizeof(ULONG32), &nWritten, NULL);
+
+	if (nWritten != sizeof(ULONG32))
+		return false;
+
+	WriteFile(hFile, rIconLocation.sPath.c_str(), nLength*sizeof(WCHAR), &nWritten, NULL);
+	
+	if (nWritten != nLength*sizeof(WCHAR))
+		return false;
+
+	nLength = (ULONG32)rIconLocation.nIndex;
+	WriteFile(hFile, &nLength, sizeof(ULONG32), &nWritten, NULL);
+
+	return (nWritten == sizeof(ULONG32));
+}
+
+
+static bool	WriteInfoFile(LPCWSTR sFile, const IconLocation& rFirst, ULONG64 nFirstTime, const IconLocation& rSecond, ULONG64 sSecondTime)
+{
+	HANDLE hFile = CreateFileW(sFile, FILE_WRITE_DATA, FILE_SHARE_READ|FILE_SHARE_WRITE, NULL, OPEN_ALWAYS, 0, NULL);
+
+	if (hFile == NULL || hFile == INVALID_HANDLE_VALUE)
+		return false;
+
+	DWORD nWritten = 0;
+
+	bool bResult = false;
+
+	if (WriteFile(hFile, &nFirstTime, sizeof(ULONG64), &nWritten, NULL) && nWritten == sizeof(ULONG64) &&
+		WriteFile(hFile, &sSecondTime, sizeof(ULONG64), &nWritten, NULL) && nWritten == sizeof(ULONG64))
+	{
+		bResult = true;
+
+		//This bit doesn't matter as much, it's to be used for book keeping
+		if (WriteIconLocationToInfoFile(hFile, rFirst))
+			WriteIconLocationToInfoFile(hFile, rSecond);
+	}
+
+	CloseHandle(hFile);
+
+	return bResult;
+}
+
+
+static bool IsUpToDateInfoFile(const std::wstring& rsTxtFile, ULONG64 nBaseTime, ULONG64 nOverTime)
+{
+	bool bResult = false;
+
+	HANDLE hFile = CreateFileW(rsTxtFile.c_str(), FILE_READ_DATA, FILE_SHARE_READ|FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL);
+
+	if (hFile != NULL && hFile != INVALID_HANDLE_VALUE)
+	{
+		OVERLAPPED overlapped = {0};
+
+		ULONG64 nFileBaseTime;
+		ULONG64 nFileOverTime;
+
+		DWORD nRead = 0;
+
+		if (ReadFile(hFile, &nFileBaseTime, sizeof(ULONG64), &nRead, NULL) && nRead == sizeof(ULONG64) &&
+			ReadFile(hFile, &nFileOverTime, sizeof(ULONG64), &nRead, NULL) && nRead == sizeof(ULONG64) )
+		{
+			bResult = (nBaseTime == nFileBaseTime && nOverTime == nFileOverTime);
+		}
+
+		CloseHandle(hFile);
+	}
+
+	return bResult;
+}
+
 
 ULONG64	IconLocation::GetHash() const
 {
@@ -808,71 +1037,46 @@ void	RefIconList::RemoveOlderThan(ULONG64 n100ns)
 }
 
 
-bool	ReadTimesFromInfoFile(LPCWSTR sFile, ULONG64& rnBaseTime, ULONG64& rsOverTime)
+HICON	RefIconList::CreateOverlaidIcon(const IconLocation& rFirst,	const IconLocation& rSecond)
 {
-	HANDLE hFile = CreateFileW(sFile, FILE_READ_DATA, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
+	HICON hBase = NULL;
 
-	if (hFile == NULL || hFile == INVALID_HANDLE_VALUE)
-		return false;
-
-	DWORD nRead = 0;
-
-	bool bResult (	ReadFile(hFile, &rnBaseTime, sizeof(ULONG64), &nRead, NULL) && nRead == sizeof(ULONG64) &&
-					ReadFile(hFile, &rsOverTime, sizeof(ULONG64), &nRead, NULL) && nRead == sizeof(ULONG64) );
-
-	CloseHandle(hFile);
-
-	return bResult;
-}
-
-
-static bool WriteIconLocationToInfoFile(HANDLE hFile, const IconLocation& rIconLocation)
-{
-	DWORD nWritten = 0;
-	ULONG32 nLength = (rIconLocation.sPath.length()+1)*sizeof(WCHAR);
-
-	WriteFile(hFile, &nLength, sizeof(ULONG32), &nWritten, NULL);
-
-	if (nWritten != sizeof(ULONG32))
-		return false;
-
-	WriteFile(hFile, rIconLocation.sPath.c_str(), nLength, &nWritten, NULL);
+	if (!GetIcon(hBase, rFirst) || hBase == NULL)
+		return NULL;
 	
-	if (nWritten != nLength)
-		return false;
+	HICON hSecond = GetSpecificIcon(rSecond.sPath, rSecond.nIndex, m_nHeight);
 
-	nLength = (ULONG32)rIconLocation.nIndex;
-	WriteFile(hFile, &nLength, sizeof(ULONG32), &nWritten, NULL);
-
-	return (nWritten == sizeof(ULONG32));
-}
-
-
-
-static bool	WriteInfoFile(LPCWSTR sFile, const IconLocation& rFirst, ULONG64 nFirstTime, const IconLocation& rSecond, ULONG64 sSecondTime)
-{
-	HANDLE hFile = CreateFileW(sFile, FILE_WRITE_DATA, FILE_SHARE_READ|FILE_SHARE_WRITE, NULL, OPEN_ALWAYS, 0, NULL);
-
-	if (hFile == NULL || hFile == INVALID_HANDLE_VALUE)
-		return false;
-
-	DWORD nWritten = 0;
-
-	bool bResult = false;
-
-	if (WriteFile(hFile, &nFirstTime, sizeof(ULONG64), &nWritten, NULL) && nWritten == sizeof(ULONG64) &&
-		WriteFile(hFile, &sSecondTime, sizeof(ULONG64), &nWritten, NULL) && nWritten == sizeof(ULONG64))
+	if (hSecond == NULL)
 	{
-		bResult = true;
+		DestroyIcon(hBase);
 
-		//This bit doesn't matter as much, it's to be used for book keeping
-		if (WriteIconLocationToInfoFile(hFile, rFirst))
-			WriteIconLocationToInfoFile(hFile, rSecond);
+		return NULL;
 	}
 
-	CloseHandle(hFile);
+	POINT basePos = {0};
+	POINT overlayPos = {m_nHeight,m_nHeight};
 
-	return bResult;
+	ICONINFO iconinfo;
+
+	if (GetIconInfo(hSecond, &iconinfo))
+	{
+		BITMAP bm;
+
+		GetObject(iconinfo.hbmColor, sizeof(bm), &bm);
+
+		overlayPos.x -= bm.bmHeight;
+		overlayPos.y -= bm.bmHeight;
+
+		DeleteObject(iconinfo.hbmColor);
+		DeleteObject(iconinfo.hbmMask);
+	}
+
+	HICON hResult = BurnTogether(hBase, basePos, hSecond, overlayPos, m_nHeight);
+
+	DestroyIcon(hSecond);
+	DestroyIcon(hBase);
+
+	return hResult;
 }
 
 
@@ -896,21 +1100,16 @@ bool	RefIconList::MakeOverlaid(	IconLocation&		rDst,
 
 	const ULONG64 nBaseHash = rFirst.GetHash();
 	const ULONG64 nOverHash = rSecond.GetHash();
+	const ULONG64 nBaseTime = *(ULONG64*)&baseInfo.ftLastWriteTime;
+	const ULONG64 nOverTime = *(ULONG64*)&overInfo.ftLastWriteTime;
 
-	DWORD nTempSize = ExpandEnvironmentStrings(L"%TEMP%", NULL, 0);
+	WCHAR sTemp[MAX_PATH];
 
-	std::wstring sTemp(nTempSize,L' ');
+	GetTempPath(MAX_PATH, sTemp);
 
-	ExpandEnvironmentStrings(L"%TEMP%", (LPWSTR)sTemp.c_str(), sTemp.length());
-	
-	sTemp.resize(nTempSize-1); //Remove extra
-
-	const std::wstring sPlisgoTemp = (boost::wformat(L"%1%\\plisgo") %sTemp).str();
-
+	const std::wstring sPlisgoTemp = (boost::wformat(L"%1%plisgo") %sTemp).str();	
 	const std::wstring sFile((boost::wformat(L"%1%\\%2%_%3%_%4%") %sPlisgoTemp %nBaseHash %nOverHash %m_nHeight).str());
 
-	ULONG64 nBaseTime;
-	ULONG64 nOverTime;
 
 	rDst.nIndex = 0;
 	rDst.sPath = sFile;
@@ -919,72 +1118,46 @@ bool	RefIconList::MakeOverlaid(	IconLocation&		rDst,
 	std::wstring sTxtFile = sFile;
 	sTxtFile+= L".info";
 
+	std::string sLockFile;
 
-	if (ReadTimesFromInfoFile(sTxtFile.c_str(), nBaseTime, nOverTime))
+	GetPlisgoFileLock(sLockFile);
+
+	boost::interprocess::file_lock fileLock(sLockFile.c_str());
+
 	{
-		if (nBaseTime == *(ULONG64*)&baseInfo.ftLastWriteTime &&
-			nOverTime == *(ULONG64*)&overInfo.ftLastWriteTime)
-		{
+		boost::interprocess::sharable_lock<boost::interprocess::file_lock> lock(fileLock);
+
+		if (IsUpToDateInfoFile(sTxtFile, nBaseTime, nOverTime))
 			if (GetFileAttributes(rDst.sPath.c_str()) != INVALID_FILE_ATTRIBUTES)
 				return true;
-		}
 	}
 
-	if (GetFileAttributes(sPlisgoTemp.c_str()) == INVALID_FILE_ATTRIBUTES)
-		CreateDirectory(sPlisgoTemp.c_str(), NULL);
 
-	bool bResult = false;
-
-	HICON hBase = NULL;
-
-	if (GetIcon(hBase, rFirst) && hBase != NULL)
 	{
-		HICON hSecond = GetSpecificIcon(rSecond.sPath, rSecond.nIndex, m_nHeight);
+		boost::interprocess::scoped_lock<boost::interprocess::file_lock> lock(fileLock);
 
-		if (hSecond != NULL)
+		if (IsUpToDateInfoFile(sTxtFile, nBaseTime, nOverTime))
+			if (GetFileAttributes(rDst.sPath.c_str()) != INVALID_FILE_ATTRIBUTES)
+				return true;
+
+		bool bResult = false;
+
+		HICON hResult = CreateOverlaidIcon(rFirst, rSecond);
+			
+		if (hResult != NULL)
 		{
-			POINT basePos = {0};
-			POINT overlayPos = {m_nHeight,m_nHeight};
-
-			ICONINFO iconinfo;
-
-			if (GetIconInfo(hSecond, &iconinfo))
+			if (WriteToIconFile(rDst.sPath.c_str(), hResult))
 			{
-				BITMAP bm;
+				WriteInfoFile(sTxtFile.c_str(), rFirst, nBaseTime, rSecond, nOverTime);
 
-				GetObject(iconinfo.hbmColor, sizeof(bm), &bm);
-
-				overlayPos.x -= bm.bmHeight;
-				overlayPos.y -= bm.bmHeight;
-
-				DeleteObject(iconinfo.hbmColor);
-				DeleteObject(iconinfo.hbmMask);
+				bResult = true;
 			}
 
-			HICON hResult = BurnTogether(hBase, basePos, hSecond, overlayPos, m_nHeight);
-
-			if (hResult != NULL)
-			{
-				if (WriteToIconFile(rDst.sPath.c_str(), hResult))
-				{
-					WriteInfoFile(	sTxtFile.c_str(),
-									rFirst,
-									*(ULONG64*)&baseInfo.ftLastWriteTime,
-									rSecond,
-									*(ULONG64*)&overInfo.ftLastWriteTime);
-					bResult = true;
-				}
-
-				DestroyIcon(hResult);
-			}
-
-			DestroyIcon(hSecond);
+			DestroyIcon(hResult);
 		}
-
-		DestroyIcon(hBase);
-	}	
-
-	return bResult;
+	
+		return bResult;
+	}
 }
 
 
@@ -1007,6 +1180,22 @@ bool	RefIconList::CachedIcon::IsValid() const
 */
 IconRegistry::IconRegistry()
 {
+	m_bRunCheapUpThread = true;
+
+	m_hCleanUpThread = CreateThread(NULL, 0, &CleanUpOldPlisgoTempFilesCB, (LPVOID)&m_bRunCheapUpThread, 0, NULL);
+}
+
+
+IconRegistry::~IconRegistry()
+{
+	m_bRunCheapUpThread = false;
+
+	if (m_hCleanUpThread != NULL)
+	{
+		WaitForSingleObject(m_hCleanUpThread, 200);
+
+		CloseHandle(m_hCleanUpThread);
+	}
 }
 
 

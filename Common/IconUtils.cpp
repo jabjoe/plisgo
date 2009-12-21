@@ -828,7 +828,7 @@ static bool		ExtractIconInfoFromKey( std::wstring& rsIconFilePath, int& rnIconIn
 	HKEY hDefaultIconKey;
 
 	if (RegOpenKeyEx(hKey, L"DefaultIcon", 0, KEY_READ, &hDefaultIconKey) != ERROR_SUCCESS)
-		return false;
+			return false;
 
 	rsIconFilePath.resize(0);
 
@@ -871,6 +871,43 @@ static bool		ExtractIconInfoFromKey( std::wstring& rsIconFilePath, int& rnIconIn
 }
 
 
+static bool		ExtractIconInfoForExtFromSubKey(std::wstring& rsIconFilePath, int& rnIconIndex, HKEY hKey, LPCTSTR sSubKey)
+{
+	bool bFound = ExtractIconInfoFromKey(rsIconFilePath, rnIconIndex, hKey);
+
+	WCHAR sValue[MAX_PATH*2];
+	DWORD nType = REG_SZ;
+	DWORD nValueBufferSize = sizeof(sValue);
+
+	if (RegQueryValueEx(hKey, sSubKey, NULL, &nType, (LPBYTE)sValue, &nValueBufferSize) == ERROR_SUCCESS)
+	{
+		HKEY hTypeKey = NULL;
+
+		if (RegOpenKeyEx(HKEY_CLASSES_ROOT, sValue, 0, KEY_READ , &hTypeKey) == ERROR_SUCCESS)
+		{
+			bFound = ExtractIconInfoFromKey(rsIconFilePath, rnIconIndex, hTypeKey);
+
+			RegCloseKey(hTypeKey);
+		}
+
+		if (!bFound)
+		{
+			HKEY hSysTypeKey = NULL;
+
+			if (RegOpenKeyEx(HKEY_CLASSES_ROOT, (std::wstring(L"SystemFileAssociations\\") + sValue).c_str(), 0, KEY_READ , &hSysTypeKey) == ERROR_SUCCESS)
+			{
+				bFound = ExtractIconInfoFromKey(rsIconFilePath, rnIconIndex, hSysTypeKey);
+
+				RegCloseKey(hSysTypeKey);
+			}
+		}
+	}
+
+	return bFound;
+}
+
+
+
 //Instead of SHGetFileInfo so there is no MAX_PATH limit
 bool			ExtractIconInfoForExt( std::wstring& rsIconFilePath, int& rnIconIndex, LPCWSTR sExt )
 {
@@ -879,74 +916,29 @@ bool			ExtractIconInfoForExt( std::wstring& rsIconFilePath, int& rnIconIndex, LP
 
 	HKEY hKey;
 
-	if (RegOpenKeyEx(HKEY_CLASSES_ROOT, sExt, 0, KEY_READ , &hKey) != ERROR_SUCCESS)
-		return false;
-
 	std::wstring sIconFilePath;
+	bool bFound = false;
 
-	bool bFound = ExtractIconInfoFromKey(sIconFilePath, rnIconIndex, hKey);
-
-	WCHAR sValue[MAX_PATH*2];
-
-	if (!bFound)
+	if (RegOpenKeyEx(HKEY_CLASSES_ROOT, sExt, 0, KEY_READ , &hKey) == ERROR_SUCCESS)
 	{
-		DWORD nType = REG_SZ;
-		DWORD nValueBufferSize = sizeof(sValue);
+		bFound = ExtractIconInfoForExtFromSubKey(sIconFilePath, rnIconIndex, hKey, NULL);
 
-		if (RegQueryValueEx(hKey, NULL, NULL, &nType, (LPBYTE)sValue, &nValueBufferSize) == ERROR_SUCCESS)
-		{
-			HKEY hTypeKey = NULL;
+		if (!bFound)
+			bFound = ExtractIconInfoForExtFromSubKey(sIconFilePath, rnIconIndex, hKey, L"PerceivedType");
 
-			if (RegOpenKeyEx(HKEY_CLASSES_ROOT, sValue, 0, KEY_READ , &hTypeKey) == ERROR_SUCCESS)
-			{
-				bFound = ExtractIconInfoFromKey(sIconFilePath, rnIconIndex, hTypeKey);
-
-				if (!bFound)
-				{
-					HKEY hSysTypeKey = NULL;
-
-					if (RegOpenKeyEx(HKEY_CLASSES_ROOT, (std::wstring(L"SystemFileAssociations/") + sValue).c_str(), 0, KEY_READ , &hSysTypeKey) == ERROR_SUCCESS)
-					{
-						bFound = ExtractIconInfoFromKey(sIconFilePath, rnIconIndex, hSysTypeKey);
-
-						RegCloseKey(hSysTypeKey);
-					}
-				}
-
-				RegCloseKey(hTypeKey);
-			}
-		}
+		RegCloseKey(hKey);
 	}
 
-	RegCloseKey(hKey);
 
-	if (!bFound)
+	if (!bFound && RegOpenKeyEx(HKEY_CLASSES_ROOT, (std::wstring(L"SystemFileAssociations\\") + sExt).c_str(), 0, KEY_READ , &hKey) == ERROR_SUCCESS)
 	{
-		if (RegOpenKeyEx(HKEY_CLASSES_ROOT, (std::wstring(L"SystemFileAssociations/") + sExt).c_str(), 0, KEY_READ , &hKey) == ERROR_SUCCESS)
-		{
-			bFound = ExtractIconInfoFromKey(sIconFilePath, rnIconIndex, hKey);
+		bFound = ExtractIconInfoForExtFromSubKey(sIconFilePath, rnIconIndex, hKey, NULL);
 
-			if (!bFound)
-			{
-				DWORD nType = REG_SZ;
-				DWORD nValueBufferSize = sizeof(sValue);
+		if (!bFound)
+			bFound = ExtractIconInfoForExtFromSubKey(sIconFilePath, rnIconIndex, hKey, L"PerceivedType");
 
-				if (RegQueryValueEx(hKey, NULL, NULL, &nType, (LPBYTE)sValue, &nValueBufferSize) == ERROR_SUCCESS)
-				{
-					HKEY hSysTypeKey = NULL;
-
-					if (RegOpenKeyEx(hKey, sValue, 0, KEY_READ , &hSysTypeKey) == ERROR_SUCCESS)
-					{
-						bFound = ExtractIconInfoFromKey(sIconFilePath, rnIconIndex, hSysTypeKey);
-
-						RegCloseKey(hSysTypeKey);
-					}
-				}
-			}
-
-			RegCloseKey(hKey);
-		}
-	}
+		RegCloseKey(hKey);
+	}	
 
 	if (bFound)
 	{
@@ -1284,10 +1276,10 @@ HICON			ExtractIconFromImageListFile(const std::wstring& rsFile, const UINT nInd
 		const UINT nHeight = pBitmap->GetHeight();
 		const UINT nWidth = pBitmap->GetWidth();
 
-		const UINT nIconNum = nWidth/nHeight;
-
-		if ((nWidth%nHeight) == 0)
+		if (nHeight != 0 && (nWidth%nHeight) == 0)
 		{
+			const UINT nIconNum = nWidth/nHeight;
+
 			if (nIndex < nIconNum)
 			{
 				Gdiplus::Bitmap* pSubBitmap = pBitmap->Clone(nIndex*nHeight, 0, nHeight, nHeight, PixelFormat32bppARGB);

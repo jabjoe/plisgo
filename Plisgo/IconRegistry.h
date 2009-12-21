@@ -123,6 +123,7 @@ public:
 	void					RemoveOlderThan(ULONG64 n100ns);
 
 private:
+	HICON					CreateOverlaidIcon(const IconLocation& rFirst, const IconLocation& rSecond);
 
 	bool					AddEntry_RW(int& rnIndex, HICON hIcon);
 	bool					GetIconLocationIndex_RW(int& rnIndex, const IconLocation& rIconLocation, const std::wstring& rsKey);
@@ -159,6 +160,7 @@ class IconRegistry
 public:
 
 	IconRegistry();
+	~IconRegistry();
 
 	IPtrFSIconRegistry		GetFSIconRegistry(LPCWSTR sFS, int nVersion, const std::wstring& rsInstancePath) const;
 	void					ReleaseFSIconRegistry(IPtrFSIconRegistry& rFSIconRegistry, const std::wstring& rsInstancePath); 
@@ -172,5 +174,8 @@ private:
 	FSIconRegistries								m_FSIconRegistries;
 	std::vector<boost::weak_ptr<RefIconList> >		m_IconLists;
 	mutable boost::shared_mutex						m_Mutex;
+
+	bool											m_bRunCheapUpThread;
+	HANDLE											m_hCleanUpThread;
 };
 

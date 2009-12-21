@@ -72,11 +72,14 @@ PlisgoFSFolderReg::~PlisgoFSFolderReg()
 {
 	bThreadToRun = false;
 
-	ResumeThread(m_hCleaningThread);
+	if (m_hCleaningThread != NULL)
+	{
+		ResumeThread(m_hCleaningThread);
 
-	WaitForSingleObject(m_hCleaningThread, 200); //Give it a chance to shutdown
+		WaitForSingleObject(m_hCleaningThread, 200); //Give it a chance to shutdown
 
-	CloseHandle(m_hCleaningThread);
+		CloseHandle(m_hCleaningThread);
+	}
 }
 
 
