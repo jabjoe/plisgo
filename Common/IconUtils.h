@@ -31,7 +31,7 @@ extern HICON		EnsureIconSizeResolution(HICON hIcon, LONG nHeight);
 
 
 
-extern HICON		BurnTogether(HICON hFirst, POINT &rFirst, HICON hSecond, POINT &rSecond, UINT nHeight);
+extern HICON		BurnTogether(HICON hFirst, POINT &rFirst, HICON hSecond, POINT &rSecond, UINT nHeight, bool bOutline = false);
 
 extern HICON		LoadAsIcon(const std::wstring& rsFile, UINT nHeight);
 

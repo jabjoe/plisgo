@@ -174,8 +174,5 @@ private:
 	FSIconRegistries								m_FSIconRegistries;
 	std::vector<boost::weak_ptr<RefIconList> >		m_IconLists;
 	mutable boost::shared_mutex						m_Mutex;
-
-	bool											m_bRunCheapUpThread;
-	HANDLE											m_hCleanUpThread;
 };
 

@@ -171,10 +171,14 @@ static bool OldAndShouldBeDeleted(const std::string& rsInfoFile)
 }
 
 
-static DWORD WINAPI CleanUpOldPlisgoTempFilesCB( LPVOID pData )
-{
-	volatile bool& rbRun = *(volatile bool*)pData;
 
+static bool gbRunPlisgoTempFileCleanUp = false;
+
+static HANDLE ghPlisgoTempFileCleanUpThread = NULL;
+
+
+static DWORD WINAPI CleanUpOldPlisgoTempFilesCB( LPVOID  )
+{
 	char sTemp[MAX_PATH];
 
 	GetTempPathA(MAX_PATH, sTemp);
@@ -186,23 +190,23 @@ static DWORD WINAPI CleanUpOldPlisgoTempFilesCB( LPVOID pData )
 
 	strcat_s(sTemp, MAX_PATH, "\\");
 
-	while(rbRun)
+	while(gbRunPlisgoTempFileCleanUp)
 	{
-		std::string sLockFile;
-
-		GetPlisgoFileLock(sLockFile);
-
-		boost::interprocess::file_lock fileLock(sLockFile.c_str());
-
-		WIN32_FIND_DATAA findData;
-
-		HANDLE hFind = FindFirstFileA((std::string(sTemp) += "*.info").c_str(), &findData);
-
-		if (hFind != NULL && hFind != INVALID_HANDLE_VALUE)
+		//Scope to ensure not dynamic memory is held while sleeping
 		{
-			if (FindNextFileA(hFind, &findData))
+			std::string sLockFile;
+
+			GetPlisgoFileLock(sLockFile);
+
+			boost::interprocess::file_lock fileLock(sLockFile.c_str());
+
+			WIN32_FIND_DATAA findData;
+
+			HANDLE hFind = FindFirstFileA((std::string(sTemp) += "*.info").c_str(), &findData);
+
+			if (hFind != NULL && hFind != INVALID_HANDLE_VALUE)
 			{
-				while(FindNextFileA(hFind, &findData) != 0)
+				do
 				{
 					std::string sInfoFile(sTemp);
 					sInfoFile+= findData.cFileName;
@@ -228,10 +232,13 @@ static DWORD WINAPI CleanUpOldPlisgoTempFilesCB( LPVOID pData )
 						}
 					}
 				}
-			}
+				while(FindNextFileA(hFind, &findData) != 0);
 
-			FindClose(hFind);
+				FindClose(hFind);
+			}
 		}
+
+		Sleep(15*60000); //Run again in 15 minutes.
 	}
 
 	return 0;
@@ -1071,7 +1078,7 @@ HICON	RefIconList::CreateOverlaidIcon(const IconLocation& rFirst,	const IconLoca
 		DeleteObject(iconinfo.hbmMask);
 	}
 
-	HICON hResult = BurnTogether(hBase, basePos, hSecond, overlayPos, m_nHeight);
+	HICON hResult = BurnTogether(hBase, basePos, hSecond, overlayPos, m_nHeight, (m_nHeight > 48));
 
 	DestroyIcon(hSecond);
 	DestroyIcon(hBase);
@@ -1180,21 +1187,20 @@ bool	RefIconList::CachedIcon::IsValid() const
 */
 IconRegistry::IconRegistry()
 {
-	m_bRunCheapUpThread = true;
+	gbRunPlisgoTempFileCleanUp = true;
 
-	m_hCleanUpThread = CreateThread(NULL, 0, &CleanUpOldPlisgoTempFilesCB, (LPVOID)&m_bRunCheapUpThread, 0, NULL);
+	ghPlisgoTempFileCleanUpThread = CreateThread(NULL, 0, &CleanUpOldPlisgoTempFilesCB, NULL, 0, NULL);
 }
 
 
 IconRegistry::~IconRegistry()
 {
-	m_bRunCheapUpThread = false;
+	gbRunPlisgoTempFileCleanUp = false;
 
-	if (m_hCleanUpThread != NULL)
+	if (ghPlisgoTempFileCleanUpThread != NULL)
 	{
-		WaitForSingleObject(m_hCleanUpThread, 200);
-
-		CloseHandle(m_hCleanUpThread);
+		CloseHandle(ghPlisgoTempFileCleanUpThread);
+		ghPlisgoTempFileCleanUpThread = NULL;
 	}
 }
 

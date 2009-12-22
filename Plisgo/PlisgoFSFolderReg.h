@@ -29,11 +29,7 @@ class PlisgoFSFolderReg
 {
 public:
 
-	static void					Init();
-
 	static PlisgoFSFolderReg*	GetSingleton();
-
-	static void					Shutdown();
 
 	IconRegistry*				GetIconRegistry() 		{ return &m_IconRegistry; }
 

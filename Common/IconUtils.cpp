@@ -1211,7 +1211,7 @@ HICON			EnsureIconSizeResolution(HICON hIcon, LONG nHeight)
 }
 
 
-HICON			BurnTogether(HICON hFirst, POINT &rFirst, HICON hSecond, POINT &rSecond, UINT nHeight)
+HICON			BurnTogether(HICON hFirst, POINT &rFirst, HICON hSecond, POINT &rSecond, UINT nHeight, bool bOutline )
 {
 	HICON hResult = NULL;
 	ICONINFO newIcon = {0};
@@ -1238,6 +1238,24 @@ HICON			BurnTogether(HICON hFirst, POINT &rFirst, HICON hSecond, POINT &rSecond,
 	hOld = SelectObject(hMemDC, newIcon.hbmColor);
 
 	ManualIconBlitTo32Alphaed(hMemDC, pBits, nHeight, nHeight, rFirst.x, rFirst.y, hFirst);
+
+	if (bOutline)
+	{
+		for(UINT y = 0; y < nHeight; ++y)
+		{
+			if (y == 0 || y == nHeight-1)
+			{
+				for(UINT x = 0; x < nHeight; ++x)
+					pBits[x+y*nHeight] = 0xFFE0E0E0;
+			}
+			else
+			{
+				pBits[y*nHeight] = 0xFFE0E0E0;
+				pBits[nHeight-1+y*nHeight] = 0xFFE0E0E0;
+			}
+		}
+	}
+
 	ManualIconBlitTo32Alphaed(hMemDC, pBits, nHeight, nHeight, rSecond.x, rSecond.y, hSecond);
 
 	hResult = CreateIconIndirect(&newIcon);

@@ -349,8 +349,32 @@ DWORD WINAPI CPlisgoView::AsynLoader::ThreadProcCB(LPVOID lpParameter)
 }
 
 
+/*
+	Class to lazy initilize Common Controls
+*/
+class CommonControlsInitClass
+{
+public:
+	CommonControlsInitClass()
+	{
+		InitCommonControls();
 
+		INITCOMMONCONTROLSEX InitCtrls;
 
+        InitCtrls.dwICC = ICC_LISTVIEW_CLASSES;
+        InitCtrls.dwSize = sizeof(INITCOMMONCONTROLSEX);
+
+        BOOL bRet = InitCommonControlsEx(&InitCtrls);
+	}
+};
+
+/*
+	Function to lazy initilize Common Controls
+*/
+static void CommonControlsInit()
+{
+	static CommonControlsInitClass init;
+}
 
 
 // CPlisgoView
@@ -364,6 +388,7 @@ CPlisgoView::CPlisgoView() : m_nUIState(SVUIA_DEACTIVATE), m_nSortedColumn(0),
 					   m_nShellNotificationID(0), m_pAsynLoader(NULL)
 
 {
+	CommonControlsInit();
 }
 
 

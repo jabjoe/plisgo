@@ -28,31 +28,19 @@ CPlisgoModule _AtlModule;
 
 HINSTANCE ghInstance = NULL;
 
-ULONG_PTR gGDIPlusToken = 0;
 
 
 // DLL Entry Point
 extern "C" BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReserved)
 {
-	if (dwReason == DLL_PROCESS_ATTACH)
+	static volatile LONG nThreadNum = 0;
+
+	switch(dwReason)
 	{
-		ghInstance = hInstance;
-
-		InitCommonControls();
-
-		INITCOMMONCONTROLSEX InitCtrls;
-
-        InitCtrls.dwICC = ICC_LISTVIEW_CLASSES;
-        InitCtrls.dwSize = sizeof(INITCOMMONCONTROLSEX);
-
-        BOOL bRet = InitCommonControlsEx(&InitCtrls);
-
-		PlisgoFSFolderReg::Init();
-	}
-	else if (dwReason == DLL_PROCESS_DETACH)
-	{
-		PlisgoFSFolderReg::Shutdown();
-		ghInstance = NULL;
+	case DLL_PROCESS_ATTACH: ghInstance = hInstance; break;
+	case DLL_THREAD_ATTACH: InterlockedIncrement(&nThreadNum); break;
+	case DLL_THREAD_DETACH: InterlockedDecrement(&nThreadNum); break;
+	case DLL_PROCESS_DETACH: ghInstance = NULL;  break;
 	}
 
 	return _AtlModule.DllMain(dwReason, lpReserved); 

@@ -24,29 +24,16 @@
 #include "PlisgoFSFolderReg.h"
 
 
-static PlisgoFSFolderReg* gpPlisgoFSFolderReg = NULL;
 
-
-void				PlisgoFSFolderReg::Init()
-{
-	assert(gpPlisgoFSFolderReg == NULL);
-
-	gpPlisgoFSFolderReg = new PlisgoFSFolderReg();
-}
 
 
 PlisgoFSFolderReg*	PlisgoFSFolderReg::GetSingleton()
 {
-	return gpPlisgoFSFolderReg;
+	static PlisgoFSFolderReg gPlisgoFSFolderReg;
+
+	return &gPlisgoFSFolderReg;
 }
 
-
-void				PlisgoFSFolderReg::Shutdown()
-{
-	assert(gpPlisgoFSFolderReg != NULL);
-
-	delete gpPlisgoFSFolderReg;
-}
 
 static bool bThreadToRun = true;
 
@@ -55,7 +42,7 @@ DWORD WINAPI PlisgoFSFolderReg::ClearningThreadCB(void*)
 	while(bThreadToRun)
 	{
 		Sleep(10000); //Run once every 10 seconds
-		gpPlisgoFSFolderReg->RunRootCacheClean();
+		GetSingleton()->RunRootCacheClean();
 	}
 
 	return 0;
@@ -74,10 +61,6 @@ PlisgoFSFolderReg::~PlisgoFSFolderReg()
 
 	if (m_hCleaningThread != NULL)
 	{
-		ResumeThread(m_hCleaningThread);
-
-		WaitForSingleObject(m_hCleaningThread, 200); //Give it a chance to shutdown
-
 		CloseHandle(m_hCleaningThread);
 	}
 }
