@@ -160,7 +160,6 @@ class IconRegistry
 public:
 
 	IconRegistry();
-	~IconRegistry();
 
 	IPtrFSIconRegistry		GetFSIconRegistry(LPCWSTR sFS, int nVersion, const std::wstring& rsInstancePath) const;
 	void					ReleaseFSIconRegistry(IPtrFSIconRegistry& rFSIconRegistry, const std::wstring& rsInstancePath); 

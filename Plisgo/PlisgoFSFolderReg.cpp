@@ -25,44 +25,61 @@
 
 
 
+static volatile LONG gnCleaningThreadCheck = 0;
+
+static ULONG64	gnCleaningTheadCheckTime = 0;
+
+static HANDLE	ghCleaningThread = NULL;
+
+
+static DWORD WINAPI ClearningThreadCB(LPVOID)
+{
+	PlisgoFSFolderReg::GetSingleton()->RunRootCacheClean();
+
+	//Spin until got lock
+	while(InterlockedCompareExchange(&gnCleaningThreadCheck, 1, 0) != 0);
+
+	HANDLE hHandle = ghCleaningThread;
+	ghCleaningThread = NULL;
+
+	InterlockedExchange(&gnCleaningThreadCheck, 0); //Release lock
+
+	CloseHandle(hHandle);
+
+	return 0;
+}
+
+
 
 
 PlisgoFSFolderReg*	PlisgoFSFolderReg::GetSingleton()
 {
 	static PlisgoFSFolderReg gPlisgoFSFolderReg;
 
-	return &gPlisgoFSFolderReg;
-}
-
-
-static bool bThreadToRun = true;
-
-DWORD WINAPI PlisgoFSFolderReg::ClearningThreadCB(void*)
-{
-	while(bThreadToRun)
+	if (InterlockedCompareExchange(&gnCleaningThreadCheck, 1, 0) == 0) //Try lock
 	{
-		Sleep(10000); //Run once every 10 seconds
-		GetSingleton()->RunRootCacheClean();
+		ULONG64 nNow = 0;
+
+		GetSystemTimeAsFileTime((FILETIME*)&nNow);
+
+		if (nNow-gnCleaningTheadCheckTime > NTMINUTE*5)
+		{
+			if (ghCleaningThread == NULL)
+			{
+				gnCleaningTheadCheckTime = nNow;
+				ghCleaningThread = CreateThread(NULL, 0, ClearningThreadCB, NULL, 0, NULL);
+			}
+		}
+
+		InterlockedExchange(&gnCleaningThreadCheck, 0); //release lock
 	}
 
-	return 0;
+	return &gPlisgoFSFolderReg;
 }
 
 
 PlisgoFSFolderReg::PlisgoFSFolderReg()
 {
-	m_hCleaningThread = CreateThread(NULL, 0, ClearningThreadCB, NULL, 0, NULL);
-}
-
-
-PlisgoFSFolderReg::~PlisgoFSFolderReg()
-{
-	bThreadToRun = false;
-
-	if (m_hCleaningThread != NULL)
-	{
-		CloseHandle(m_hCleaningThread);
-	}
 }
 
 

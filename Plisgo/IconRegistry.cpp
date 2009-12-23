@@ -171,8 +171,9 @@ static bool OldAndShouldBeDeleted(const std::string& rsInfoFile)
 }
 
 
+static volatile LONG gPlisgoTempFileCleanUpThreadCheck = 0;
 
-static bool gbRunPlisgoTempFileCleanUp = false;
+static ULONG64	gnPlisgoTempFileCleanUpTheadCheckTime = 0;
 
 static HANDLE ghPlisgoTempFileCleanUpThread = NULL;
 
@@ -190,59 +191,84 @@ static DWORD WINAPI CleanUpOldPlisgoTempFilesCB( LPVOID  )
 
 	strcat_s(sTemp, MAX_PATH, "\\");
 
-	while(gbRunPlisgoTempFileCleanUp)
+	std::string sLockFile;
+
+	GetPlisgoFileLock(sLockFile);
+
+	boost::interprocess::file_lock fileLock(sLockFile.c_str());
+
+	WIN32_FIND_DATAA findData;
+
+	HANDLE hFind = FindFirstFileA((std::string(sTemp) += "*.info").c_str(), &findData);
+
+	if (hFind != NULL && hFind != INVALID_HANDLE_VALUE)
 	{
-		//Scope to ensure not dynamic memory is held while sleeping
+		do
 		{
-			std::string sLockFile;
+			std::string sInfoFile(sTemp);
+			sInfoFile+= findData.cFileName;
 
-			GetPlisgoFileLock(sLockFile);
+			bool bDelete = false;
 
-			boost::interprocess::file_lock fileLock(sLockFile.c_str());
-
-			WIN32_FIND_DATAA findData;
-
-			HANDLE hFind = FindFirstFileA((std::string(sTemp) += "*.info").c_str(), &findData);
-
-			if (hFind != NULL && hFind != INVALID_HANDLE_VALUE)
 			{
-				do
+				boost::interprocess::sharable_lock<boost::interprocess::file_lock> lock(fileLock);
+
+				bDelete = OldAndShouldBeDeleted(sInfoFile);
+			}
+
+			if (bDelete)
+			{
+				boost::interprocess::scoped_lock<boost::interprocess::file_lock> lock(fileLock);
+
+				if (OldAndShouldBeDeleted(sInfoFile))
 				{
-					std::string sInfoFile(sTemp);
-					sInfoFile+= findData.cFileName;
-
-					bool bDelete = false;
-
-					{
-						boost::interprocess::sharable_lock<boost::interprocess::file_lock> lock(fileLock);
-
-						bDelete = OldAndShouldBeDeleted(sInfoFile);
-					}
-
-					if (bDelete)
-					{
-						boost::interprocess::scoped_lock<boost::interprocess::file_lock> lock(fileLock);
-
-						if (OldAndShouldBeDeleted(sInfoFile))
-						{
-							DeleteFileA(sInfoFile.c_str());
-							size_t nDot = sInfoFile.rfind(L'.');
-							if (nDot != -1)
-								DeleteFileA((sInfoFile.substr(0, nDot) += ".ico").c_str());
-						}
-					}
+					DeleteFileA(sInfoFile.c_str());
+					size_t nDot = sInfoFile.rfind(L'.');
+					if (nDot != -1)
+						DeleteFileA((sInfoFile.substr(0, nDot) += ".ico").c_str());
 				}
-				while(FindNextFileA(hFind, &findData) != 0);
-
-				FindClose(hFind);
 			}
 		}
+		while(FindNextFileA(hFind, &findData) != 0);
 
-		Sleep(15*60000); //Run again in 15 minutes.
+		FindClose(hFind);
 	}
+
+	//Spin until got lock
+	while(InterlockedCompareExchange(&gPlisgoTempFileCleanUpThreadCheck, 1, 0) != 0);
+
+	HANDLE hHandle = ghPlisgoTempFileCleanUpThread;
+	ghPlisgoTempFileCleanUpThread = NULL;
+
+	InterlockedExchange(&gPlisgoTempFileCleanUpThreadCheck, 0); //Release lock
+
+	CloseHandle(hHandle);
 
 	return 0;
 }
+
+
+static void RunTempFileCheanUp()
+{
+	if (InterlockedCompareExchange(&gPlisgoTempFileCleanUpThreadCheck, 1, 0) == 0) //Try lock
+	{
+		ULONG64 nNow = 0;
+
+		GetSystemTimeAsFileTime((FILETIME*)&nNow);
+
+		if (nNow-gnPlisgoTempFileCleanUpTheadCheckTime > NTMINUTE*15)
+		{
+			if (ghPlisgoTempFileCleanUpThread == NULL)
+			{
+				gnPlisgoTempFileCleanUpTheadCheckTime = nNow;
+				ghPlisgoTempFileCleanUpThread = CreateThread(NULL, 0, CleanUpOldPlisgoTempFilesCB, NULL, 0, NULL);
+			}
+		}
+
+		InterlockedExchange(&gPlisgoTempFileCleanUpThreadCheck, 0); //release lock
+	}
+}
+
 
 
 static bool WriteIconLocationToInfoFile(HANDLE hFile, const IconLocation& rIconLocation)
@@ -1187,26 +1213,14 @@ bool	RefIconList::CachedIcon::IsValid() const
 */
 IconRegistry::IconRegistry()
 {
-	gbRunPlisgoTempFileCleanUp = true;
-
-	ghPlisgoTempFileCleanUpThread = CreateThread(NULL, 0, &CleanUpOldPlisgoTempFilesCB, NULL, 0, NULL);
-}
-
-
-IconRegistry::~IconRegistry()
-{
-	gbRunPlisgoTempFileCleanUp = false;
-
-	if (ghPlisgoTempFileCleanUpThread != NULL)
-	{
-		CloseHandle(ghPlisgoTempFileCleanUpThread);
-		ghPlisgoTempFileCleanUpThread = NULL;
-	}
+	RunTempFileCheanUp();
 }
 
 
 IPtrFSIconRegistry	IconRegistry::GetFSIconRegistry(LPCWSTR sFS, int nVersion, const std::wstring& rsInstancePath) const
 {
+	RunTempFileCheanUp();
+
 	IPtrFSIconRegistry result;
 
 	if (sFS == NULL || nVersion < 1)
@@ -1287,6 +1301,8 @@ void				IconRegistry::ReleaseFSIconRegistry(IPtrFSIconRegistry& rFSIconRegistry,
 
 IPtrRefIconList		IconRegistry::GetRefIconList(ULONG nHeight) const
 {
+	RunTempFileCheanUp();
+
 	{
 		boost::shared_lock<boost::shared_mutex> lock(m_Mutex);
 
