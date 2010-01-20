@@ -45,7 +45,10 @@ public:
 	{
 	}
 
-	virtual DWORD	GetAttributes() const		{ return FILE_ATTRIBUTE_READONLY; }
+	virtual bool	IsValid() const			{ return false; } //Force it not to use cached
+
+	virtual DWORD	GetAttributes() const	{ return FILE_ATTRIBUTE_READONLY; }
+
 };
 
 

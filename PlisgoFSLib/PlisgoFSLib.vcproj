@@ -333,6 +333,10 @@
 				RelativePath=".\PlisgoFSMenuItem.cpp"
 				>
 			</File>
+			<File
+				RelativePath=".\PlisgoVFS.cpp"
+				>
+			</File>
 		</Filter>
 		<Filter
 			Name="Header Files"
@@ -357,6 +361,10 @@
 			</File>
 			<File
 				RelativePath=".\PlisgoFSMenuItem.h"
+				>
+			</File>
+			<File
+				RelativePath=".\PlisgoVFS.h"
 				>
 			</File>
 		</Filter>

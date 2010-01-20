@@ -47,9 +47,9 @@
 #include <gdiplus.h>
 #include "dokan.h"
 #include "../PlisgoFSLib/PlisgoFSHiddenFolders.h"
+#include "../PlisgoFSLib/PlisgoVFS.h"
 #include "resource.h"
 #include "ProcessesFolder.h"
-
 
 
 //Uncomment if you wish to compile against the latest Dokan from SVN
