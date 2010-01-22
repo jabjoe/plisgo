@@ -428,6 +428,8 @@ RootPlisgoFSFolder::RootPlisgoFSFolder(LPCWSTR sFSName, IShellInfoFetcher* pIShe
 	m_bEnableOverlays		= false;
 	m_bHasCustomDefaultIcon	= false;
 	m_bHasCustomFolderIcons = false;
+	
+	ZeroMemory(&m_DisabledStandardColumn, sizeof(m_DisabledStandardColumn));
 }
 
 
@@ -891,4 +893,35 @@ void				RootPlisgoFSFolder::AddCustomExtensionIcon(LPCWSTR sExt, int nList, int 
 	const std::string sData = (boost::format("%1% : %2%") %nList %nIndex).str();
 
 	pFolder->AddChild(sExt, IPtrPlisgoFSFile(new PlisgoFSStringFile(sData, true)));
+}
+
+
+void				RootPlisgoFSFolder::DisableStandardColumn(StdColumn eStdColumn)
+{
+	boost::unique_lock<boost::shared_mutex> lock(m_Mutex);
+
+	m_DisabledStandardColumn[(int)eStdColumn] = true;
+
+	IPtrPlisgoFSFile file = GetChild(L".disable_std_columns");
+
+	if (file.get() == NULL)
+	{
+		file.reset(new PlisgoFSStringFile);
+		AddChild(L".disable_std_columns", file);
+	}
+
+
+	std::string sData;
+
+	for(UINT n = 1; n < 7 ; ++n)
+		if (m_DisabledStandardColumn[n])
+		{
+			sData += '0'+n;
+			sData += ',';
+		}
+
+	PlisgoFSStringFile* pStrFile = dynamic_cast<PlisgoFSStringFile*>(file.get());
+
+	if (pStrFile != NULL)
+		pStrFile->SetString(sData);
 }

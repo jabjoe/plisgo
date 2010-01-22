@@ -288,6 +288,11 @@ ProcessesFolder::ProcessesFolder()
 	plisgoRoot->EnableOverlays();
 	plisgoRoot->EnableThumbnails();
 
+	plisgoRoot->DisableStandardColumn(RootPlisgoFSFolder::StdColumn_Type);
+	plisgoRoot->DisableStandardColumn(RootPlisgoFSFolder::StdColumn_Date_Mod);
+	plisgoRoot->DisableStandardColumn(RootPlisgoFSFolder::StdColumn_Date_Crt);
+	plisgoRoot->DisableStandardColumn(RootPlisgoFSFolder::StdColumn_Date_Acc);
+
 	int nMenu = plisgoRoot->AddMenu(L"Processes", IPtrStringEvent(), -1, IPtrStringEvent(), 0, 0);
 
 	plisgoRoot->AddMenu(L"Kill Selected", IPtrStringEvent(new KillMenuItemClick(this)), nMenu, IPtrStringEvent(new KillMenuItemEnable()), 0, 0);

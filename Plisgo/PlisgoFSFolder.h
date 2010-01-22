@@ -59,9 +59,10 @@ public:
 	ColumnType			GetColumnType(int nIndex) const					{ return m_Columns[nIndex].eType; }
 	int					GetColumnDefaultWidth(int nIndex) const			{ return m_Columns[nIndex].nWidth; }
 
-	IPtrFSIconRegistry	GetFSIconRegistry() const						{ return m_IconRegistry; }
 
-//	bool				GetExtensionIcon(LPCWSTR sExt, UINT& rnList, UINT& rnIndex) const;
+	bool				IsStandardColumnDisabled(int nStdColumn) const	{ return m_DisabledStandardColumn[nStdColumn]; }
+
+	IPtrFSIconRegistry	GetFSIconRegistry() const						{ return m_IconRegistry; }
 
 	bool				GetFolderIcon(IconLocation& rIconLocation, const UINT nHeight, bool bOpen = false) const;
 	bool				GetExtensionIcon(IconLocation& rIconLocation, LPCWSTR sExt, const UINT nHeight) const;
@@ -108,6 +109,7 @@ private:
 	std::wstring							m_sFSName;
 	int										m_nFSVersion;
 	std::wstring							m_sPath;
+	bool									m_DisabledStandardColumn[8];
 
 	struct ColumnDef
 	{

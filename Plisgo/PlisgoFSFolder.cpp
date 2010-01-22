@@ -222,6 +222,32 @@ PlisgoFSRoot::PlisgoFSRoot(const std::wstring& rsPath, IconRegistry* pIconRegist
 
 		FindClose(hFind);
 	}
+
+	ZeroMemory(&m_DisabledStandardColumn, sizeof(m_DisabledStandardColumn));
+
+	std::wstring sDisabledStandardColumns;
+	
+	ReadTextFromFile(sDisabledStandardColumns, (sPath + L".disable_std_columns").c_str());
+
+	if (sDisabledStandardColumns.length())
+	{
+		const WCHAR* sPos = sDisabledStandardColumns.c_str();
+
+		while(sPos != NULL)
+		{
+			int nIndex = _wtoi(sPos);
+
+			if (nIndex > 0 && nIndex < 7)
+				m_DisabledStandardColumn[nIndex] = true;
+
+			const WCHAR* sNext = wcschr(sPos, L',');
+
+			if (sNext != NULL)
+				++sNext;
+
+			sPos = sNext;
+		}
+	}
 }
 
 

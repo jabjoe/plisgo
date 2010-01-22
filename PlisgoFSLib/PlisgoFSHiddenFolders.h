@@ -150,6 +150,18 @@ public:
 
 	bool						SetColumnDefaultWidth(UINT nColumnIndex, int nWidth);
 
+	enum StdColumn
+	{
+		StdColumn_Size		= 1,
+		StdColumn_Type		= 2,
+		StdColumn_Date_Mod	= 3,
+		StdColumn_Date_Crt	= 4,
+		StdColumn_Date_Acc	= 5,
+		StdColumn_Attrib	= 6
+	};
+
+	void						DisableStandardColumn(StdColumn eStdColumn);
+
 	bool						EnableThumbnails();
 	bool						EnableCustomIcons();
 	bool						EnableOverlays();
@@ -189,4 +201,6 @@ private:
 	bool						m_bEnableCustomIcons;
 	bool						m_bEnableOverlays;
 	UINT						m_nColumnNum;
+
+	bool						m_DisabledStandardColumn[8];
 };

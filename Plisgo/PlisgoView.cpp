@@ -1107,28 +1107,11 @@ LRESULT		 CPlisgoView::OnCreate(	UINT uMsg, WPARAM wParam,
 	WCHAR   szTemp[MAX_PATH];
 
 
-	for(UINT n = 0; 1 ; ++n)
+	for(UINT n = 0; n < 7 ; ++n)
 	{
-		SHCOLUMNID  column = {0};
-
-		HRESULT hr = m_pContainingFolder->MapColumnToSCID(n, &column);
-
-		if (FAILED(hr))
-			break;
-
-		if (hr == S_FALSE || column.fmtid != FMTID_Storage ||
-							!(	column.pid == PID_STG_NAME ||
-								column.pid == PID_STG_SIZE ||
-								column.pid == PID_STG_STORAGETYPE ||
-								column.pid == PID_STG_WRITETIME ||
-								column.pid == PID_STG_CREATETIME ||
-								column.pid == PID_STG_ACCESSTIME ||
-								column.pid == PID_STG_ATTRIBUTES))
-			continue;
-
 		SHELLDETAILS  sd;
 
-		hr = m_pContainingFolder->GetDetailsOf(NULL, n, &sd);
+		HRESULT hr = m_pContainingFolder->GetDetailsOf(NULL, n, &sd);
 		
 		LVCOLUMNW       lvColumn = {0};
 
@@ -1166,6 +1149,9 @@ LRESULT		 CPlisgoView::OnCreate(	UINT uMsg, WPARAM wParam,
 		}
 
 		if (lvColumn.cx == 0)
+			break;
+
+		if (m_PlisgoFSFolder->IsStandardColumnDisabled(n))
 			break;
 
 		m_nColumnIDMap.push_back(n);
