@@ -123,7 +123,13 @@ public:
 		if (!m_pRoot->GetShellInfoFetcher()->GetColumnEntry(rsRealFile, m_nColumnIndex, sText))
 			return false;
 
-		rFile = IPtrPlisgoFSFile( new PlisgoFSStringFile(sText, true));	
+		PlisgoFSStringFile* pStrFile = new PlisgoFSStringFile(sText, true);
+
+		assert(pStrFile != NULL);
+
+		pStrFile->SetVolatile(true);
+
+		rFile.reset(pStrFile);
 
 		return true;
 	}
@@ -153,7 +159,13 @@ public:
 		if (!icon.GetText(sText))
 			return false;
 
-		rFile = IPtrPlisgoFSFile( new PlisgoFSStringFile(sText, true));	
+		PlisgoFSStringFile* pStrFile = new PlisgoFSStringFile(sText, true);
+
+		assert(pStrFile != NULL);
+
+		pStrFile->SetVolatile(true);
+
+		rFile.reset(pStrFile);
 
 		return true;
 	}
@@ -179,10 +191,25 @@ public:
 		if (!icon.GetText(sText))
 			return false;
 
-		rFile = IPtrPlisgoFSFile( new PlisgoFSStringFile(sText, true));	
+		PlisgoFSStringFile* pStrFile = new PlisgoFSStringFile(sText, true);
+
+		assert(pStrFile != NULL);
+
+		pStrFile->SetVolatile(true);
+
+		rFile.reset(pStrFile);
 
 		return true;
 	}
+};
+
+
+class VolatileEncapsulatedFile : public PlisgoFSEncapsulatedFile
+{
+public:
+	VolatileEncapsulatedFile(IPtrPlisgoFSFile& rFile) : PlisgoFSEncapsulatedFile(rFile) {}
+
+	virtual bool	IsValid() const		{ return false; }
 };
 
 
@@ -203,9 +230,14 @@ public:
 
 		const std::wstring sRealFile = rsRealFile.substr(0,nDot);
 
-		LPCWSTR sExt = &rsRealFile.c_str()[nDot];
+		LPCWSTR sExt = &rsRealFile.c_str()[nDot];		
 
-		return m_pRoot->GetShellInfoFetcher()->GetThumbnail(sRealFile, sExt, rFile);
+		if (!m_pRoot->GetShellInfoFetcher()->GetThumbnail(sRealFile, sExt, rFile))
+			return false;
+
+		rFile.reset(new VolatileEncapsulatedFile(rFile));
+
+		return true;
 	}
 
 protected:
@@ -547,7 +579,7 @@ bool				RootPlisgoFSFolder::AddIcons(int nListIndex, const std::wstring& sFilena
 
 		if (GetChild(nameFmt.str().c_str()).get() == NULL)
 		{
-			AddChild(nameFmt.str().c_str(), IPtrPlisgoFSFile(new PlisgoFSRedirectionFile(sFilename)));
+			AddChild(nameFmt.str().c_str(), IPtrPlisgoFSFile(new PlisgoFSRealFile(sFilename)));
 
 			if ((UINT)nListIndex >= m_nIconListsNum)
 				m_nIconListsNum = nListIndex+1;

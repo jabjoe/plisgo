@@ -230,6 +230,10 @@ public:
 
 	~PlisgoFSDataFile();
 
+	bool					IsValid() const									{ return !m_bVolatile; }
+
+	bool					SetVolatile(bool bVolatile)						{ m_bVolatile = bVolatile; }
+
 	virtual DWORD			GetAttributes() const							{ return FILE_ATTRIBUTE_HIDDEN|((m_bReadOnly)?FILE_ATTRIBUTE_READONLY:0); }
 	virtual LONGLONG		GetSize() const									{ return m_nDataUsedSize; }
 	const BYTE*				GetData() const									{ return m_pData; }
@@ -274,6 +278,7 @@ private:
 	bool						m_bReadOnly;
 	bool						m_bWriteOpen;
 	boost::shared_mutex			m_Mutex;
+	bool						m_bVolatile;
 
 	FILETIME					m_CreatedTime;
 	FILETIME					m_LastWrite;
@@ -292,6 +297,10 @@ public:
 
 	PlisgoFSStringFile(	const std::string& sData, 
 						bool bReadOnly = false);
+
+	bool				IsValid() const									{ return !m_bVolatile; }
+
+	void				SetVolatile(bool bVolatile)						{ m_bVolatile = bVolatile; }
 
 	void				SetString(const std::wstring& rsData);
 	void				AddString(const std::wstring& rsData);
@@ -340,6 +349,7 @@ public:
 private:
 	bool							m_bReadOnly;
 	bool							m_bWriteOpen;
+	bool							m_bVolatile;
 
 	std::string						m_sData;
 	mutable boost::shared_mutex		m_Mutex;
@@ -348,11 +358,11 @@ private:
 
 
 
-class PlisgoFSRedirectionFile : public PlisgoFSFile
+class PlisgoFSRealFile : public PlisgoFSFile
 {
 public:
 
-	PlisgoFSRedirectionFile(const std::wstring& rsRealFile); 
+	PlisgoFSRealFile(const std::wstring& rsRealFile); 
 
 	virtual bool			IsValid() const;
 
@@ -414,11 +424,11 @@ private:
 
 
 
-class PlisgoFSRedirectionFolder : public PlisgoFSFolder
+class PlisgoFSRealFolder : public PlisgoFSFolder
 {
 public:
 
-	PlisgoFSRedirectionFolder(const std::wstring& rsRealFolder); 
+	PlisgoFSRealFolder(const std::wstring& rsRealFolder); 
 
 	virtual bool				IsValid() const;
 
@@ -455,6 +465,74 @@ private:
 	IPtrPlisgoFSFile			GetChild(	WIN32_FIND_DATAW& rFind) const;
 
 	std::wstring				m_sRealPath;
+};
+
+
+
+class PlisgoFSEncapsulatedFile : public PlisgoFSFile
+{
+public:
+
+	PlisgoFSEncapsulatedFile(IPtrPlisgoFSFile& rFile)
+	{
+		m_file = rFile;
+	}
+
+	void						Reset(IPtrPlisgoFSFile& rFile)			{ m_file = rFile; }
+
+	virtual bool				IsValid() const							{ return m_file->IsValid(); }
+
+	virtual DWORD				GetAttributes() const					{ return m_file->GetAttributes(); }
+
+	virtual bool				GetFileTimes(FILETIME& rCreation, FILETIME& rLastAccess, FILETIME& rLastWrite) const	{ return m_file->GetFileTimes(rCreation, rLastAccess, rLastWrite); }
+
+	virtual LONGLONG			GetSize() const							{ return m_file->GetSize(); }
+
+	virtual int					Open(	DWORD		nDesiredAccess,
+										DWORD		nShareMode,
+										DWORD		nCreationDisposition,
+										DWORD		nFlagsAndAttributes,
+										ULONGLONG*	pInstanceData)		{ return m_file->Open(nDesiredAccess, nShareMode, nCreationDisposition, nFlagsAndAttributes, pInstanceData); }
+
+	virtual int					Read(	LPVOID		pBuffer,
+										DWORD		nNumberOfBytesToRead,
+										LPDWORD		pnNumberOfBytesRead,
+										LONGLONG	nOffset,
+										ULONGLONG*	pInstanceData)		{ return m_file->Read(pBuffer, nNumberOfBytesToRead, pnNumberOfBytesRead, nOffset, pInstanceData); }
+
+	virtual int					Write(	LPCVOID		pBuffer,
+										DWORD		nNumberOfBytesToWrite,
+										LPDWORD		pnNumberOfBytesWritten,
+										LONGLONG	nOffset,
+										ULONGLONG*	pInstanceData)		{ return m_file->Write(pBuffer, nNumberOfBytesToWrite, pnNumberOfBytesWritten, nOffset, pInstanceData); }
+
+	virtual int					LockFile(	LONGLONG	nByteOffset,
+											LONGLONG	nByteLength,
+											ULONGLONG*	pInstanceData)	{ return m_file->LockFile(nByteOffset, nByteLength, pInstanceData); }
+
+	virtual int					UnlockFile(	LONGLONG	nByteOffset,
+											LONGLONG	nByteLength,
+											ULONGLONG*	pInstanceData)	{ return m_file->UnlockFile(nByteOffset, nByteLength, pInstanceData); }
+
+	virtual int					FlushBuffers(ULONGLONG* pInstanceData)	{ return m_file->FlushBuffers(pInstanceData); }
+
+	virtual int					SetEndOfFile(LONGLONG nEndPos, ULONGLONG* pInstanceData)	{ return m_file->SetEndOfFile(nEndPos, pInstanceData); }
+
+	virtual int					Close(ULONGLONG* pInstanceData)			{ return m_file->Close(pInstanceData); }
+
+	virtual int					SetFileTimes(	const FILETIME* pCreation,
+												const FILETIME* pLastAccess,
+												const FILETIME* pLastWrite,
+												ULONGLONG*		pInstanceData)	{ return m_file->SetFileTimes(pCreation, pLastAccess, pLastWrite, pInstanceData ); }
+
+	virtual int					SetAttributes(	DWORD		nFileAttributes,
+												ULONGLONG*	pInstanceData)	{ return m_file->SetAttributes(nFileAttributes, pInstanceData ); }
+
+
+	PlisgoFSFolder*				GetAsFolder() const						{ return m_file->GetAsFolder(); }
+
+protected:
+	IPtrPlisgoFSFile m_file;
 };
 
 

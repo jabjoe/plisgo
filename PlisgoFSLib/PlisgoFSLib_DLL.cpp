@@ -142,7 +142,7 @@ public:
 		if (!m_CBs.GetThumbnailCB(rsFilePath.c_str(), sExt, sBuffer, MAX_PATH, m_CBs.pUserData))
 			return false;
 
-		rThumbnailFile = IPtrPlisgoFSFile(new PlisgoFSRedirectionFile(sBuffer));
+		rThumbnailFile = IPtrPlisgoFSFile(new PlisgoFSRealFile(sBuffer));
 
 		return true;
 	}

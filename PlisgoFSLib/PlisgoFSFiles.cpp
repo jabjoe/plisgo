@@ -407,6 +407,7 @@ PlisgoFSDataFile::PlisgoFSDataFile(BYTE* pData, size_t nDataSize, bool bReadOnly
 	m_nDataSize = m_nDataUsedSize = 0;
 	m_bOwnMemory = true;
 	m_bWriteOpen = false;
+	m_bVolatile = false;
 
 	GetSystemTimeAsFileTime(&m_CreatedTime);
 	m_LastWrite = m_CreatedTime;
@@ -430,6 +431,7 @@ PlisgoFSDataFile::PlisgoFSDataFile()
 	m_bOwnMemory = true;
 	m_bWriteOpen = false;
 	m_bReadOnly = false;
+	m_bVolatile = false;
 	GetSystemTimeAsFileTime(&m_CreatedTime);
 	m_LastWrite = m_CreatedTime;
 }
@@ -682,6 +684,7 @@ PlisgoFSStringFile::PlisgoFSStringFile(	const std::wstring& rsData, bool bReadOn
 
 	m_bReadOnly = bReadOnly;
 	m_bWriteOpen = false;
+	m_bVolatile = false;
 }
 
 
@@ -693,6 +696,7 @@ PlisgoFSStringFile::PlisgoFSStringFile(	const std::string& rsData, bool bReadOnl
 
 	m_bReadOnly = bReadOnly;
 	m_bWriteOpen = false;
+	m_bVolatile = false;
 }
 
 
@@ -939,25 +943,25 @@ LONGLONG		PlisgoFSStringFile::GetSize() const
 */
 
 
-PlisgoFSRedirectionFile::PlisgoFSRedirectionFile(const std::wstring& rsRealFile)
+PlisgoFSRealFile::PlisgoFSRealFile(const std::wstring& rsRealFile)
 {
 	m_sRealFile = rsRealFile;
 }
 
 
-bool			PlisgoFSRedirectionFile::IsValid() const
+bool			PlisgoFSRealFile::IsValid() const
 {
 	return (GetFileAttributesW(m_sRealFile.c_str()) != INVALID_FILE_ATTRIBUTES);
 }
 
 
-DWORD			PlisgoFSRedirectionFile::GetAttributes() const
+DWORD			PlisgoFSRealFile::GetAttributes() const
 {
 	return GetFileAttributesW(m_sRealFile.c_str());
 }
 
 
-LONGLONG		PlisgoFSRedirectionFile::GetSize() const
+LONGLONG		PlisgoFSRealFile::GetSize() const
 {
 	WIN32_FILE_ATTRIBUTE_DATA  data = {0};
 
@@ -972,7 +976,7 @@ LONGLONG		PlisgoFSRedirectionFile::GetSize() const
 }
 
 
-bool			PlisgoFSRedirectionFile::GetFileTimes(FILETIME& rCreation, FILETIME& rLastAccess, FILETIME& rLastWrite) const
+bool			PlisgoFSRealFile::GetFileTimes(FILETIME& rCreation, FILETIME& rLastAccess, FILETIME& rLastWrite) const
 {
 	WIN32_FILE_ATTRIBUTE_DATA  data = {0};
 
@@ -987,7 +991,7 @@ bool			PlisgoFSRedirectionFile::GetFileTimes(FILETIME& rCreation, FILETIME& rLas
 }
 
 
-int				PlisgoFSRedirectionFile::GetHandleInfo(LPBY_HANDLE_FILE_INFORMATION pInfo, ULONGLONG* pInstanceData)
+int				PlisgoFSRealFile::GetHandleInfo(LPBY_HANDLE_FILE_INFORMATION pInfo, ULONGLONG* pInstanceData)
 {
 	assert(pInstanceData != NULL);
 
@@ -999,7 +1003,7 @@ int				PlisgoFSRedirectionFile::GetHandleInfo(LPBY_HANDLE_FILE_INFORMATION pInfo
 	return 0;
 }
 
-int				PlisgoFSRedirectionFile::Open(	DWORD		nDesiredAccess,
+int				PlisgoFSRealFile::Open(	DWORD		nDesiredAccess,
 												DWORD		nShareMode,
 												DWORD		nCreationDisposition,
 												DWORD		nFlagsAndAttributes,
@@ -1039,7 +1043,7 @@ static bool		SetFilePosition(HANDLE hFile, LONGLONG	nOffset)
 }
 
 
-int				PlisgoFSRedirectionFile::Read(LPVOID		pBuffer,
+int				PlisgoFSRealFile::Read(LPVOID		pBuffer,
 										DWORD		nNumberOfBytesToRead,
 										LPDWORD		pnNumberOfBytesRead,
 										LONGLONG	nOffset,
@@ -1059,7 +1063,7 @@ int				PlisgoFSRedirectionFile::Read(LPVOID		pBuffer,
 }
 
 
-int				PlisgoFSRedirectionFile::Write(	LPCVOID		pBuffer,
+int				PlisgoFSRealFile::Write(	LPCVOID		pBuffer,
 											DWORD		nNumberOfBytesToWrite,
 											LPDWORD		pnNumberOfBytesWritten,
 											LONGLONG	nOffset,
@@ -1079,7 +1083,7 @@ int				PlisgoFSRedirectionFile::Write(	LPCVOID		pBuffer,
 }
 
 
-int				PlisgoFSRedirectionFile::FlushBuffers(ULONGLONG* pInstanceData)
+int				PlisgoFSRealFile::FlushBuffers(ULONGLONG* pInstanceData)
 {
 	assert(pInstanceData != NULL);
 
@@ -1092,7 +1096,7 @@ int				PlisgoFSRedirectionFile::FlushBuffers(ULONGLONG* pInstanceData)
 }
 
 
-int				PlisgoFSRedirectionFile::SetEndOfFile(LONGLONG nEndPos, ULONGLONG* pInstanceData)
+int				PlisgoFSRealFile::SetEndOfFile(LONGLONG nEndPos, ULONGLONG* pInstanceData)
 {
 	assert(pInstanceData != NULL);
 
@@ -1108,7 +1112,7 @@ int				PlisgoFSRedirectionFile::SetEndOfFile(LONGLONG nEndPos, ULONGLONG* pInsta
 }
 
 
-int				PlisgoFSRedirectionFile::Close(ULONGLONG* pInstanceData)
+int				PlisgoFSRealFile::Close(ULONGLONG* pInstanceData)
 {
 	assert(pInstanceData != NULL);
 
@@ -1123,7 +1127,7 @@ int				PlisgoFSRedirectionFile::Close(ULONGLONG* pInstanceData)
 
 
 
-int				PlisgoFSRedirectionFile::LockFile(LONGLONG	nByteOffset,
+int				PlisgoFSRealFile::LockFile(LONGLONG	nByteOffset,
 											LONGLONG	nByteLength,
 											ULONGLONG*	pInstanceData)
 {
@@ -1141,7 +1145,7 @@ int				PlisgoFSRedirectionFile::LockFile(LONGLONG	nByteOffset,
 }
 
 
-int				PlisgoFSRedirectionFile::UnlockFile(	LONGLONG	nByteOffset,
+int				PlisgoFSRealFile::UnlockFile(	LONGLONG	nByteOffset,
 												LONGLONG	nByteLength,
 												ULONGLONG*	pInstanceData)
 {
@@ -1159,7 +1163,7 @@ int				PlisgoFSRedirectionFile::UnlockFile(	LONGLONG	nByteOffset,
 }
 
 
-int				PlisgoFSRedirectionFile::SetFileTimes(const FILETIME* pCreation,
+int				PlisgoFSRealFile::SetFileTimes(const FILETIME* pCreation,
 												const FILETIME* pLastAccess,
 												const FILETIME* pLastWrite,
 												ULONGLONG*		pInstanceData)
@@ -1173,7 +1177,7 @@ int				PlisgoFSRedirectionFile::SetFileTimes(const FILETIME* pCreation,
 }
 
 
-int				PlisgoFSRedirectionFile::SetAttributes(DWORD	nFileAttributes, ULONGLONG* )
+int				PlisgoFSRealFile::SetAttributes(DWORD	nFileAttributes, ULONGLONG* )
 {
 	if (!::SetFileAttributesW(m_sRealFile.c_str(), nFileAttributes))
 		return -(int)GetLastError();
@@ -1186,7 +1190,7 @@ int				PlisgoFSRedirectionFile::SetAttributes(DWORD	nFileAttributes, ULONGLONG* 
 */
 
 
-PlisgoFSRedirectionFolder::PlisgoFSRedirectionFolder(const std::wstring& rsRealFolder) 
+PlisgoFSRealFolder::PlisgoFSRealFolder(const std::wstring& rsRealFolder) 
 {
 	m_sRealPath = rsRealFolder;
 
@@ -1194,19 +1198,19 @@ PlisgoFSRedirectionFolder::PlisgoFSRedirectionFolder(const std::wstring& rsRealF
 }
 
 
-bool			PlisgoFSRedirectionFolder::IsValid() const
+bool			PlisgoFSRealFolder::IsValid() const
 {
 	return (GetFileAttributesW(m_sRealPath.c_str()) != INVALID_FILE_ATTRIBUTES);
 }
 
 
-DWORD			PlisgoFSRedirectionFolder::GetAttributes() const
+DWORD			PlisgoFSRealFolder::GetAttributes() const
 {
 	return GetFileAttributesW(m_sRealPath.c_str());
 }
 
 
-bool			PlisgoFSRedirectionFolder::GetFileTimes(FILETIME& rCreation, FILETIME& rLastAccess, FILETIME& rLastWrite) const
+bool			PlisgoFSRealFolder::GetFileTimes(FILETIME& rCreation, FILETIME& rLastAccess, FILETIME& rLastWrite) const
 {
 	WIN32_FILE_ATTRIBUTE_DATA  data = {0};
 
@@ -1221,7 +1225,7 @@ bool			PlisgoFSRedirectionFolder::GetFileTimes(FILETIME& rCreation, FILETIME& rL
 }
 
 
-int				PlisgoFSRedirectionFolder::SetFileTimes(const FILETIME* pCreation,
+int				PlisgoFSRealFolder::SetFileTimes(const FILETIME* pCreation,
 												const FILETIME* pLastAccess,
 												const FILETIME* pLastWrite,
 												ULONGLONG*		pInstanceData)
@@ -1245,7 +1249,7 @@ int				PlisgoFSRedirectionFolder::SetFileTimes(const FILETIME* pCreation,
 }
 
 
-int					PlisgoFSRedirectionFolder::SetAttributes(DWORD	nFileAttributes, ULONGLONG* )
+int					PlisgoFSRealFolder::SetAttributes(DWORD	nFileAttributes, ULONGLONG* )
 {
 	if (!::SetFileAttributesW(m_sRealPath.c_str(), nFileAttributes))
 		return -(int)GetLastError();
@@ -1254,23 +1258,23 @@ int					PlisgoFSRedirectionFolder::SetAttributes(DWORD	nFileAttributes, ULONGLON
 }
 
 
-IPtrPlisgoFSFile	PlisgoFSRedirectionFolder::GetChild(	WIN32_FIND_DATAW& rFind) const
+IPtrPlisgoFSFile	PlisgoFSRealFolder::GetChild(	WIN32_FIND_DATAW& rFind) const
 {
 	std::wstring sExtra = L"\\";
 	sExtra+= rFind.cFileName;
 
 	if (rFind.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
 	{
-		return IPtrPlisgoFSFile(new PlisgoFSRedirectionFolder(m_sRealPath + sExtra));
+		return IPtrPlisgoFSFile(new PlisgoFSRealFolder(m_sRealPath + sExtra));
 	}
 	else
 	{
-		return IPtrPlisgoFSFile(new PlisgoFSRedirectionFile(m_sRealPath + sExtra));
+		return IPtrPlisgoFSFile(new PlisgoFSRealFile(m_sRealPath + sExtra));
 	}
 }
 
 
-bool				PlisgoFSRedirectionFolder::ForEachChild(PlisgoFSFolder::EachChild& rEachChild) const
+bool				PlisgoFSRealFolder::ForEachChild(PlisgoFSFolder::EachChild& rEachChild) const
 {
 	std::wstring sRealSearchPath = m_sRealPath + L"\\*";
 
@@ -1303,7 +1307,7 @@ bool				PlisgoFSRedirectionFolder::ForEachChild(PlisgoFSFolder::EachChild& rEach
 }
 
 
-IPtrPlisgoFSFile	PlisgoFSRedirectionFolder::GetChild(LPCWSTR sName) const
+IPtrPlisgoFSFile	PlisgoFSRealFolder::GetChild(LPCWSTR sName) const
 {
 	assert(sName != NULL);
 
@@ -1324,7 +1328,7 @@ IPtrPlisgoFSFile	PlisgoFSRedirectionFolder::GetChild(LPCWSTR sName) const
 }
 
 
-int					PlisgoFSRedirectionFolder::AddChild(LPCWSTR sName, IPtrPlisgoFSFile file)
+int					PlisgoFSRealFolder::AddChild(LPCWSTR sName, IPtrPlisgoFSFile file)
 {
 	FolderCopier copier(this);
 
@@ -1334,7 +1338,7 @@ int					PlisgoFSRedirectionFolder::AddChild(LPCWSTR sName, IPtrPlisgoFSFile file
 }
 
 
-int					PlisgoFSRedirectionFolder::CreateChild(IPtrPlisgoFSFile& rChild, LPCWSTR sName, DWORD nAttr)
+int					PlisgoFSRealFolder::CreateChild(IPtrPlisgoFSFile& rChild, LPCWSTR sName, DWORD nAttr)
 {
 	std::wstring sPath = m_sRealPath;
 	sPath += L"\\";
@@ -1358,7 +1362,7 @@ int					PlisgoFSRedirectionFolder::CreateChild(IPtrPlisgoFSFile& rChild, LPCWSTR
 		if (!CreateDirectoryW(sPath.c_str(), NULL))
 			return -(int)GetLastError();
 
-		rChild.reset(new PlisgoFSRedirectionFolder(sPath));
+		rChild.reset(new PlisgoFSRealFolder(sPath));
 	}
 	else
 	{
@@ -1372,7 +1376,7 @@ int					PlisgoFSRedirectionFolder::CreateChild(IPtrPlisgoFSFile& rChild, LPCWSTR
 
 		CloseHandle(hHandle);
 
-		rChild.reset(new PlisgoFSRedirectionFile(sPath));
+		rChild.reset(new PlisgoFSRealFile(sPath));
 	}
 
 	return 0;
@@ -1412,13 +1416,13 @@ static int			GetDeleteFolderError(const std::wstring& rsFolder)
 }
 
 
-int					PlisgoFSRedirectionFolder::GetDeleteError(ULONGLONG* pInstanceData) const
+int					PlisgoFSRealFolder::GetDeleteError(ULONGLONG* pInstanceData) const
 {
 	return GetDeleteFolderError(m_sRealPath);
 }
 
 
-int					PlisgoFSRedirectionFolder::GetRemoveChildError(LPCWSTR sName) const
+int					PlisgoFSRealFolder::GetRemoveChildError(LPCWSTR sName) const
 {
 	std::wstring sRealPath = m_sRealPath + L"\\" + sName;
 
@@ -1434,7 +1438,7 @@ int					PlisgoFSRedirectionFolder::GetRemoveChildError(LPCWSTR sName) const
 }
 
 
-int					PlisgoFSRedirectionFolder::RemoveChild(LPCWSTR sName)
+int					PlisgoFSRealFolder::RemoveChild(LPCWSTR sName)
 {
 	std::wstring sRealPath = m_sRealPath + L"\\" + sName;
 
@@ -1457,13 +1461,13 @@ int					PlisgoFSRedirectionFolder::RemoveChild(LPCWSTR sName)
 }
 
 
-int					PlisgoFSRedirectionFolder::Repath(	LPCWSTR sOldName, LPCWSTR sNewName,
+int					PlisgoFSRealFolder::Repath(	LPCWSTR sOldName, LPCWSTR sNewName,
 														bool bReplaceExisting, PlisgoFSFolder* pNewParent)
 {
 	if (sOldName == NULL || sNewName == NULL)
 		return -ERROR_BAD_PATHNAME;
 
-	PlisgoFSRedirectionFolder* pNewParent2 = dynamic_cast<PlisgoFSRedirectionFolder*>(pNewParent);
+	PlisgoFSRealFolder* pNewParent2 = dynamic_cast<PlisgoFSRealFolder*>(pNewParent);
 
 	if (pNewParent2 == NULL && pNewParent != NULL)
 		return PlisgoFSFolder::Repath(sOldName, sNewName, bReplaceExisting, pNewParent);
