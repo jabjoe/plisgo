@@ -124,9 +124,12 @@ IPtrPlisgoFSFile	PlisgoVFS::TracePath(const std::wstring& rsLowerPath, IPtrPlisg
 	
 	PlisgoFSFolder*	pFolder = parent->GetAsFolder();
 
-	file = pFolder->GetChild(&rsLowerPath.c_str()[nSlash+1]);
+	if (pFolder != NULL)
+	{
+		file = pFolder->GetChild(&rsLowerPath.c_str()[nSlash+1]);
 
-	const_cast<PlisgoVFS*>(this)->AddToCache(rsLowerPath, file);
+		const_cast<PlisgoVFS*>(this)->AddToCache(rsLowerPath, file);
+	}
 
 	return file;
 }
