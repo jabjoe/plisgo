@@ -112,7 +112,6 @@ protected:
 
 private:
 
-	void						ReBuildMountChildMap(); //The MountChildMap is so mount overloads can be quickly found
 	void						RestartCache();
 
 
@@ -147,22 +146,9 @@ private:
 	mutable boost::shared_mutex				m_CacheEntryMutex;
 	CacheEntryMap							m_CacheEntryMap;
 
-	typedef std::map<std::wstring, IPtrPlisgoFSFile>			ChildMountTable;
-	typedef boost::unordered_map<std::wstring, ChildMountTable>	MountChildMap;
-
-	static bool GetNextMountKey(const std::wstring& rsKey, size_t& rnPos, std::wstring& rsSubKey);
-
-	struct BuildMountChildMapPacket
-	{
-		std::wstring		sParentPath;
-		ChildMountTable*	pChildMountTable;
-	};
-	bool		BuildMntChildMapCB(const std::wstring& rsName, const IPtrPlisgoFSFile& rMnt, BuildMountChildMapPacket& rPacket);
-
-	typedef TreeCache<std::wstring, IPtrPlisgoFSFile, GetNextMountKey>	MountTree;
+	typedef TreeCache<IPtrPlisgoFSFile>		MountTree;
 
 	MountTree					m_MountTree;
-	MountChildMap				m_MountChildMap;
 };
 
 typedef boost::shared_ptr<PlisgoVFS>	IPtrPlisgoVFS;

@@ -23,91 +23,71 @@
 #pragma once
 
 
-template<typename TKey, typename TData,  bool (*GetNextSubKey)(const TKey& rFullKey, size_t& rnPos, TKey& rSubKey)>
+template<typename TData>
 class TreeCache
 {
 public:
+
 	typedef boost::unordered_map<std::wstring, TData>	FullKeyMap;
+	typedef std::map<std::wstring, TData>				SubKeyMap;
 
-	bool GetData(const TKey& rFullKey, TData& rData, bool bReturnNearest = false);
+	bool GetData(const std::wstring& rsFullKey, TData& rData, bool bReturnNearest = false) const;
 
-	void SetData(const TKey& rFullKey, TData& rData);
+	void SetData(const std::wstring& rsFullKey, TData& rData);
 
-	void PruneBranch(const TKey& rFullKey);
+	void PruneBranch(const std::wstring& rsFullKey);
 
-	void MoveBranch(const TKey& rOldFullKey, const TKey& rNewFullKey);
+	void MoveBranch(const std::wstring& rsOldFullKey, const std::wstring& rsNewFullKey);
 
-	void GetFullKeyMap(FullKeyMap& rFullKeyMap)
-	{
-		boost::shared_lock<boost::shared_mutex> readLock(m_Mutex);
+	void GetFullKeyMap(FullKeyMap& rsFullKeyMap) const;
 
-		rFullKeyMap = m_FullKeyMapMap;
-	}
-
-	template<class T, class UD>
-	bool ForEachChild(const TKey& rKey, T* pObj, bool (T::*Method)(const TKey& rChildKey, const TData& rData, UD& rUD), UD& rUD)
-	{
-		boost::shared_lock<boost::shared_mutex> readLock(m_Mutex);
-
-		TreeNode* pTreeNode;
-
-		if (!GetTreeNode(rKey, NONE, pTreeNode))
-			return false;
-		
-		for(ChildTreeNodes::const_iterator it = pTreeNode->Children.begin(); it != pTreeNode->Children.end(); ++it)
-			if (!(pObj->*Method)(it->first, it->second.Data, rUD))
-				return false;
-
-		return true;
-	}
+	bool GetChildMap(const std::wstring& rsFullKey, SubKeyMap& rSubKeyMap) const;
 
 private:
 	struct TreeNode;
 
-	enum TraceTreeNodeFlags
-	{
-		NONE,
-		NEAREST,
-		CREATE
-	};
+	bool GetTreeNode(const std::wstring& rsKey, bool bReturnNearest, const TreeNode*& rpTreeNode) const;
+	void GetCreateTreeNode(const std::wstring& rsKey, TreeNode*& rpTreeNode);
 
-	bool GetTreeNode(const TKey& rKey, TraceTreeNodeFlags eFlag, TreeNode*& rpTreeNode);
-	bool GetTreeParent(const TKey& rKey, TreeNode*& rpTreeNode, TreeNode*& rpTreeParentNode, TKey& rLastSubKey);
+	bool GetTreeParent(const std::wstring& rsKey, TreeNode*& rpParentTreeNode, TreeNode*& rpTreeNode, std::wstring& rsName);
+
+	bool GetNextKey(const std::wstring& rsKey, size_t& rnPos, std::wstring& rsSubKey) const;
+
+	void RemoveTreeNodeFromCache(const std::wstring& rsFullKey, TreeNode *pTreeNode, bool bDestroy);
+
+	void AddTreeToFullKeyCache(const std::wstring& rsFullKey, TreeNode *pTreeNode);
 
 
-	typedef std::map<TKey, TreeNode> ChildTreeNodes;
+	typedef std::map<std::wstring, TreeNode*> ChildTreeNodes;
 
 	struct TreeNode
 	{
+		TreeNode() { bSet = false; }
+
+		bool			bSet;
 		TData			Data;
 		ChildTreeNodes	Children;
 	};
 
 
-	boost::shared_mutex			m_Mutex;
-	TreeNode					m_Root;
-	FullKeyMap					m_FullKeyMapMap;
+	typedef boost::unordered_map<std::wstring, TreeNode*>	FullKeyNodeMap;
+	typedef boost::object_pool<TreeNode>					TreeNodePool;
+
+	mutable boost::shared_mutex		m_Mutex;
+	TreeNode						m_Root;
+	TreeNodePool					m_TreeNodePool;
+	FullKeyNodeMap					m_FullKeyNodeMap;
 };
 
 
-template<typename TKey, typename TData, bool (*GetNextSubKey)(const TKey& rFullKey, size_t& rnPos, TKey& rSubKey)>
-inline bool TreeCache<TKey, TData, GetNextSubKey>::GetData(const TKey& rFullKey, TData& rData, bool bReturnNearest)
+template<typename TData>
+inline bool TreeCache<TData>::GetData(const std::wstring& rsFullKey, TData& rData, bool bReturnNearest) const
 {
 	boost::shared_lock<boost::shared_mutex> readLock(m_Mutex);
 
-	FullKeyMap::const_iterator it = m_FullKeyMapMap.find(rFullKey);
+	const TreeNode* pTreeNode = NULL;
 
-	if (it != m_FullKeyMapMap.end())
-	{
-		rData = it->second;
-		return true;
-	}
-	else if (!bReturnNearest)
-		return false;
-
-	TreeNode* pTreeNode = NULL;
-
-	if (!GetTreeNode(rFullKey, (bReturnNearest)?NEAREST:NONE, pTreeNode))
+	if (!GetTreeNode(rsFullKey, bReturnNearest, pTreeNode))
 		return false;
 	
 	rData = pTreeNode->Data;
@@ -116,120 +96,262 @@ inline bool TreeCache<TKey, TData, GetNextSubKey>::GetData(const TKey& rFullKey,
 }
 
 
-template<typename TKey, typename TData, bool (*GetNextSubKey)(const TKey& rFullKey, size_t& rnPos, TKey& rSubKey)>
-inline void TreeCache<TKey, TData, GetNextSubKey>::SetData(const TKey& rFullKey, TData& rData)
+template<typename TData>
+inline void TreeCache<TData>::SetData(const std::wstring& rsFullKey, TData& rData)
 {
 	boost::unique_lock<boost::shared_mutex> lock(m_Mutex);
 
 	TreeNode* pTreeNode = NULL;
 
-	GetTreeNode(rFullKey, CREATE, pTreeNode);
+	GetCreateTreeNode(rsFullKey, pTreeNode);
 
-	assert(pTreeNode); //There is no fail!
+	assert(pTreeNode != NULL); //There is no fail!
 	
 	pTreeNode->Data = rData;
-
-	m_FullKeyMapMap[rFullKey] = rData;
+	pTreeNode->bSet = true;
 }
 
 
-template<typename TKey, typename TData, bool (*GetNextSubKey)(const TKey& rFullKey, size_t& rnPos, TKey& rSubKey)>
-inline bool TreeCache<TKey, TData, GetNextSubKey>::GetTreeNode(const TKey& rFullKey, TraceTreeNodeFlags eFlag, TreeNode*& rpTreeNode)
+template<typename TData>
+bool TreeCache<TData>::GetNextKey(const std::wstring& rsKey, size_t& rnPos, std::wstring& rsSubKey) const
 {
-	rpTreeNode = &m_Root;
+	if (rnPos == -1)
+		return false;
 
-	size_t nPos = 0;
-	TKey name;
+	size_t nNext = rsKey.find('\\',rnPos);
 
-	while(GetNextSubKey(rFullKey, nPos, name))
+	if (nNext != -1)
 	{
-		ChildTreeNodes::const_iterator it = rpTreeNode->Children.find(name);
-
-		if (it != rpTreeNode->Children.end())
-		{
-			rpTreeNode = const_cast<TreeNode*>(&it->second);
-		}
-		else
-		{
-			if (eFlag == NEAREST)
-				return true;
-
-			if (eFlag != CREATE)
-				return false;
-
-			rpTreeNode = &rpTreeNode->Children[name];
-		}
+		rsSubKey.assign(rsKey.begin() + rnPos, rsKey.begin() + nNext);
+		rnPos = nNext+1;
+	}
+	else
+	{
+		rsSubKey.assign(rsKey.begin() + rnPos, rsKey.end());
+		rnPos = -1;
 	}
 
 	return true;
 }
 
 
-template<typename TKey, typename TData, bool (*GetNextSubKey)(const TKey& rFullKey, size_t& rnPos, TKey& rSubKey)>
-inline void TreeCache<TKey, TData, GetNextSubKey>::PruneBranch(const TKey& rFullKey)
+template<typename TData>
+inline bool TreeCache<TData>::GetTreeNode(const std::wstring& rsFullKey, bool bReturnNearest, const TreeNode*& rpTreeNode) const
+{
+	if (rsFullKey.length() == 0)
+	{
+		rpTreeNode = &m_Root;
+		return true;
+	}
+
+	FullKeyNodeMap::const_iterator cachedIt = m_FullKeyNodeMap.find(rsFullKey);
+
+	if (cachedIt != m_FullKeyNodeMap.end())
+	{
+		rpTreeNode = cachedIt->second;
+		return true;
+	}
+	
+	if (!bReturnNearest)
+		return false;
+
+	rpTreeNode = &m_Root;
+
+	size_t nPos = 0;
+	std::wstring sName;
+
+	while(GetNextKey(rsFullKey, nPos, sName))
+	{
+		ChildTreeNodes::const_iterator it = rpTreeNode->Children.find(sName);
+
+		if (it != rpTreeNode->Children.end())
+			rpTreeNode = it->second;
+		else
+			return bReturnNearest;
+	}
+
+	return true;
+}
+
+
+template<typename TData>
+inline void TreeCache<TData>::GetCreateTreeNode(const std::wstring& rsFullKey, TreeNode*& rpTreeNode)
+{
+	//Try some shortcuts
+	if (rsFullKey.length() == 0)
+	{
+		rpTreeNode = &m_Root;
+		return;
+	}
+
+	//Is it already in cache?
+	FullKeyNodeMap::const_iterator cachedIt = m_FullKeyNodeMap.find(rsFullKey);
+
+	if (cachedIt != m_FullKeyNodeMap.end())
+	{
+		rpTreeNode = cachedIt->second;
+		return;
+	}
+
+	//Do full thing
+	rpTreeNode = &m_Root;
+
+	std::wstring sName;
+	size_t nPos = 0;
+
+	while(GetNextKey(rsFullKey, nPos, sName))
+	{
+		ChildTreeNodes::iterator it = rpTreeNode->Children.find(sName);
+
+		if (it == rpTreeNode->Children.end())
+		{
+			TreeNode* pChild = m_TreeNodePool.construct();
+				
+			rpTreeNode->Children[sName] = pChild;
+			rpTreeNode = pChild;
+
+			if (nPos != -1)
+				m_FullKeyNodeMap[rsFullKey.substr(0, nPos-1)] = rpTreeNode;
+			else
+				m_FullKeyNodeMap[rsFullKey] = rpTreeNode;
+		}
+		else rpTreeNode = it->second;
+	}
+}
+
+
+
+template<typename TData>
+inline void TreeCache<TData>::GetFullKeyMap(FullKeyMap& rsFullKeyMap) const
+{
+	boost::shared_lock<boost::shared_mutex> readLock(m_Mutex);
+
+	for(FullKeyNodeMap::const_iterator it = m_FullKeyNodeMap.begin(); it != m_FullKeyNodeMap.end(); ++it)
+		if (it->second->bSet)
+			rsFullKeyMap[it->first] = it->second->Data;
+}
+
+
+template<typename TData>
+inline bool TreeCache<TData>::GetChildMap(const std::wstring& rKey, SubKeyMap& rSubKeyMap) const
+{
+	boost::shared_lock<boost::shared_mutex> readLock(m_Mutex);
+
+	const TreeNode* pTreeNode;
+
+	if (!GetTreeNode(rKey, false, pTreeNode))
+		return false;
+	
+	for(ChildTreeNodes::const_iterator it = pTreeNode->Children.begin(); it != pTreeNode->Children.end(); ++it)
+		if (it->second->bSet)
+			rSubKeyMap[it->first] = it->second->Data;
+
+	return true;
+}
+
+
+template<typename TData>
+inline bool TreeCache<TData>::GetTreeParent(const std::wstring& rsFullKey, TreeNode*& rpParentTreeNode, TreeNode*& rpTreeNode, std::wstring& rsName)
+{
+	if (!GetTreeNode(rsFullKey, false, (const TreeNode*&)rpTreeNode))
+		return false;//This path wasn't in the tree anyway
+
+	const size_t nSlash = rsFullKey.rfind('\\');
+
+	if (nSlash != -1)
+	{
+		const bool bValid = GetTreeNode(rsFullKey.substr(0, nSlash), false, (const TreeNode*&)rpParentTreeNode);
+
+		assert(bValid);
+
+		rsName = rsFullKey.substr(nSlash+1);
+	}
+	else
+	{
+		rsName = rsFullKey;
+		rpParentTreeNode = &m_Root; //No parent means it must be root
+	}
+
+	return true;
+}
+
+
+template<typename TData>
+inline void TreeCache<TData>::PruneBranch(const std::wstring& rsFullKey)
 {
 	boost::unique_lock<boost::shared_mutex> lock(m_Mutex);
 
-	TreeNode* pParentTreeNode;
-	TreeNode* pTreeNode;
+	TreeNode* pTreeNode = NULL;
+	TreeNode* pParentTreeNode = NULL;
+	std::wstring sName;
 
-	TKey name;
+	if (!GetTreeParent(rsFullKey, pParentTreeNode, pTreeNode, sName))
+		return;//This path wasn't in the tree anyway
 
-	if (!GetTreeParent(rFullKey, pTreeNode, pParentTreeNode, name))
-		return; //This path wasn't in the tree anyway
+	assert(pTreeNode != NULL && pParentTreeNode != NULL);
 
-	assert(pParentTreeNode != NULL);
-
-	pParentTreeNode->Children.erase(name);
+	RemoveTreeNodeFromCache(rsFullKey, pTreeNode, true);
+	pParentTreeNode->Children.erase(sName);
 }
 
 
-template<typename TKey, typename TData, bool (*GetNextSubKey)(const TKey& rFullKey, size_t& rnPos, TKey& rSubKey)>
-inline bool TreeCache<TKey, TData, GetNextSubKey>::GetTreeParent(const TKey& rFullKey, TreeNode*& rpTreeNode, TreeNode*& rpTreeParentNode, TKey& rLastSubKey)
-{
-	size_t nPos = 0;
 
-	rpTreeParentNode = NULL;
-	rpTreeNode = &m_Root;
-
-	while(GetNextSubKey(rFullKey, nPos, rLastSubKey))
-	{
-		ChildTreeNodes::const_iterator it = rpTreeNode->Children.find(rLastSubKey);
-
-		if (it == rpTreeNode->Children.end())
-			return false; //This path wasn't in the tree anyway
-		
-		rpTreeParentNode = rpTreeNode;
-		rpTreeNode = const_cast<TreeNode*>(&it->second);
-	}
-
-	return true;
-}
-
-
-template<typename TKey, typename TData, bool (*GetNextSubKey)(const TKey& rFullKey, size_t& rnPos, TKey& rSubKey)>
-inline void TreeCache<TKey, TData, GetNextSubKey>::MoveBranch(const TKey& rOldFullKey, const TKey& rNewFullKey)
+template<typename TData>
+inline void TreeCache<TData>::MoveBranch(const std::wstring& rsOldFullKey, const std::wstring& rsNewFullKey)
 {
 	boost::unique_lock<boost::shared_mutex> lock(m_Mutex);
 
 	TreeNode* pOldParentTreeNode;
 	TreeNode* pOldTreeNode;
 
-	TKey oldName;
+	std::wstring sOldName;
 
-	if (!GetTreeParent(rOldFullKey, pOldTreeNode, pOldParentTreeNode, oldName))
+	if (!GetTreeParent(rsOldFullKey, pOldTreeNode, pOldParentTreeNode, sOldName))
 		return; //This path wasn't in the tree anyway
-
-	TreeNode* pTreeNode = NULL;
-
-	GetTreeNode(rNewFullKey, CREATE, pTreeNode);
-
-	assert(pTreeNode != NULL);
-
-	pTreeNode->Data		= pOldTreeNode->Data;
-	pTreeNode->Children = pOldTreeNode->Children;
 
 	assert(pOldParentTreeNode != NULL);
 
-	pOldParentTreeNode->Children.erase(oldName);
+
+	//Add into new position
+	TreeNode* pNewTreeNode = NULL;
+
+	GetCreateTreeNode(rsNewFullKey, pNewTreeNode);
+
+	assert(pNewTreeNode != NULL);
+
+	pNewTreeNode->Data		= pOldTreeNode->Data;
+	pNewTreeNode->Children	= pOldTreeNode->Children;
+
+	AddTreeToFullKeyCache(rsNewFullKey, pNewTreeNode);
+
+	//Remove from old position
+
+	RemoveTreeNodeFromCache(rsOldFullKey, pOldTreeNode, false);
+	m_TreeNodePool.destroy(pOldTreeNode);
+	pOldParentTreeNode->Children.erase(sOldName);
 }
+
+
+template<typename TData>
+inline void TreeCache<TData>::RemoveTreeNodeFromCache(const std::wstring& rsFullKey, TreeNode *pTreeNode, bool bDestroy)
+{
+	m_FullKeyNodeMap.erase(rsFullKey);
+
+	for(ChildTreeNodes::const_iterator it = pTreeNode->Children.begin(); it != pTreeNode->Children.end(); ++it)
+		RemoveTreeNodeFromCache(rsFullKey + L"\\" += it->first, it->second, bDestroy);
+
+	if (bDestroy)
+		m_TreeNodePool.destroy(pTreeNode);
+}
+
+
+template<typename TData>
+inline void TreeCache<TData>::AddTreeToFullKeyCache(const std::wstring& rsFullKey, TreeNode *pTreeNode)
+{
+	m_FullKeyNodeMap[rsFullKey] = pTreeNode;
+
+	for(ChildTreeNodes::const_iterator it = pTreeNode->Children.begin(); it != pTreeNode->Children.end(); ++it)
+		AddTreeToFullKeyCache(rsFullKey + L"\\" += it->first, it->second);
+}
+
+
