@@ -23,6 +23,31 @@
 
 #include "PlisgoVFS.h"
 
+bool PlisgoVFS::GetNextMountKey(const std::wstring& rsKey, size_t& rnPos, std::wstring& rsSubKey)
+{
+	if (rsKey.length() == 0)
+		return false;
+
+	if (rnPos == -1)
+		return false;
+
+	size_t nNext = rsKey.find('\\',rnPos);
+
+	if (nNext != -1)
+	{
+		rsSubKey.assign(rsKey.begin() + rnPos, rsKey.begin() + nNext);
+		rnPos = nNext+1;
+	}
+	else
+	{
+		rsSubKey.assign(rsKey.begin() + rnPos, rsKey.end());
+		rnPos = -1;
+	}
+
+	return true;
+}
+
+
 
 bool				PlisgoVFS::AddMount(LPCWSTR sMount, IPtrPlisgoFSFile Mount)
 {
@@ -42,13 +67,7 @@ bool				PlisgoVFS::AddMount(LPCWSTR sMount, IPtrPlisgoFSFile Mount)
 
 	boost::unique_lock<boost::shared_mutex> cacheLock(m_CacheEntryMutex);
 
-	MountTreeNode* pParentNode = TraceMountTreeToParentNode(sPathLowerCase, true);
-
-	size_t nSlash = sPathLowerCase.rfind(L'\\');
-
-	nSlash = (nSlash == -1)?0:nSlash+1;
-
-	pParentNode->childMounts[sPathLowerCase.substr(nSlash)] = Mount;
+	m_MountTree.SetData(sPathLowerCase, Mount);
 
 	ReBuildMountChildMap();
 
@@ -274,66 +293,9 @@ int					PlisgoVFS::ForEachChild(PlisgoFileHandle&	rHandle, PlisgoFSFolder::EachC
 }
 
 
-PlisgoVFS::MountTreeNode*		PlisgoVFS::TraceMountTreeToParentNode(const std::wstring& rsPath, bool bCreate)
-{
-	size_t nPos = 0;
-	size_t nNext = rsPath.find(L'\\');
-
-	MountTreeNode* pCurrentNode = &m_MountTreeRoot;
-
-	for(;;)
-	{
-		if (nNext == -1)
-			return pCurrentNode;
-
-		std::wstring sName(rsPath, nPos, nNext-nPos);
-
-		nPos = nNext+1;
-
-		nNext = rsPath.find(L'\\', nPos);
-
-		if (!bCreate)
-		{
-			ChildMountTreeNodes::iterator it = pCurrentNode->childWithMountsBelow.find(sName);
-
-			if (it == pCurrentNode->childWithMountsBelow.end())
-				return NULL; //The trail ends here, there are no downstreams
-			else
-				pCurrentNode = &it->second;
-		}
-		else pCurrentNode = &(pCurrentNode->childWithMountsBelow[sName]);
-	}
-
-	return NULL;
-}
-
-
 void				PlisgoVFS::RemoveDownstreamMounts(std::wstring sFile)
 {
-	MountTreeNode* pParentNode = TraceMountTreeToParentNode(sFile);
-
-	if (pParentNode == NULL)
-		return; //There is no downstream mounts
-
-	size_t nSlash = sFile.rfind(L'\\');
-	
-	nSlash = (nSlash == -1)?0:nSlash+1;
-
-	std::wstring sName(sFile, nSlash);
-
-	//As this is actural file being deleted, check for a mount and remove if there
-	ChildMountTable::const_iterator mntIt = pParentNode->childMounts.find(sName);
-
-	if (mntIt != pParentNode->childMounts.end())
-		pParentNode->childMounts.erase(mntIt);
-
-	ChildMountTreeNodes::const_iterator it = pParentNode->childWithMountsBelow.find(sName);
-
-	if (it != pParentNode->childWithMountsBelow.end())
-	{
-		//There are down streams mounts, remove this branch of the tree to remove them.
-		pParentNode->childWithMountsBelow.erase(it);
-	}
+	m_MountTree.PruneBranch(sFile);
 
 	ReBuildMountChildMap();
 }
@@ -342,48 +304,12 @@ void				PlisgoVFS::RemoveDownstreamMounts(std::wstring sFile)
 void				PlisgoVFS::MoveMounts(std::wstring sOldPath, std::wstring sNewPath)
 {
 	boost::trim_right_if(sOldPath, boost::is_any_of(L"\\"));
-
 	std::transform(sOldPath.begin(),sOldPath.end(),sOldPath.begin(),tolower);
-
-	MountTreeNode* pOldParentNode = TraceMountTreeToParentNode(sOldPath);
-
-	if (pOldParentNode == NULL)
-		return; //There is no downstream mounts
 
 	boost::trim_right_if(sNewPath, boost::is_any_of(L"\\"));
 	std::transform(sNewPath.begin(),sNewPath.end(),sNewPath.begin(),tolower);
 
-	MountTreeNode* pNewParentNode = TraceMountTreeToParentNode(sNewPath, true);
-
-	size_t nSlash = sNewPath.rfind(L'\\');
-	
-	nSlash = (nSlash == -1)?0:nSlash+1;
-
-	std::wstring sNewName(sNewPath, nSlash);
-
-	nSlash = sOldPath.rfind(L'\\');
-	
-	nSlash = (nSlash == -1)?0:nSlash+1;
-
-	std::wstring sOldName(sOldPath, nSlash);
-
-	//Move any mount
-	ChildMountTable::const_iterator oldMntIt = pOldParentNode->childMounts.find(sOldName);
-
-	if (oldMntIt != pOldParentNode->childMounts.end())
-	{
-		pNewParentNode->childMounts[sNewName] = oldMntIt->second;
-		pOldParentNode->childMounts.erase(oldMntIt);
-	}
-
-	//Move any downstream mounts
-	ChildMountTreeNodes::const_iterator it = pOldParentNode->childWithMountsBelow.find(sOldName);
-
-	if (it != pOldParentNode->childWithMountsBelow.end())
-	{
-		pNewParentNode->childWithMountsBelow[sNewName] = it->second;
-		pOldParentNode->childWithMountsBelow.erase(it);
-	}
+	m_MountTree.MoveBranch(sOldPath, sNewPath);
 
 	ReBuildMountChildMap();
 }
@@ -751,54 +677,60 @@ void				PlisgoVFS::AddToCache(const std::wstring& rsLowerPath, IPtrPlisgoFSFile 
 
 void				PlisgoVFS::RestartCache()
 {
+	//m_CacheEntryMutex should be write-locked
+
 	m_CacheEntryMap.clear();
 
-	for(MountChildMap::const_iterator it = m_MountChildMap.begin(); it != m_MountChildMap.end(); ++it)
+	MountTree::FullKeyMap fullKeyMap;
+
+	m_MountTree.GetFullKeyMap(fullKeyMap);
+
+	for(MountTree::FullKeyMap::const_iterator it = fullKeyMap.begin(); it != fullKeyMap.end(); ++it)
 	{
-		const ChildMountTable& rChildMountTable = it->second;
-
-		for(ChildMountTable::const_iterator childIt = rChildMountTable.begin(); 
-			childIt != rChildMountTable.end(); ++childIt)
-		{
-			std::wstring sPath = it->first;
-
-			if (sPath.length())
-				sPath += L"\\";
-
-			sPath += childIt->first;
-
-			Cached& rCached = m_CacheEntryMap[sPath];
-			
-			rCached.file = childIt->second;
-			rCached.nTime = -1; //From the future, so is never too old!
-		}
+		Cached& rCached = m_CacheEntryMap[it->first];
+		
+		rCached.file = it->second;
+		rCached.nTime = -1; //From the future, so is never too old!
 	}
+}
+
+
+bool				PlisgoVFS::BuildMntChildMapCB(const std::wstring& rsName, const IPtrPlisgoFSFile& rMnt, BuildMountChildMapPacket& rPacket)
+{
+	if (rMnt.get() != NULL)
+	{
+		if (rPacket.pChildMountTable == NULL)
+			rPacket.pChildMountTable = &m_MountChildMap[rPacket.sParentPath];
+
+		(*rPacket.pChildMountTable)[rsName] = rMnt;
+	}
+
+	BuildMountChildMapPacket packet;
+
+	if (rPacket.sParentPath.length() > 0)
+	{
+		packet.sParentPath = rPacket.sParentPath;
+		packet.sParentPath += L"\\";
+	}
+
+	packet.sParentPath += rsName;
+	packet.pChildMountTable = NULL;
+
+	m_MountTree.ForEachChild<PlisgoVFS,BuildMountChildMapPacket>(packet.sParentPath, this, &PlisgoVFS::BuildMntChildMapCB, packet);
+
+	return true;
 }
 
 
 void				PlisgoVFS::ReBuildMountChildMap()
 {
+	//m_CacheEntryMutex should be write-locked
+
 	m_MountChildMap.clear();
 
-	ReBuildMountChildMap(L"", m_MountTreeRoot);
-}
+	BuildMountChildMapPacket packet;
 
+	packet.pChildMountTable = NULL;
 
-void				PlisgoVFS::ReBuildMountChildMap(const std::wstring& rsCurrent, const MountTreeNode& rCurrent)
-{
-	if (!rCurrent.childMounts.empty())
-		m_MountChildMap[rsCurrent] = rCurrent.childMounts;
- 
-	for(ChildMountTreeNodes::const_iterator it = rCurrent.childWithMountsBelow.begin();
-		it != rCurrent.childWithMountsBelow.end(); ++it)
-	{
-		std::wstring sNext = rsCurrent;
-
-		if (sNext.length())
-			sNext += L"\\";
-
-		sNext += it->first;
-
-		ReBuildMountChildMap(sNext, it->second);
-	}
+	m_MountTree.ForEachChild<PlisgoVFS,BuildMountChildMapPacket>(L"", this, &PlisgoVFS::BuildMntChildMapCB, packet);
 }

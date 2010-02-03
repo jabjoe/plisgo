@@ -24,6 +24,7 @@
 #pragma once
 
 #include "PlisgoFSFiles.h"
+#include "TreeCache.h"
 
 class PlisgoVFS
 {
@@ -109,11 +110,9 @@ protected:
 
 	void						AddToCache(const std::wstring& rsLowerPath, IPtrPlisgoFSFile file);
 
-	typedef std::map<std::wstring, IPtrPlisgoFSFile>	ChildMountTable;
-
 private:
 
-	void						ReBuildMountChildMap();
+	void						ReBuildMountChildMap(); //The MountChildMap is so mount overloads can be quickly found
 	void						RestartCache();
 
 
@@ -148,24 +147,22 @@ private:
 	mutable boost::shared_mutex				m_CacheEntryMutex;
 	CacheEntryMap							m_CacheEntryMap;
 
-	struct MountTreeNode;
-
-	typedef std::map<std::wstring, MountTreeNode> ChildMountTreeNodes;
-
-	struct MountTreeNode
-	{
-		ChildMountTable		childMounts;
-		ChildMountTreeNodes	childWithMountsBelow;
-	};
-
+	typedef std::map<std::wstring, IPtrPlisgoFSFile>			ChildMountTable;
 	typedef boost::unordered_map<std::wstring, ChildMountTable>	MountChildMap;
 
-	MountTreeNode*				TraceMountTreeToParentNode(const std::wstring& rsPath, bool bCreate = false);
+	static bool GetNextMountKey(const std::wstring& rsKey, size_t& rnPos, std::wstring& rsSubKey);
 
-	void						ReBuildMountChildMap(const std::wstring& rsCurrent, const MountTreeNode& rCurrent);
+	struct BuildMountChildMapPacket
+	{
+		std::wstring		sParentPath;
+		ChildMountTable*	pChildMountTable;
+	};
+	bool		BuildMntChildMapCB(const std::wstring& rsName, const IPtrPlisgoFSFile& rMnt, BuildMountChildMapPacket& rPacket);
 
-	MountTreeNode						m_MountTreeRoot;
-	MountChildMap						m_MountChildMap;
+	typedef TreeCache<std::wstring, IPtrPlisgoFSFile, GetNextMountKey>	MountTree;
+
+	MountTree					m_MountTree;
+	MountChildMap				m_MountChildMap;
 };
 
 typedef boost::shared_ptr<PlisgoVFS>	IPtrPlisgoVFS;

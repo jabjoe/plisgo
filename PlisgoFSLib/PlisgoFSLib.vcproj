@@ -367,6 +367,10 @@
 				RelativePath=".\PlisgoVFS.h"
 				>
 			</File>
+			<File
+				RelativePath=".\TreeCache.h"
+				>
+			</File>
 		</Filter>
 	</Files>
 	<Globals>
