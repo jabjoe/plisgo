@@ -543,7 +543,7 @@ int					PlisgoVFS::Close(PlisgoFileHandle&	rHandle, bool bDeleteOnClose)
 			{
 				m_CacheEntryMap.erase(pOpenFileData->sPath);
 
-				m_MountTree.PruneBranch(pOpenFileData->sPath);
+				m_MountTree.RemoveBranch(pOpenFileData->sPath);
 
 				if (pOpenFileData->File->GetAsFolder() != NULL)
 					RestartCache();

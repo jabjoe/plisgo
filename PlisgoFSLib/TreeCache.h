@@ -35,7 +35,8 @@ public:
 
 	void SetData(const std::wstring& rsFullKey, TData& rData);
 
-	void PruneBranch(const std::wstring& rsFullKey);
+	void RemoveAndPrune(const std::wstring& rsFullKey); //Remove key, and any parent key in the path that then has no child or value
+	void RemoveBranch(const std::wstring& rsFullKey);
 
 	void MoveBranch(const std::wstring& rsOldFullKey, const std::wstring& rsNewFullKey);
 
@@ -128,7 +129,7 @@ bool TreeCache<TData>::GetNextKey(const std::wstring& rsKey, size_t& rnPos, std:
 	else
 	{
 		rsSubKey.assign(rsKey.begin() + rnPos, rsKey.end());
-		rnPos = -1;
+		rnPos = (size_t)-1;
 	}
 
 	return true;
@@ -277,7 +278,50 @@ inline bool TreeCache<TData>::GetTreeParent(const std::wstring& rsFullKey, TreeN
 
 
 template<typename TData>
-inline void TreeCache<TData>::PruneBranch(const std::wstring& rsFullKey)
+inline void TreeCache<TData>::RemoveAndPrune(const std::wstring& rsFullKey)
+{
+	boost::unique_lock<boost::shared_mutex> lock(m_Mutex);
+
+	TreeNode* pTreeNode;
+
+	if (!GetTreeNode(rsFullKey, false, (const TreeNode*&)pTreeNode))
+		return;
+
+	std::wstring sCurrent = rsFullKey;
+	std::wstring sName;
+
+	do
+	{
+		RemoveTreeNodeFromCache(sCurrent, pTreeNode, true);
+
+		const size_t nSlash = sCurrent.rfind(L'\\');
+
+		if (nSlash != -1)
+		{
+			sName = sCurrent.substr(nSlash+1);
+			sCurrent.resize(nSlash);
+
+			GetTreeNode(sCurrent, false, (const TreeNode*&)pTreeNode);
+		}
+		else 
+		{
+			sName = sCurrent;
+			pTreeNode = &m_Root;
+		}
+
+		assert(pTreeNode != NULL);
+
+		pTreeNode->Children.erase(sName);
+
+		if (pTreeNode->Children.size() != 0)
+			return; //Prune complete
+	}
+	while(pTreeNode != &m_Root && !pTreeNode->bSet);
+}
+
+
+template<typename TData>
+inline void TreeCache<TData>::RemoveBranch(const std::wstring& rsFullKey)
 {
 	boost::unique_lock<boost::shared_mutex> lock(m_Mutex);
 
@@ -353,5 +397,4 @@ inline void TreeCache<TData>::AddTreeToFullKeyCache(const std::wstring& rsFullKe
 	for(ChildTreeNodes::const_iterator it = pTreeNode->Children.begin(); it != pTreeNode->Children.end(); ++it)
 		AddTreeToFullKeyCache(rsFullKey + L"\\" += it->first, it->second);
 }
-
 
