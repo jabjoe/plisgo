@@ -631,13 +631,16 @@ int					PlisgoVFS::GetHandleInfo(PlisgoFileHandle&	rHandle, LPBY_HANDLE_FILE_INF
 
 void				PlisgoVFS::AddToCache(const std::wstring& rsLowerPath, IPtrPlisgoFSFile file)
 {
-	boost::unique_lock<boost::shared_mutex> writeLock(m_CacheEntryMutex);
+	if (file.get() != NULL && file->IsValid())
+	{
+		boost::unique_lock<boost::shared_mutex> writeLock(m_CacheEntryMutex);
 
-	Cached& rCached = m_CacheEntryMap[rsLowerPath];
+		Cached& rCached = m_CacheEntryMap[rsLowerPath];
 
-	rCached.file = file;
-	
-	GetSystemTimeAsFileTime((FILETIME*)&rCached.nTime);
+		rCached.file = file;
+		
+		GetSystemTimeAsFileTime((FILETIME*)&rCached.nTime);
+	}
 }
 
 
