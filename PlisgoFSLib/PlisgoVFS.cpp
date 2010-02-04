@@ -31,10 +31,7 @@ bool				PlisgoVFS::AddMount(LPCWSTR sMount, IPtrPlisgoFSFile Mount)
 
 	std::wstring sPathLowerCase = sMount;
 
-	std::transform(sPathLowerCase.begin(),sPathLowerCase.end(),sPathLowerCase.begin(),tolower);
-
-	boost::trim_left_if(sPathLowerCase, boost::is_any_of(L"\\"));
-	boost::trim_right_if(sPathLowerCase, boost::is_any_of(L"\\"));
+	MakePathHashSafe(sPathLowerCase);
 
 	IPtrPlisgoFSFile existing = TracePath(sPathLowerCase);
 
@@ -143,10 +140,7 @@ IPtrPlisgoFSFile	PlisgoVFS::TracePath(LPCWSTR sPath, IPtrPlisgoFSFile* pParent) 
 
 	std::wstring sPathLowerCase = sPath;
 
-	std::transform(sPathLowerCase.begin(),sPathLowerCase.end(),sPathLowerCase.begin(),tolower);
-
-	boost::trim_left_if(sPathLowerCase, boost::is_any_of(L"\\"));
-	boost::trim_right_if(sPathLowerCase, boost::is_any_of(L"\\"));
+	MakePathHashSafe(sPathLowerCase);
 
 	return TracePath(sPathLowerCase, pParent);
 }
@@ -161,10 +155,7 @@ int					PlisgoVFS::CreateFolder(LPCWSTR sPath)
 
 	std::wstring sPathLowerCase = sPath;
 
-	std::transform(sPathLowerCase.begin(),sPathLowerCase.end(),sPathLowerCase.begin(),tolower);
-
-	boost::trim_right_if(sPathLowerCase, boost::is_any_of(L"\\"));
-	boost::trim_left_if(sPathLowerCase, boost::is_any_of(L"\\"));
+	MakePathHashSafe(sPathLowerCase);
 
 	size_t nSlash = sPathLowerCase.rfind(L"\\");
 
@@ -239,10 +230,7 @@ int					PlisgoVFS::ForEachChild(PlisgoFileHandle&	rHandle, PlisgoFSFolder::EachC
 
 	std::wstring sPathLowerCase = pOpenFileData->sPath;
 
-	std::transform(sPathLowerCase.begin(),sPathLowerCase.end(),sPathLowerCase.begin(),tolower);
-
-	boost::trim_left_if(sPathLowerCase, boost::is_any_of(L"\\"));
-	boost::trim_right_if(sPathLowerCase, boost::is_any_of(L"\\"));
+	MakePathHashSafe(sPathLowerCase);
 
 	{
 		boost::shared_lock<boost::shared_mutex> lock(m_CacheEntryMutex);
@@ -332,10 +320,7 @@ int					PlisgoVFS::Open(	PlisgoFileHandle&	rHandle,
 {
 	std::wstring sPathLowerCase = sPath;
 
-	std::transform(sPathLowerCase.begin(),sPathLowerCase.end(),sPathLowerCase.begin(),tolower);
-
-	boost::trim_left_if(sPathLowerCase, boost::is_any_of(L"\\"));
-	boost::trim_right_if(sPathLowerCase, boost::is_any_of(L"\\"));
+	MakePathHashSafe(sPathLowerCase);
 
 	IPtrPlisgoFSFile	file = TracePath(sPathLowerCase);
 

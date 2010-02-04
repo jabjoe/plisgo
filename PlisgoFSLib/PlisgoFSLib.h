@@ -158,4 +158,11 @@ inline LPCWSTR				GetParentFromPath(LPCWSTR sPath, LPCWSTR sName)
 }
 
 
+inline void					MakePathHashSafe(std::wstring& rsPath)
+{
+	std::transform(rsPath.begin(),rsPath.end(),rsPath.begin(),tolower);
+
+	boost::trim_right_if(rsPath, boost::is_any_of(L"\\"));
+	boost::trim_left_if(rsPath, boost::is_any_of(L"\\"));
+}
 
