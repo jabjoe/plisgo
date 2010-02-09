@@ -48,6 +48,41 @@ bool				PlisgoVFS::AddMount(LPCWSTR sMount, IPtrPlisgoFSFile Mount)
 }
 
 
+bool				PlisgoVFS::RemoveMount(LPCWSTR sMount)
+{
+	std::wstring sPathLowerCase = sMount;
+
+	MakePathHashSafe(sPathLowerCase);
+
+	IPtrPlisgoFSFile existing = TracePath(sPathLowerCase);
+
+	if (existing.get() == NULL)
+		return false;
+
+	boost::unique_lock<boost::shared_mutex> cacheLock(m_CacheEntryMutex);
+
+	m_MountTree.RemoveAndPrune(sPathLowerCase, false);
+
+	RestartCache();
+
+	return true;
+}
+
+
+IPtrPlisgoFSFile	PlisgoVFS::GetMount(LPCWSTR sMount)
+{
+	std::wstring sPathLowerCase = sMount;
+
+	MakePathHashSafe(sPathLowerCase);
+
+	IPtrPlisgoFSFile result;
+
+	m_MountTree.GetData(sPathLowerCase, result);
+
+	return result;
+}
+
+
 bool				PlisgoVFS::GetCached(const std::wstring& rsPath, IPtrPlisgoFSFile& rFile) const
 {
 	boost::upgrade_lock<boost::shared_mutex> readLock(m_CacheEntryMutex);

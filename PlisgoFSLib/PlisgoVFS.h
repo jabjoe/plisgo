@@ -40,6 +40,8 @@ public:
 	IPtrPlisgoFSFile			TracePath(LPCWSTR sPath, IPtrPlisgoFSFile* pParent = NULL) const;
 
 	bool						AddMount(LPCWSTR sMount, IPtrPlisgoFSFile Mount);
+	bool						RemoveMount(LPCWSTR sMount);
+	IPtrPlisgoFSFile			GetMount(LPCWSTR sMount);
 
 	int							Repath(LPCWSTR sOldPath, LPCWSTR sNewPath, bool bReplaceExisting = false);
 

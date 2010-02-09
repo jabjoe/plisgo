@@ -35,14 +35,14 @@ public:
 
 	void SetData(const std::wstring& rsFullKey, TData& rData);
 
-	void RemoveAndPrune(const std::wstring& rsFullKey); //Remove key, and any parent key in the path that then has no child or value
+	void RemoveAndPrune(const std::wstring& rsFullKey, bool bRemoveAndChildren = false); //Remove key value, then remove any entries in branch that have no value
 	void RemoveBranch(const std::wstring& rsFullKey);
 
 	void MoveBranch(const std::wstring& rsOldFullKey, const std::wstring& rsNewFullKey);
 
 	void GetFullKeyMap(FullKeyMap& rsFullKeyMap) const;
 
-	bool GetChildMap(const std::wstring& rsFullKey, SubKeyMap& rSubKeyMap) const;
+	bool GetChildMap(const std::wstring& rsFullKey, SubKeyMap& rSubKeyMap, bool bIncludeEmpty = false) const;
 
 private:
 	struct TreeNode;
@@ -234,7 +234,7 @@ inline void TreeCache<TData>::GetFullKeyMap(FullKeyMap& rsFullKeyMap) const
 
 
 template<typename TData>
-inline bool TreeCache<TData>::GetChildMap(const std::wstring& rKey, SubKeyMap& rSubKeyMap) const
+inline bool TreeCache<TData>::GetChildMap(const std::wstring& rKey, SubKeyMap& rSubKeyMap, bool bIncludeEmpty) const
 {
 	boost::shared_lock<boost::shared_mutex> readLock(m_Mutex);
 
@@ -244,7 +244,7 @@ inline bool TreeCache<TData>::GetChildMap(const std::wstring& rKey, SubKeyMap& r
 		return false;
 	
 	for(ChildTreeNodes::const_iterator it = pTreeNode->Children.begin(); it != pTreeNode->Children.end(); ++it)
-		if (it->second->bSet)
+		if (bIncludeEmpty || it->second->bSet)
 			rSubKeyMap[it->first] = it->second->Data;
 
 	return true;
@@ -278,7 +278,7 @@ inline bool TreeCache<TData>::GetTreeParent(const std::wstring& rsFullKey, TreeN
 
 
 template<typename TData>
-inline void TreeCache<TData>::RemoveAndPrune(const std::wstring& rsFullKey)
+inline void TreeCache<TData>::RemoveAndPrune(const std::wstring& rsFullKey, bool bRemoveAndChildren)
 {
 	boost::unique_lock<boost::shared_mutex> lock(m_Mutex);
 
@@ -286,6 +286,14 @@ inline void TreeCache<TData>::RemoveAndPrune(const std::wstring& rsFullKey)
 
 	if (!GetTreeNode(rsFullKey, false, (const TreeNode*&)pTreeNode))
 		return;
+
+	if (!bRemoveAndChildren && pTreeNode->Children.size() != 0)
+	{
+		pTreeNode->bSet = false;
+		pTreeNode->Data = TData();
+
+		return;
+	}
 
 	std::wstring sCurrent = rsFullKey;
 	std::wstring sName;
