@@ -24,7 +24,7 @@
 #include "PlisgoFSLib.h"
 #include "PlisgoFSHiddenFolders.h"
 #include "PlisgoFSLib_DLL.h"
-
+#include "PlisgoVFS.h"
 
 
 class C_IShellInfoFetcher : public IShellInfoFetcher
@@ -451,7 +451,6 @@ int		PlisgoFilesForRootFiles(PlisgoFiles* pPlisgoFiles, PlisgoVirtualFileChildCB
 
 int		PlisgoVirtualFileOpen(	PlisgoFiles*		pPlisgoFiles,
 								LPCWSTR				sPath,
-								BOOL*				pbRootVirtualPath,
 								PlisgoVirtualFile**	ppFile,
 								DWORD				nDesiredAccess,
 								DWORD				nShareMode,
@@ -464,9 +463,6 @@ int		PlisgoVirtualFileOpen(	PlisgoFiles*		pPlisgoFiles,
 	IPtrPlisgoFSFile parent;
 
 	IPtrPlisgoFSFile file = pPlisgoFiles->VFS.TracePath(sPath, &parent);
-
-	if (pbRootVirtualPath != NULL)
-		*pbRootVirtualPath = (parent.get() != NULL);
 
 	if (file.get() == NULL)
 		return -ERROR_BAD_PATHNAME;

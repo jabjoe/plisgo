@@ -236,7 +236,7 @@ int TestPlisgoVirtualFileChildCB(	LPCWSTR		sName,
 
 		wprintf(L"%s %i\n", sPath, nAttr);
 
-		PlisgoVirtualFileOpen(pPacket->pPlisgoFiles, sPath, NULL, &pFolder, GENERIC_READ, 0, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS);
+		PlisgoVirtualFileOpen(pPacket->pPlisgoFiles, sPath, &pFolder, GENERIC_READ, 0, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS);
 
 		packet.pPlisgoFiles = pPacket->pPlisgoFiles;
 		packet.sParent = sPath;

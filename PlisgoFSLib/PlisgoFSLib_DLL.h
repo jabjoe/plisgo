@@ -120,7 +120,6 @@ PLISGOCALL	int		PlisgoFilesForRootFiles(PlisgoFiles* pPlisgoFiles, PlisgoVirtual
 
 PLISGOCALL	int		PlisgoVirtualFileOpen(	PlisgoFiles*		pPlisgoFiles,
 											LPCWSTR				sPath,
-											BOOL*				pbRootVirtualPath,
 											PlisgoVirtualFile**	ppFile,
 											DWORD				nDesiredAccess,
 											DWORD				nShareMode,
