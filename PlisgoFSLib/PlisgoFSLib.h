@@ -58,6 +58,7 @@ extern void			ToWide(std::wstring& rDst, const std::string& sSrc);
 class StringEvent
 {
 public:
+	virtual ~StringEvent() {}
 	virtual bool Do(LPCWSTR) = 0;
 };
 

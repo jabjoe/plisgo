@@ -43,15 +43,18 @@ public:
 	bool						RemoveMount(LPCWSTR sMount);
 	IPtrPlisgoFSFile			GetMount(LPCWSTR sMount);
 
-	int							Repath(LPCWSTR sOldPath, LPCWSTR sNewPath, bool bReplaceExisting = false);
 
 	IPtrPlisgoFSFolder			GetRoot() const			{ return m_Root; }
+
+	int							ForEachChild(LPCWSTR sPath, PlisgoFSFolder::EachChild& rCB) const;
 
 
 	typedef ULONG64	PlisgoFileHandle;
 
 
 	int							CreateFolder(LPCWSTR sPath);
+	int							Repath(LPCWSTR sOldPath, LPCWSTR sNewPath, bool bReplaceExisting = false);
+
 	int							ForEachChild(PlisgoFileHandle&	rHandle, PlisgoFSFolder::EachChild& rCB) const;
 
 
@@ -113,6 +116,8 @@ protected:
 	void						AddToCache(const std::wstring& rsLowerPath, IPtrPlisgoFSFile file);
 
 private:
+
+	int							ForEachChild(PlisgoFSFolder* pFolder, const std::wstring& rsLowerCasePath, PlisgoFSFolder::EachChild& rCB) const;
 
 	void						RestartCache();
 

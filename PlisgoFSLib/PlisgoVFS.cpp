@@ -250,29 +250,32 @@ public:
 };
 
 
-int					PlisgoVFS::ForEachChild(PlisgoFileHandle&	rHandle, PlisgoFSFolder::EachChild& rCB) const
+int					PlisgoVFS::ForEachChild(LPCWSTR sPath, PlisgoFSFolder::EachChild& rCB) const
 {
-	OpenFileData* pOpenFileData = GetOpenFileData(rHandle);
-
-	if (pOpenFileData == NULL)
-		return -ERROR_INVALID_HANDLE;
-
-	PlisgoFSFolder* pFolder = pOpenFileData->File->GetAsFolder();
-
-	if (pFolder == NULL)
-		return -ERROR_ACCESS_DENIED;
-
-
-	std::wstring sPathLowerCase = pOpenFileData->sPath;
+	std::wstring sPathLowerCase = sPath;
 
 	MakePathHashSafe(sPathLowerCase);
+
+	IPtrPlisgoFSFile	file = TracePath(sPathLowerCase);
+
+	if (file.get() == NULL)
+		return -ERROR_BAD_PATHNAME;
+
+	return ForEachChild(file->GetAsFolder(), sPathLowerCase, rCB);
+}
+
+
+int					PlisgoVFS::ForEachChild(PlisgoFSFolder* pFolder, const std::wstring& rsLowerCasePath, PlisgoFSFolder::EachChild& rCB) const
+{
+	if (pFolder == NULL)
+		return -ERROR_ACCESS_DENIED;
 
 	{
 		boost::shared_lock<boost::shared_mutex> lock(m_CacheEntryMutex);
 
 		MountTree::SubKeyMap mntChildren;
 		
-		if (m_MountTree.GetChildMap(sPathLowerCase, mntChildren) && mntChildren.size())
+		if (m_MountTree.GetChildMap(rsLowerCasePath, mntChildren) && mntChildren.size())
 		{
 			MountSensitiveEachChild cb(rCB, mntChildren);
 
@@ -285,6 +288,17 @@ int					PlisgoVFS::ForEachChild(PlisgoFileHandle&	rHandle, PlisgoFSFolder::EachC
 	pFolder->ForEachChild(rCB);
 
 	return 0;
+}
+
+
+int					PlisgoVFS::ForEachChild(PlisgoFileHandle&	rHandle, PlisgoFSFolder::EachChild& rCB) const
+{
+	OpenFileData* pOpenFileData = GetOpenFileData(rHandle);
+
+	if (pOpenFileData == NULL)
+		return -ERROR_INVALID_HANDLE;
+
+	return ForEachChild(pOpenFileData->File->GetAsFolder(), pOpenFileData->sPath, rCB);
 }
 
 

@@ -23,7 +23,7 @@
 
 #pragma once
 
-#include "PlisgoFSFiles.h"
+#include "PlisgoVFS.h"
 
 
 
@@ -55,20 +55,12 @@ class IShellInfoFetcher
 {
 public:
 
-	struct BasicFileInfo
-	{
-		FileNameBuffer	sName;
-		bool			bIsFolder;
-	};
+	virtual bool IsShelled(IPtrPlisgoFSFile& rFolder) const = 0; //Use only for folders
 
-	typedef std::vector<BasicFileInfo> BasicFolder;
-
-	virtual bool ReadShelled(const std::wstring& rsFolderPath, BasicFolder* pResult = NULL) const = 0;
-
-	virtual bool GetColumnEntry(const std::wstring& rsFilePath, const int nColumnIndex, std::wstring& rsResult) const = 0;
-	virtual bool GetOverlayIcon(const std::wstring& rsFilePath, IconLocation& rResult) const = 0;
-	virtual bool GetCustomIcon(const std::wstring& rsFilePath, IconLocation& rResult) const = 0;
-	virtual bool GetThumbnail(const std::wstring& rsFilePath, LPCWSTR sExt, IPtrPlisgoFSFile& rThumbnailFile) const = 0;
+	virtual bool GetColumnEntry(IPtrPlisgoFSFile& rFile, const int nColumnIndex, std::wstring& rsResult) const = 0;
+	virtual bool GetOverlayIcon(IPtrPlisgoFSFile& rFile, IconLocation& rResult) const = 0;
+	virtual bool GetCustomIcon(IPtrPlisgoFSFile& rFile, IconLocation& rResult) const = 0;
+	virtual bool GetThumbnail(IPtrPlisgoFSFile& rFile, std::wstring& rsExt, IPtrPlisgoFSFile& rThumbnailFile) const = 0;
 };
 
 
@@ -107,7 +99,7 @@ class RootPlisgoFSFolder : public PlisgoFSStorageFolder, public boost::enable_sh
 
 public:
 
-	RootPlisgoFSFolder(LPCWSTR sFSName, IShellInfoFetcher* pIShellInfoFetcher = NULL);
+	RootPlisgoFSFolder(const std::wstring& rsPath, LPCWSTR sFSName, IPtrPlisgoVFS& rVFS, IShellInfoFetcher* pIShellInfoFetcher = NULL);
 
 	bool						AddPngIcons(HINSTANCE hExeHandle, int nListIndex, LPCWSTR sName)							{ return AddIcons(hExeHandle, nListIndex, sName, L"PNG", L"png"); }
 	bool						AddIcons(int nListIndex, const std::wstring& sFilename);
@@ -176,6 +168,7 @@ public:
 
 
 	IShellInfoFetcher*			GetShellInfoFetcher() const { return m_pIShellInfoFetcher; }
+	IPtrPlisgoVFS				GetVFS() const				{ return m_VFS; }
 
 protected:
 
@@ -203,4 +196,7 @@ private:
 	UINT						m_nColumnNum;
 
 	bool						m_DisabledStandardColumn[8];
+
+	IPtrPlisgoVFS				m_VFS;
+	std::wstring				m_sPath;
 };
