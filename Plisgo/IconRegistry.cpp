@@ -476,9 +476,7 @@ bool	FSIconRegistry::GetBestImageList(std::wstring& rsImageListFile, UINT nList,
 			bestIt = it;
 			break;
 		}
-		else if ( (bestIt->nHeight > nHeight && it->nHeight < bestIt->nHeight && it->nHeight > nHeight)
-								||
-				 (bestIt->nHeight < nHeight && it->nHeight > bestIt->nHeight) )
+		else if ( it->nHeight > bestIt->nHeight && it->nHeight <= nHeight)
 		{
 			bestIt = it;
 		}
@@ -1099,6 +1097,9 @@ HICON	RefIconList::CreateOverlaidIcon(const IconLocation& rFirst,	const IconLoca
 
 		overlayPos.x -= bm.bmHeight;
 		overlayPos.y -= bm.bmHeight;
+
+		overlayPos.x = max(overlayPos.x, 0);
+		overlayPos.y = max(overlayPos.y, 0);
 
 		DeleteObject(iconinfo.hbmColor);
 		DeleteObject(iconinfo.hbmMask);
