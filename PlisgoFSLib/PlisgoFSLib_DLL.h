@@ -34,66 +34,99 @@ extern "C" {
 #define PLISGOCALL __declspec(dllimport)
 #endif
 
-//ULONGLONG is 64bit and is the value of a NTFS FILETIME
 
-typedef int (*PlisgoVirtualFileChildCB)(LPCWSTR		sName,
-										DWORD		nAttr,
-										ULONGLONG	nSize,
-										ULONGLONG	nCreation,
-										ULONGLONG	nLastAccess,
-										ULONGLONG	nLastWrite,
-										void*		pUserData);
+
+
+
+// These calls are used to query the host filesystem about file and folders Plisgo is to provide a shell for
+typedef BOOL (*PlisgoOpenHostFolderCB)(LPCWSTR sPath, void** pHostFolderData, void* pData);
+typedef BOOL (*PlisgoNextHostFolderChildCB)(void* pHostFolderData, WCHAR sChildName[MAX_PATH], BOOL* pbIsFolder, void* pData);
+typedef BOOL (*PlisgoQueryHostFolderChildCB)(void* pHostFolderData, LPCWSTR sChildName, BOOL* pbIsFolder, void* pData);
+typedef BOOL (*PlisgoCloseHostFolderCB)(void* pHostFolderData, void* pData);
+
+
+/*
+	This structure is used to provide Plisgo with callbacks to query about the host filesystem
+*/
+struct PlisgoToHostCBs
+{
+	void*							pUserData; //Use to store what ever you need, is passed into each callback
+	PlisgoOpenHostFolderCB			OpenHostFolderCB;
+	PlisgoNextHostFolderChildCB		NextHostFolderChildCB;
+	PlisgoQueryHostFolderChildCB	QueryHostFolderChildCB;
+	PlisgoCloseHostFolderCB			CloseHostFolderCB;
+};
+typedef struct PlisgoToHostCBs PlisgoToHostCBs;
 
 typedef struct PlisgoFiles PlisgoFiles;
-typedef struct PlisgoVirtualFile PlisgoVirtualFile;
 
-//A NULL sNameBuffer means just a query if it's a shelled folder or not.
-typedef BOOL (*PlisgoFindInShelledFolderCB)(LPCWSTR sFolderPath, UINT nRequestIndex, WCHAR* sNameBuffer, UINT nBufferSize, BOOL* pIsFolder, void* pData);
-typedef BOOL (*PlisgoGetColumnEntryCB)(LPCWSTR sFile, UINT nColumn, WCHAR* sBuffer, UINT nBufferSize, void* pData);
-typedef BOOL (*PlisgoGetIconCB)(LPCWSTR sFile, BOOL* pbUsesList, UINT* pnList, WCHAR* sPathBuffer, UINT nBufferSize, UINT* pnEntryIndex, void* pData);
-typedef BOOL (*PlisgoGetThumbnailCB)(LPCWSTR sFile, LPCWSTR sThumbnailExt, WCHAR* sPathBuffer, UINT nBufferSize, void* pData);
+PLISGOCALL	int		PlisgoFilesCreate(PlisgoFiles** ppPlisgoFiles, PlisgoToHostCBs* pHostCBs);
+PLISGOCALL	int		PlisgoFilesDestroy(PlisgoFiles* pPlisgoFiles);
 
 
-typedef BOOL (*PlisgoPathCB)(LPCWSTR sFile, void* pData);
+
+/*
+	Callback to be implimented by Plisgo shell implimentor
+*/
+
+// Call types used to obtain shell information about host filesystem
+typedef BOOL (*PlisgoIsShelledFolderCB)(LPCWSTR sFolderPath, void* pData);
+typedef BOOL (*PlisgoGetColumnEntryCB)(LPCWSTR sFile, UINT nColumn, WCHAR sBuffer[MAX_PATH], void* pData);
+typedef BOOL (*PlisgoGetIconCB)(LPCWSTR sFile, BOOL* pbUsesList, UINT* pnList, WCHAR sPathBuffer[MAX_PATH], UINT* pnEntryIndex, void* pData);
+typedef BOOL (*PlisgoGetThumbnailCB)(LPCWSTR sFile, WCHAR sThumbnailExt[4], WCHAR sPathBuffer[MAX_PATH], void* pData);
+
+//Called for menu enabled test and when menu item clicked.
+typedef BOOL (*PlisgoPathCB)(LPCWSTR sFile, void* pData); 
 
 
+/*
+	This structure is used to provide Plisgo with the callbacks to create the shell
+*/
 struct PlisgoGUICBs
 {
-	void*						pUserData;
-	PlisgoFindInShelledFolderCB	FindInShelledFolderCB;
-	PlisgoGetColumnEntryCB		GetColumnEntryCB;
-	PlisgoGetIconCB				GetOverlayIconCB;
-	PlisgoGetIconCB				GetCustomIconCB;
-	PlisgoGetThumbnailCB		GetThumbnailCB;
+	void*							pUserData; //Use to store what ever you need, is passed into each callback
+
+	WCHAR							sFSName[MAX_PATH];
+
+	PlisgoIsShelledFolderCB			IsShelledFolderCB;
+	PlisgoGetColumnEntryCB			GetColumnEntryCB;
+	PlisgoGetIconCB					GetOverlayIconCB;
+	PlisgoGetIconCB					GetCustomIconCB;
+	PlisgoGetThumbnailCB			GetThumbnailCB;
 };
 typedef struct PlisgoGUICBs PlisgoGUICBs;
 
 
-PLISGOCALL	int		PlisgoFilesCreate(PlisgoFiles** ppPlisgoFiles, LPCWSTR sFSName, PlisgoGUICBs* pCBs);
-PLISGOCALL	int		PlisgoFilesDestroy(PlisgoFiles* pPlisgoFiles);
+
+typedef struct PlisgoFolder PlisgoFolder;
+
+
+PLISGOCALL	int		PlisgoFolderCreate(PlisgoFiles* pPlisgoFiles, PlisgoFolder** ppPlisgoFolder, LPCWSTR sFolder, LPCWSTR sFSName, PlisgoGUICBs* pCBs);
+PLISGOCALL	int		PlisgoFolderDestroy(PlisgoFolder* pPlisgoFolder);
+
 
 //Custom columns
-PLISGOCALL	int		PlisgoFilesAddColumn(PlisgoFiles* pPlisgoFiles, LPCWSTR sColumnHeader);
+PLISGOCALL	int		PlisgoFolderAddColumn(PlisgoFolder* pPlisgoFolder, LPCWSTR sColumnHeader);
 //0 is text, 1 is int, 2 is float
-PLISGOCALL	int		PlisgoFilesSetColumnType(PlisgoFiles* pPlisgoFiles, UINT nColumn, UINT nType);
+PLISGOCALL	int		PlisgoFolderSetColumnType(PlisgoFolder* pPlisgoFolder, UINT nColumn, UINT nType);
 //-1 is left, 0 is center, 1 is right
-PLISGOCALL	int		PlisgoFilesSetColumnAlignment(PlisgoFiles* pPlisgoFiles, UINT nColumn, int nAlignment);
+PLISGOCALL	int		PlisgoFolderSetColumnAlignment(PlisgoFolder* pPlisgoFolder, UINT nColumn, int nAlignment);
 
 
 //Custom icons
-PLISGOCALL	int		PlisgoFilesAddIconsList(PlisgoFiles* pPlisgoFiles, LPCWSTR sImageFilePath);
+PLISGOCALL	int		PlisgoFolderAddIconsList(PlisgoFolder* pPlisgoFolder, LPCWSTR sImageFilePath);
 
-PLISGOCALL	int		PlisgoFilesAddCustomFolderIcon(	PlisgoFiles* pPlisgoFiles,
-													UINT nClosedIconList, UINT nClosedIconIndex,
-													UINT nOpenIconList, UINT nOpenIconIndex);
+PLISGOCALL	int		PlisgoFolderAddCustomFolderIcon(	PlisgoFolder* pPlisgoFolder,
+														UINT nClosedIconList, UINT nClosedIconIndex,
+														UINT nOpenIconList, UINT nOpenIconIndex);
 
-PLISGOCALL	int		PlisgoFilesAddCustomDefaultIcon(PlisgoFiles* pPlisgoFiles, UINT nList, UINT nIndex);
+PLISGOCALL	int		PlisgoFolderAddCustomDefaultIcon(PlisgoFolder* pPlisgoFolder, UINT nList, UINT nIndex);
 
-PLISGOCALL	int		PlisgoFilesAddCustomExtensionIcon(PlisgoFiles* pPlisgoFiles, LPCWSTR sExt, UINT nList, UINT nIndex);
+PLISGOCALL	int		PlisgoFolderAddCustomExtensionIcon(PlisgoFolder* pPlisgoFolder, LPCWSTR sExt, UINT nList, UINT nIndex);
 
 
 //Custom menus
-PLISGOCALL	int		PlisgoFilesAddMenuItem(	PlisgoFiles*	pPlisgoFiles,
+PLISGOCALL	int		PlisgoFolderAddMenuItem(PlisgoFolder*	pPlisgoFolder,
 											int*			pnResultIndex,
 											LPCWSTR			sText,
 											PlisgoPathCB	onClickCB,
@@ -103,12 +136,8 @@ PLISGOCALL	int		PlisgoFilesAddMenuItem(	PlisgoFiles*	pPlisgoFiles,
 											UINT			nIconIndex, //-1 for none
 											void*			pCBUserData);
 
-PLISGOCALL int		PlisgoFilesAddMenuSeparatorItem(PlisgoFiles* pPlisgoFiles, int nParentMenu); //-1 for none
+PLISGOCALL int		PlisgoFolderAddMenuSeparatorItem(PlisgoFolder* pPlisgoFolder, int nParentMenu); //-1 for none
 
-
-//Call for .plisgo folder and desktop.ini files
-
-PLISGOCALL	int		PlisgoFilesForRootFiles(PlisgoFiles* pPlisgoFiles, PlisgoVirtualFileChildCB cb, void* pData);
 
 
 
@@ -117,6 +146,21 @@ PLISGOCALL	int		PlisgoFilesForRootFiles(PlisgoFiles* pPlisgoFiles, PlisgoVirtual
 	Open a PlisgoVirtualFile for file operations
 	call this from you virtual file system if you don't get -ERROR_BAD_PATHNAME result and PlisgoVirtualFile is set
 */
+typedef struct PlisgoVirtualFile PlisgoVirtualFile;
+
+struct PlisgoFileInfo
+{
+	WCHAR		sName[MAX_PATH];
+	DWORD		nAttr;
+	ULONGLONG	nSize;
+	//ULONGLONG is 64bit and is the value of a NTFS FILETIME
+	ULONGLONG	nCreation;
+	ULONGLONG	nLastAccess;
+	ULONGLONG	nLastWrite;
+};
+typedef struct PlisgoFileInfo PlisgoFileInfo;
+
+
 
 PLISGOCALL	int		PlisgoVirtualFileOpen(	PlisgoFiles*		pPlisgoFiles,
 											LPCWSTR				sPath,
@@ -128,15 +172,7 @@ PLISGOCALL	int		PlisgoVirtualFileOpen(	PlisgoFiles*		pPlisgoFiles,
 
 PLISGOCALL	int		PlisgoVirtualFileClose(PlisgoVirtualFile* pFile);
 
-PLISGOCALL	int		PlisgoVirtualFileGetAttributes(PlisgoVirtualFile* pFile, DWORD* pnAttr);
-
-PLISGOCALL	int		PlisgoVirtualFileGetTimes(PlisgoVirtualFile*	pFile,
-											  ULONGLONG*			pnCreation,
-											  ULONGLONG*			pnLastAccess,
-											  ULONGLONG*			pnLastWrite);
-
-PLISGOCALL	int		PlisgoVirtualFileGetSize(PlisgoVirtualFile* pFile, ULONGLONG* pnSize);
-
+PLISGOCALL	int		PlisgoVirtualGetFileInfo(PlisgoVirtualFile* pFile, PlisgoFileInfo* pInfo);
 
 PLISGOCALL	int		PlisgoVirtualFileRead(PlisgoVirtualFile* pFile, LPVOID		pBuffer,
 																	DWORD		nNumberOfBytesToRead,
@@ -156,12 +192,14 @@ PLISGOCALL	int		PlisgoVirtualFileFlushBuffers(PlisgoVirtualFile* pFile);
 
 PLISGOCALL	int		PlisgoVirtualFileFlushSetEndOf(PlisgoVirtualFile* pFile, LONGLONG nEndPos);
 
-
 PLISGOCALL	int		PlisgoVirtualFileFlushSetTimes(PlisgoVirtualFile* pFile, ULONGLONG* pnCreation, ULONGLONG* pnLastAccess, ULONGLONG* pnLastWrite);
 
 PLISGOCALL	int		PlisgoVirtualFileFlushSetAttributes(PlisgoVirtualFile* pFile, DWORD nAttr);
 
-PLISGOCALL	int		PlisgoVirtualFileForEachChild(PlisgoVirtualFile* pFile, PlisgoVirtualFileChildCB cb, void* pUserData);
+
+typedef BOOL (*PlisgoVirtualFileForEachChildCB)(PlisgoFileInfo* pPlisgoFileInfo, void* pData);
+
+PLISGOCALL	int		PlisgoVirtualFileForEachChild(PlisgoVirtualFile* pFile, PlisgoVirtualFileForEachChildCB cb, void* pData);
 
 
 #ifdef __cplusplus

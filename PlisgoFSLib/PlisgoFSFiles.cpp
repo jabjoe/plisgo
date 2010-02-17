@@ -295,15 +295,11 @@ int						PlisgoFSFolder::Repath(LPCWSTR sOldName, LPCWSTR sNewName,
 ****************************************************************************
 */
 
-void				PlisgoFSFileList::AddFile(LPCWSTR sNameUnknownCase, IPtrPlisgoFSFile file)
+void				PlisgoFSFileList::AddFile(LPCWSTR sName, IPtrPlisgoFSFile file)
 {
 	boost::unique_lock<boost::shared_mutex> lock(m_Mutex);
 
-	FileNameBuffer sName;
-
-	CopyToLower(sName, sNameUnknownCase);
-
-	m_files[sName] = file;
+	m_Files[sName] = file;
 }
 	
 
@@ -311,11 +307,7 @@ void				PlisgoFSFileList::RemoveFile(LPCWSTR sName)
 {
 	boost::unique_lock<boost::shared_mutex> lock(m_Mutex);
 
-	std::wstring sKey = sName;
-
-	std::transform(sKey.begin(),sKey.end(),sKey.begin(),tolower);
-
-	m_files.erase(sKey);
+	m_Files.erase(sName);
 }
 
 
@@ -323,8 +315,8 @@ bool				PlisgoFSFileList::ForEachFile(PlisgoFSFolder::EachChild& rEachFile) cons
 {
 	boost::shared_lock<boost::shared_mutex> lock(m_Mutex);
 
-	for(std::map<std::wstring, IPtrPlisgoFSFile >::const_iterator it = m_files.begin();
-		it != m_files.end(); ++it)
+	for(FileMap::const_iterator it = m_Files.begin();
+		it != m_Files.end(); ++it)
 	{
 		if (!rEachFile.Do(it->first.c_str(), it->second))
 			return false;
@@ -334,17 +326,13 @@ bool				PlisgoFSFileList::ForEachFile(PlisgoFSFolder::EachChild& rEachFile) cons
 }
 
 
-IPtrPlisgoFSFile	PlisgoFSFileList::GetFile(LPCWSTR sNameUnknownCase) const
+IPtrPlisgoFSFile	PlisgoFSFileList::GetFile(LPCWSTR sName) const
 {
-	FileNameBuffer sName;
-
-	CopyToLower(sName, sNameUnknownCase);
-
 	boost::shared_lock<boost::shared_mutex> lock(m_Mutex);
 
-	std::map<std::wstring, IPtrPlisgoFSFile >::const_iterator it = m_files.find(sName);
+	FileMap::const_iterator it = m_Files.find(sName);
 	
-	if (it != m_files.end())
+	if (it != m_Files.end())
 		return it->second;
 
 	return IPtrPlisgoFSFile();
@@ -355,10 +343,10 @@ IPtrPlisgoFSFile	PlisgoFSFileList::GetFile(UINT nIndex) const
 {
 	boost::shared_lock<boost::shared_mutex> lock(m_Mutex);
 
-	if (nIndex >= m_files.size())
+	if (nIndex >= m_Files.size())
 		return IPtrPlisgoFSFile();
 
-	std::map<std::wstring, IPtrPlisgoFSFile >::const_iterator it = m_files.begin();
+	FileMap::const_iterator it = m_Files.begin();
 
 	while(nIndex--)
 		++it;
@@ -371,7 +359,7 @@ UINT				PlisgoFSFileList::GetLength() const
 {
 	boost::shared_lock<boost::shared_mutex> lock(m_Mutex);
 
-	return (UINT)m_files.size();
+	return (UINT)m_Files.size();
 }
 
 
@@ -379,7 +367,7 @@ void				PlisgoFSFileList::Clear()
 {
 	boost::unique_lock<boost::shared_mutex> lock(m_Mutex);
 
-	m_files.clear();
+	m_Files.clear();
 }
 
 /*
@@ -673,30 +661,108 @@ int		PlisgoFSDataFile::Write(	LPCVOID		pBuffer,
 }
 
 
-
 /*
 ****************************************************************************
 */
 
-PlisgoFSStringFile::PlisgoFSStringFile(	const std::wstring& rsData, bool bReadOnly)
-{
-	SetString(rsData);
 
-	m_bReadOnly = bReadOnly;
-	m_bWriteOpen = false;
+PlisgoFSStringReadOnly::PlisgoFSStringReadOnly(	const std::wstring& rsData)
+{
 	m_bVolatile = false;
+	FromWide(m_sData, rsData);
+}
+
+PlisgoFSStringReadOnly::PlisgoFSStringReadOnly(	const std::string& sData)
+{
+	m_bVolatile = false;
+	m_sData		= sData;
 }
 
 
 
-PlisgoFSStringFile::PlisgoFSStringFile(	const std::string& rsData, bool bReadOnly)
+int				PlisgoFSStringReadOnly::Open(	DWORD		nDesiredAccess,
+												DWORD		nShareMode,
+												DWORD		nCreationDisposition,
+												DWORD		nFlagsAndAttributes,
+												ULONGLONG*	pInstanceData)
 {
+	assert(pInstanceData != NULL);
 
-	SetString(rsData);
+	if (nFlagsAndAttributes & FILE_ATTRIBUTE_DIRECTORY)
+		return -ERROR_ACCESS_DENIED;
 
-	m_bReadOnly = bReadOnly;
+	int nError = PlisgoFSFile::Open(	nDesiredAccess,
+										nShareMode,
+										nCreationDisposition,
+										nFlagsAndAttributes,
+										pInstanceData);
+	if (nError != 0)
+		return nError;
+
+	bool bWrite = (nDesiredAccess & GENERIC_WRITE || nDesiredAccess & GENERIC_ALL || nDesiredAccess & FILE_WRITE_DATA);
+
+	if (bWrite)
+		return -ERROR_ACCESS_DENIED;
+
+	*pInstanceData = GENERIC_READ;
+
+	return 0;
+}
+
+
+int				PlisgoFSStringReadOnly::Read(	LPVOID		pBuffer,
+												DWORD		nNumberOfBytesToRead,
+												LPDWORD		pnNumberOfBytesRead,
+												LONGLONG	nOffset,
+												ULONGLONG*	)
+{
+	if (nOffset < m_sData.length())
+	{
+		const DWORD	nLength	= (DWORD)(m_sData.length()-nOffset);
+		const DWORD	nCopySize = min(nLength,nNumberOfBytesToRead);
+
+		memcpy_s(pBuffer, nNumberOfBytesToRead, &m_sData.c_str()[nOffset], nCopySize);
+
+		*pnNumberOfBytesRead = nCopySize;
+
+		return 0;
+	}
+	else *pnNumberOfBytesRead = 0;
+
+	return -ERROR_HANDLE_EOF;
+}
+
+
+int				PlisgoFSStringReadOnly::Close(ULONGLONG* pInstanceData)
+{
+	assert(pInstanceData != NULL);
+
+	*pInstanceData = 0;
+
+	return 0;
+}
+
+/*
+****************************************************************************
+*/
+PlisgoFSStringFile::PlisgoFSStringFile() : PlisgoFSStringReadOnly()
+{
+	m_bReadOnly = false;
 	m_bWriteOpen = false;
-	m_bVolatile = false;
+}
+
+
+PlisgoFSStringFile::PlisgoFSStringFile(	const std::wstring& rsData) : PlisgoFSStringReadOnly(rsData)
+{
+	m_bReadOnly = false;
+	m_bWriteOpen = false;
+}
+
+
+PlisgoFSStringFile::PlisgoFSStringFile(	const std::string& rsData) : PlisgoFSStringReadOnly(rsData)
+{
+	m_bReadOnly = false;
+	m_bWriteOpen = false;
 }
 
 
@@ -782,7 +848,6 @@ int				PlisgoFSStringFile::Open(	DWORD		nDesiredAccess,
 	if (bWrite && m_bReadOnly)
 		return -ERROR_ACCESS_DENIED;
 
-
 	if (bWrite)
 	{
 		boost::upgrade_to_unique_lock<boost::shared_mutex> rwLock(lock);
@@ -838,24 +903,11 @@ int				PlisgoFSStringFile::Read(LPVOID		pBuffer,
 									DWORD		nNumberOfBytesToRead,
 									LPDWORD		pnNumberOfBytesRead,
 									LONGLONG	nOffset,
-									ULONGLONG*	)
+									ULONGLONG*	pInstanceData)
 {
 	boost::shared_lock<boost::shared_mutex> lock(m_Mutex);
 
-	if (nOffset < m_sData.length())
-	{
-		const DWORD	nLength	= (DWORD)(m_sData.length()-nOffset);
-		const DWORD	nCopySize = min(nLength,nNumberOfBytesToRead);
-
-		memcpy_s(pBuffer, nNumberOfBytesToRead, &m_sData.c_str()[nOffset], nCopySize);
-
-		*pnNumberOfBytesRead = nCopySize;
-
-		return 0;
-	}
-	else *pnNumberOfBytesRead = 0;
-
-	return -ERROR_HANDLE_EOF;
+	return PlisgoFSStringReadOnly::Read(pBuffer, nNumberOfBytesToRead, pnNumberOfBytesRead, nOffset, pInstanceData);
 }
 
 

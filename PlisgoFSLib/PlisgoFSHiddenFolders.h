@@ -50,18 +50,31 @@ private:
 	int				m_nIndex;
 };
 
+class RootPlisgoFSFolder;
 
-class IShellInfoFetcher
+typedef boost::shared_ptr<RootPlisgoFSFolder>		IPtrRootPlisgoFSFolder;
+
+
+class IShellInfoFetcher : public boost::enable_shared_from_this<IShellInfoFetcher>
 {
 public:
+	virtual ~IShellInfoFetcher() {}
 
-	virtual bool IsShelled(IPtrPlisgoFSFile& rFolder) const = 0; //Use only for folders
+	virtual LPCWSTR	GetFFSName() const = 0;
+
+	virtual bool IsShelled(IPtrPlisgoFSFile& rFile) const = 0; 
 
 	virtual bool GetColumnEntry(IPtrPlisgoFSFile& rFile, const int nColumnIndex, std::wstring& rsResult) const = 0;
 	virtual bool GetOverlayIcon(IPtrPlisgoFSFile& rFile, IconLocation& rResult) const = 0;
 	virtual bool GetCustomIcon(IPtrPlisgoFSFile& rFile, IconLocation& rResult) const = 0;
 	virtual bool GetThumbnail(IPtrPlisgoFSFile& rFile, std::wstring& rsExt, IPtrPlisgoFSFile& rThumbnailFile) const = 0;
+
+	//Create a plisgo folder set up with this IShellInfoFetcher
+	virtual IPtrRootPlisgoFSFolder	CreatePlisgoFolder(const std::wstring& rsPath, IPtrPlisgoVFS& rVFS);
 };
+
+
+typedef boost::shared_ptr<IShellInfoFetcher>		IPtrIShellInfoFetcher;
 
 
 template<class T>
@@ -87,19 +100,16 @@ protected:
 };
 
 
-class RootPlisgoFSFolder;
-
-typedef boost::shared_ptr<RootPlisgoFSFolder>		IPtrRootPlisgoFSFolder;
 
 
 
-class RootPlisgoFSFolder : public PlisgoFSStorageFolder, public boost::enable_shared_from_this<RootPlisgoFSFolder>
+class RootPlisgoFSFolder : public PlisgoFSStorageFolder
 {
 	friend class ShellInfoFolder;
 
 public:
 
-	RootPlisgoFSFolder(const std::wstring& rsPath, LPCWSTR sFSName, IPtrPlisgoVFS& rVFS, IShellInfoFetcher* pIShellInfoFetcher = NULL);
+	RootPlisgoFSFolder(const std::wstring& rsPath, LPCWSTR sFSName, IPtrPlisgoVFS& rVFS, IPtrIShellInfoFetcher ShellInfoFetcher = IPtrIShellInfoFetcher());
 
 	bool						AddPngIcons(HINSTANCE hExeHandle, int nListIndex, LPCWSTR sName)							{ return AddIcons(hExeHandle, nListIndex, sName, L"PNG", L"png"); }
 	bool						AddIcons(int nListIndex, const std::wstring& sFilename);
@@ -167,7 +177,7 @@ public:
 	bool						HasCustomFolderIcons() const;
 
 
-	IShellInfoFetcher*			GetShellInfoFetcher() const { return m_pIShellInfoFetcher; }
+	IShellInfoFetcher*			GetShellInfoFetcher() const { return m_IShellInfoFetcher.get(); }
 	IPtrPlisgoVFS				GetVFS() const				{ return m_VFS; }
 
 protected:
@@ -185,7 +195,7 @@ private:
 	ULONG						m_nRootMenuNum;
 	UINT						m_nIconListsNum;
 
-	IShellInfoFetcher*			m_pIShellInfoFetcher;
+	IPtrIShellInfoFetcher		m_IShellInfoFetcher;
 
 	bool						m_bHasCustomDefaultIcon;
 	bool						m_bHasCustomFolderIcons;

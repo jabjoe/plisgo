@@ -30,6 +30,63 @@
 
 
 
+//Create a plisgo folder set up with this IShellInfoFetcher
+IPtrRootPlisgoFSFolder	IShellInfoFetcher::CreatePlisgoFolder(const std::wstring& rsPath, IPtrPlisgoVFS& rVFS)
+{
+	assert(rVFS.get() != NULL);
+
+	IPtrRootPlisgoFSFolder plisgoFS(new RootPlisgoFSFolder(rsPath, GetFFSName(), rVFS, shared_from_this()));
+
+	assert(plisgoFS.get() != NULL);
+
+	std::wstring sMount = rsPath;
+
+	sMount+= L"\\.plisgofs";
+
+	IPtrPlisgoFSFile parent;
+	
+	IPtrPlisgoFSFile mount = rVFS->TracePath(sMount.c_str(), &parent);
+
+	if (parent.get() == NULL)
+	{
+		//Er wtf, you gave me a invalid path!
+		return IPtrRootPlisgoFSFolder();
+	}
+
+	PlisgoFSFolder* pFolder = parent->GetAsFolder();
+
+	assert(pFolder != NULL); //WTF
+
+	if (mount.get() == NULL)
+	{
+		pFolder->CreateChild(mount, L".plisgofs", 0);
+
+		if (mount.get() == NULL)
+			return IPtrRootPlisgoFSFolder(); //Er wtf, it isn't there, and you won't let me put it there?
+	}
+
+
+	rVFS->AddMount(sMount.c_str(), plisgoFS);
+
+	mount = pFolder->GetChild(L"Desktop.ini");
+
+	if (mount.get() == NULL)
+	{
+		pFolder->CreateChild(mount, L"Desktop.ini", 0);
+
+		if (mount.get() == NULL)
+		{
+			rVFS->RemoveMount(sMount.c_str());
+
+			return IPtrRootPlisgoFSFolder(); //Er wtf, it isn't there, and you won't let me put it there?
+		}
+	}
+
+	rVFS->AddMount((rsPath + L"\\Desktop.ini").c_str() , GetPlisgoDesktopIniFile());
+
+	return plisgoFS;
+}
+
 /*
 *********************************************************************
 			File/Folder classes
@@ -53,11 +110,11 @@ public:
 		m_pRoot			= pRoot;
 	}
 
-	class EachChild : public PlisgoFSFolder::EachChild
+	class DirectEachChild : public PlisgoFSFolder::EachChild
 	{
 	public:
 
-		EachChild(const StubShellInfoFolder* pObj, PlisgoFSFolder::EachChild& rEachChild) : m_rEachChild(rEachChild)
+		DirectEachChild(const StubShellInfoFolder* pObj, PlisgoFSFolder::EachChild& rEachChild) : m_rEachChild(rEachChild)
 		{
 			m_pObj = pObj;
 		}
@@ -117,9 +174,9 @@ public:
 	}
 
 
-	virtual bool				ForEachChild(PlisgoFSFolder::EachChild& rEachChild) const
+	virtual bool				ForEachChild(EachChild& rEachChild) const
 	{
-		EachChild cb(this, rEachChild);
+		DirectEachChild cb(this, rEachChild);
 
 		const int nError = m_pRoot->GetVFS()->ForEachChild(m_sSubjectPath.c_str(), cb);
 
@@ -157,7 +214,7 @@ public:
 		if (!m_pRoot->GetShellInfoFetcher()->GetColumnEntry(rSrcFile, m_nColumnIndex, sText))
 			return false;
 
-		PlisgoFSStringFile* pStrFile = new PlisgoFSStringFile(sText, true);
+		PlisgoFSStringReadOnly* pStrFile = new PlisgoFSStringReadOnly(sText);
 
 		assert(pStrFile != NULL);
 
@@ -194,7 +251,7 @@ public:
 		if (!icon.GetText(sText))
 			return false;
 
-		PlisgoFSStringFile* pStrFile = new PlisgoFSStringFile(sText, true);
+		PlisgoFSStringReadOnly* pStrFile = new PlisgoFSStringReadOnly(sText);
 
 		assert(pStrFile != NULL);
 
@@ -227,7 +284,7 @@ public:
 		if (!icon.GetText(sText))
 			return false;
 
-		PlisgoFSStringFile* pStrFile = new PlisgoFSStringFile(sText, true);
+		PlisgoFSStringReadOnly* pStrFile = new PlisgoFSStringReadOnly(sText);
 
 		assert(pStrFile != NULL);
 
@@ -419,16 +476,16 @@ protected:
 */
 
 
-RootPlisgoFSFolder::RootPlisgoFSFolder(const std::wstring& rsPath, LPCWSTR sFSName, IPtrPlisgoVFS& rVFS, IShellInfoFetcher* pIShellInfoFetcher )
+RootPlisgoFSFolder::RootPlisgoFSFolder(const std::wstring& rsPath, LPCWSTR sFSName, IPtrPlisgoVFS& rVFS, IPtrIShellInfoFetcher ShellInfoFetcher)
 {
 	assert(sFSName != NULL);
 
 	boost::format fmt = boost::format("%1%") %PLISGO_APIVERSION;
 
-	m_pIShellInfoFetcher = pIShellInfoFetcher;
+	m_IShellInfoFetcher = ShellInfoFetcher;
 
-	AddChild(L".fsname", IPtrPlisgoFSFile(new PlisgoFSStringFile( sFSName, true)));
-	AddChild(L".version", IPtrPlisgoFSFile(new PlisgoFSStringFile(fmt.str(), true)));
+	AddChild(L".fsname", IPtrPlisgoFSFile(new PlisgoFSStringReadOnly( sFSName)));
+	AddChild(L".version", IPtrPlisgoFSFile(new PlisgoFSStringReadOnly(fmt.str())));
 
 	m_nColumnNum	= 0;
 	m_nIconListsNum = 0;
@@ -713,12 +770,12 @@ bool				RootPlisgoFSFolder::AddColumn(std::wstring sHeader)
 {
 	boost::unique_lock<boost::shared_mutex> lock(m_Mutex);
 
-	if (m_pIShellInfoFetcher == NULL)
+	if (m_IShellInfoFetcher.get() == NULL)
 		return false;
 
 	boost::wformat headerFmt = boost::wformat(L".column_header_%1%") %m_nColumnNum;
 
-	AddChild(headerFmt.str().c_str(), IPtrPlisgoFSFile(new PlisgoFSStringFile(sHeader, true)));
+	AddChild(headerFmt.str().c_str(), IPtrPlisgoFSFile(new PlisgoFSStringReadOnly(sHeader)));
 
 	++m_nColumnNum;
 
@@ -743,7 +800,7 @@ bool				RootPlisgoFSFolder::SetColumnAlignment(UINT nColumnIndex, ColumnAlignmen
 	if (eAlignment == CENTER)
 		return true;
 
-	AddChild(sName.c_str(), IPtrPlisgoFSFile(new PlisgoFSStringFile((eAlignment == LEFT)?L"l":L"r", true)));
+	AddChild(sName.c_str(), IPtrPlisgoFSFile(new PlisgoFSStringReadOnly((eAlignment == LEFT)?L"l":L"r")));
 
 	return true;
 }
@@ -764,7 +821,7 @@ bool				RootPlisgoFSFolder::SetColumnType(UINT nColumnIndex, ColumnType eType)
 	if (eType == TEXT)
 		return true;
 
-	AddChild(sName.c_str(), IPtrPlisgoFSFile(new PlisgoFSStringFile((eType == INT)?L"i":L"f", true)));
+	AddChild(sName.c_str(), IPtrPlisgoFSFile(new PlisgoFSStringReadOnly((eType == INT)?L"i":L"f")));
 
 	return true;
 }
@@ -789,7 +846,7 @@ bool				RootPlisgoFSFolder::SetColumnDefaultWidth(UINT nColumnIndex, int nWidth)
 
 	sprintf_s(sBuffer, MAX_PATH, "%i", nWidth);
 
-	AddChild(sName.c_str(), IPtrPlisgoFSFile(new PlisgoFSStringFile(sBuffer, true)));
+	AddChild(sName.c_str(), IPtrPlisgoFSFile(new PlisgoFSStringReadOnly(sBuffer)));
 
 	return true;
 }
@@ -799,7 +856,7 @@ bool				RootPlisgoFSFolder::EnableThumbnails()
 {
 	boost::unique_lock<boost::shared_mutex> lock(m_Mutex);
 
-	if (m_pIShellInfoFetcher == NULL)
+	if (m_IShellInfoFetcher.get() == NULL)
 		return false;
 
 	m_bEnableThumbnails = true;
@@ -814,7 +871,7 @@ bool				RootPlisgoFSFolder::EnableCustomIcons()
 {
 	boost::unique_lock<boost::shared_mutex> lock(m_Mutex);
 
-	if (m_pIShellInfoFetcher == NULL)
+	if (m_IShellInfoFetcher.get() == NULL)
 		return false;
 
 	m_bEnableCustomIcons = true;
@@ -829,7 +886,7 @@ bool				RootPlisgoFSFolder::EnableOverlays()
 {
 	boost::unique_lock<boost::shared_mutex> lock(m_Mutex);
 
-	if (m_pIShellInfoFetcher == NULL)
+	if (m_IShellInfoFetcher.get() == NULL)
 		return false;
 
 	m_bEnableOverlays = true;
@@ -906,7 +963,7 @@ void				RootPlisgoFSFolder::AddCustomExtensionIcon(LPCWSTR sExt, int nList, int 
 
 	const std::string sData = (boost::format("%1% : %2%") %nList %nIndex).str();
 
-	pFolder->AddChild(sExt, IPtrPlisgoFSFile(new PlisgoFSStringFile(sData, true)));
+	pFolder->AddChild(sExt, IPtrPlisgoFSFile(new PlisgoFSStringReadOnly(sData)));
 }
 
 

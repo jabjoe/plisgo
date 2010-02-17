@@ -312,11 +312,16 @@ main(ULONG argc, PCHAR argv[])
 
 	IPtrPlisgoFSFolder root = boost::make_shared<PlisgoFSStorageFolder>();
 
+	IPtrIShellInfoFetcher	shellInfo = boost::make_shared<ProcessesFolderShellInterface>();
+
 	IPtrPlisgoFSFolder processes = boost::make_shared<ProcessesFolder>();
 
 	root->AddChild(L"Processes", processes);
 
-	PlisgoVFS vfs(root);
+	IPtrPlisgoVFS vfs = boost::make_shared<PlisgoVFS>(root);
+
+	shellInfo->CreatePlisgoFolder(L"\\Processes", vfs);
+
 
 	DOKAN_OPERATIONS	dokanOperations = {	PlisgoExampleCreateFile,
 											PlisgoExampleOpenDirectory,
@@ -349,7 +354,7 @@ main(ULONG argc, PCHAR argv[])
 	ZeroMemory(&dokanOptions, sizeof(DOKAN_OPTIONS));
 
 	dokanOptions.DriveLetter = L'X';
-	dokanOptions.GlobalContext = (ULONG64)&vfs;
+	dokanOptions.GlobalContext = (ULONG64)vfs.get();
 
 	int status = DokanMain(&dokanOptions, &dokanOperations);
 

@@ -33,47 +33,41 @@
 #include <tlhelp32.h>
 
 
-class ProcessesFolder : public PlisgoFSFolder, public IShellInfoFetcher
+class ProcessesFolderShellInterface : public IShellInfoFetcher
 {
 public:
+	ProcessesFolderShellInterface();
+
+	virtual LPCWSTR	GetFFSName() const		{ return L"ProcessFS"; }
+
+	virtual bool IsShelled(IPtrPlisgoFSFile& rFile) const;
+
+	virtual bool GetColumnEntry(IPtrPlisgoFSFile& rFile, const int nColumnIndex, std::wstring& rsResult) const;
+	virtual bool GetOverlayIcon(IPtrPlisgoFSFile& rFile, IconLocation& rResult) const;
+	virtual bool GetCustomIcon(IPtrPlisgoFSFile& rFile, IconLocation& rResult) const;
+	virtual bool GetThumbnail(IPtrPlisgoFSFile& rFile, std::wstring& rsExt, IPtrPlisgoFSFile& rThumbnailFile) const;
+
+	virtual IPtrRootPlisgoFSFolder	CreatePlisgoFolder(const std::wstring& rsPath, IPtrPlisgoVFS& rVFS);
+
+private:
+
+	boost::shared_ptr<PlisgoFSDataFile>	m_ThumbnailPlaceHolder;
+};
+
+
+class ProcessesFolder : public PlisgoFSFolder
+{
+public:
+
 	ProcessesFolder();
-
-	void						RefreshProcesses();
-
-	// PlisgoFSFolder interface
 
 	virtual DWORD				GetAttributes() const	{ return FILE_ATTRIBUTE_DIRECTORY|FILE_ATTRIBUTE_READONLY; }
 
 	virtual bool				ForEachChild(EachChild& rEachChild) const;
 	virtual IPtrPlisgoFSFile	GetChild(LPCWSTR sName) const;
 
-
-	//IShellInfoFetcher Interface
-
-	virtual bool				ReadShelled(const std::wstring& rsFolderPath, IShellInfoFetcher::BasicFolder* pResult) const;
-
-	virtual bool				GetColumnEntry(const std::wstring& rsFilePath, const int nColumnIndex, std::wstring& rsResult) const;
-	virtual bool				GetOverlayIcon(const std::wstring& rsFilePath, IconLocation& rResult) const;
-	virtual bool				GetCustomIcon(const std::wstring& rsFilePath, IconLocation& rResult) const;
-	virtual bool				GetThumbnail(const std::wstring& rsFilePath, LPCWSTR sExt, IPtrPlisgoFSFile& rThumbnailFile) const;
-
 private:
-
-	bool						ResolveDevicePath(std::wstring& rsPath) const;
-	void						LoadDriveDevices();
-
-	void					Update();
-	IPtrPlisgoFSFile		GetProcessFile(const DWORD nProcessID) const;
-
-	mutable boost::shared_mutex		m_Mutex;
-	std::map<DWORD, PROCESSENTRY32>	m_Processes;
 	std::wstring					m_sPath;
 	PlisgoFSFileList				m_Extras;
-
-	typedef std::pair<std::wstring,std::wstring>	DriveEntry;
-
-	std::vector<DriveEntry>				m_DriveDevices;
-
-	boost::shared_ptr<PlisgoFSDataFile>	m_ThumbnailPlaceHolder;
 };
 

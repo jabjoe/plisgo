@@ -57,6 +57,8 @@ public:
 
 	int							ForEachChild(PlisgoFileHandle&	rHandle, PlisgoFSFolder::EachChild& rCB) const;
 
+	IPtrPlisgoFSFile			GetPlisgoFSFile(PlisgoFileHandle& rHandle) const;
+
 
 	int							Open(	PlisgoFileHandle&	rHandle,
 										LPCWSTR				sPath,

@@ -88,7 +88,7 @@ private:
 
 
 EnabledFile::EnabledFile(	boost::shared_ptr<SelectionFile>	selectionFile,
-							IPtrStringEvent						enabledEvent) : PlisgoFSStringFile("0", true)
+							IPtrStringEvent						enabledEvent) : PlisgoFSStringFile("0")
 {
 	m_EnabledEvent = enabledEvent;
 	m_selectionFile = selectionFile;
@@ -195,7 +195,7 @@ bool	SelectionFile::CallPerPath(StringEvent& rEvent)
 
 ClickFile::ClickFile(	boost::shared_ptr<SelectionFile>	selectionFile,
 						IPtrStringEvent						onClickEvent)
-						: m_OnClickEvent(onClickEvent), PlisgoFSStringFile("0", false)
+						: m_OnClickEvent(onClickEvent), PlisgoFSStringFile("0")
 {
 	m_selectionFile = selectionFile;
 	m_bClicked = false;
@@ -267,13 +267,13 @@ PlisgoFSMenuItem::PlisgoFSMenuItem(	IPtrStringEvent		onClickEvent,
 {
 	if (sUserText != NULL)
 	{
-		AddChild(L".text", IPtrPlisgoFSFile(new PlisgoFSStringFile(sUserText, true)));
+		AddChild(L".text", IPtrPlisgoFSFile(new PlisgoFSStringReadOnly(sUserText)));
 
 		if (nIconList != -1 && nIconIndex != -1)
 		{
 			boost::format fmt = boost::format("%1% : %2%") %nIconList %nIconIndex;
 
-			AddChild(L".icon", IPtrPlisgoFSFile(new PlisgoFSStringFile(fmt.str(), true)));
+			AddChild(L".icon", IPtrPlisgoFSFile(new PlisgoFSStringReadOnly(fmt.str())));
 		}
 		
 		boost::shared_ptr<SelectionFile> selectionFile(new SelectionFile());

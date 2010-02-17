@@ -38,37 +38,37 @@
 #include "Psapi.h"
 
 
-class ProcessFile : public PlisgoFSStringFile
+class ProcessFile : public PlisgoFSStringReadOnly
 {
 public:
-	ProcessFile(const PROCESSENTRY32& rPE) : PlisgoFSStringFile(rPE.szExeFile, true)
+	ProcessFile(const PROCESSENTRY32& rPE) : PlisgoFSStringReadOnly(rPE.szExeFile)
 	{
+		SetVolatile(true);
+		m_PE = rPE;
 	}
 
-	virtual bool	IsValid() const			{ return false; } //Force it not to use cached
+	virtual bool			IsValid() const				{ return false; } //Force it not to use cached
 
-	virtual DWORD	GetAttributes() const	{ return FILE_ATTRIBUTE_READONLY; }
+	virtual DWORD			GetAttributes() const		{ return FILE_ATTRIBUTE_READONLY; }
 
+	const PROCESSENTRY32&	GetProcessEntry32() const	{ return m_PE;}
+
+private:
+	PROCESSENTRY32 m_PE;
 };
 
 
-struct ProcessTerminatorPacket
+
+
+DWORD WINAPI ProcessTerminator(uintptr_t nProcessID)
 {
-	DWORD				nProcessID;
-	ProcessesFolder*	pProcessesFolder;
-};
-
-
-
-DWORD WINAPI ProcessTerminator(ProcessTerminatorPacket* pPacket)
-{
-	HANDLE hProcess = OpenProcess(PROCESS_TERMINATE, FALSE, pPacket->nProcessID);
+	HANDLE hProcess = OpenProcess(PROCESS_TERMINATE, FALSE, nProcessID);
 
 	if (hProcess != NULL)
 	{
 		WCHAR sBuffer[MAX_PATH];
 
-		wsprintf(sBuffer,L"Terminate process %i?", pPacket->nProcessID);
+		wsprintf(sBuffer,L"Terminate process %i?", nProcessID);
 
 		if (MessageBox(GetTopWindow(0), sBuffer, L"ProcessFS", MB_YESNO) == IDYES)
 		{
@@ -79,7 +79,7 @@ DWORD WINAPI ProcessTerminator(ProcessTerminatorPacket* pPacket)
 				for(int n = 0; hProcess != NULL && n < 10; ++n)
 				{
 					CloseHandle(hProcess);
-					hProcess = OpenProcess(PROCESS_TERMINATE, FALSE, pPacket->nProcessID);
+					hProcess = OpenProcess(PROCESS_TERMINATE, FALSE, nProcessID);
 
 					if (hProcess != NULL)
 						Sleep(100);
@@ -91,9 +91,14 @@ DWORD WINAPI ProcessTerminator(ProcessTerminatorPacket* pPacket)
 
 			if (bTerminated)
 			{
-				pPacket->pProcessesFolder->RefreshProcesses();
 
-				SHChangeNotify(SHCNE_UPDATEDIR, SHCNF_PATH, L"X:\\processes\\", NULL);
+				WCHAR sFile[MAX_PATH];
+
+				wsprintf(sFile, L"X:\\processes\\%i", nProcessID);
+
+				SHChangeNotify(SHCNE_DELETE, SHCNF_PATH|SHCNF_FLUSH, sFile, NULL);
+
+				SHChangeNotify(SHCNE_UPDATEDIR, SHCNF_PATH|SHCNF_FLUSH, L"X:\\processes", NULL);
 			}
 			else MessageBox(GetTopWindow(0), L"Can't Terminate Process", L"ProcessFS", MB_ICONERROR);
 		}
@@ -102,12 +107,10 @@ DWORD WINAPI ProcessTerminator(ProcessTerminatorPacket* pPacket)
 	{
 		WCHAR sBuffer[MAX_PATH];
 
-		wsprintf(sBuffer,L"Can't Access Process %i", pPacket->nProcessID);
+		wsprintf(sBuffer,L"Can't Access Process %i", nProcessID);
 
 		MessageBox(GetTopWindow(0), sBuffer, L"ProcessFS", MB_ICONERROR);
 	}
-
-	delete pPacket;
 
 	return 0;
 }
@@ -131,24 +134,10 @@ class KillMenuItemClick : public StringEvent
 {
 public:
 
-	KillMenuItemClick(ProcessesFolder* pProcessesFolder)
-	{
-		m_pProcessesFolder = pProcessesFolder;
-	}
-
-
 	virtual bool Do(LPCWSTR sPath)
 	{
 		if (sPath != NULL && sPath[0] != L'\0')
-		{
-			ProcessTerminatorPacket* pPacket = new ProcessTerminatorPacket();
-
-			pPacket->nProcessID			= _wtoi(&sPath[1]);
-			pPacket->pProcessesFolder	= m_pProcessesFolder;
-
-			if (CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)ProcessTerminator, pPacket, 0, NULL) == NULL)
-				delete pPacket;
-		}
+			CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)ProcessTerminator, (LPVOID)_wtoi(&sPath[1]), 0, NULL);
 
 		return true;
 	}
@@ -249,20 +238,35 @@ public:
 };
 
 
-
-
-
-
-
-
-ProcessesFolder::ProcessesFolder()
+ProcessesFolderShellInterface::ProcessesFolderShellInterface()
 {
-	IPtrRootPlisgoFSFolder plisgoRoot(new RootPlisgoFSFolder(L"processesFS", this));
+	HMODULE hModule = GetModuleHandle(NULL);
+
+	HRSRC hRes = FindResourceW(hModule, MAKEINTRESOURCEW(IDR_JPEG1), L"JPEG");
+
+	if (hRes != NULL)
+	{
+		DWORD nDataSize = SizeofResource(hModule, hRes);
+
+		HGLOBAL hReallyStaticMem = LoadResource(hModule, hRes);
+
+		if (hReallyStaticMem != NULL)
+		{
+			BYTE* pData = (BYTE*)LockResource(hReallyStaticMem);
+
+			if (pData != NULL)
+				m_ThumbnailPlaceHolder.reset(new PlisgoFSDataFile( pData, nDataSize ));
+		}
+	}
+}
+
+
+
+IPtrRootPlisgoFSFolder ProcessesFolderShellInterface::CreatePlisgoFolder(const std::wstring& rsPath, IPtrPlisgoVFS& rVFS)
+{
+	IPtrRootPlisgoFSFolder plisgoRoot = IShellInfoFetcher::CreatePlisgoFolder(rsPath, rVFS);
 
 	assert(plisgoRoot.get() != NULL);
-
-	m_Extras.AddFile(L".plisgofs", plisgoRoot);
-	m_Extras.AddFile(L"Desktop.ini", GetPlisgoDesktopIniFile());
 
 	plisgoRoot->AddColumn(L"Exe File");
 	plisgoRoot->SetColumnAlignment(0, RootPlisgoFSFolder::LEFT);
@@ -295,158 +299,42 @@ ProcessesFolder::ProcessesFolder()
 
 	int nMenu = plisgoRoot->AddMenu(L"Processes", IPtrStringEvent(), -1, IPtrStringEvent(), 0, 0);
 
-	plisgoRoot->AddMenu(L"Kill Selected", IPtrStringEvent(new KillMenuItemClick(this)), nMenu, IPtrStringEvent(new KillMenuItemEnable()), 0, 0);
-	plisgoRoot->AddMenu(L"Switch to", IPtrStringEvent(new SwitchToMenuItemClick()), nMenu, IPtrStringEvent(new SwitchToMenuItemEnable()), 0, 0);	
+	plisgoRoot->AddMenu(L"Kill Selected", IPtrStringEvent(new KillMenuItemClick()), nMenu, IPtrStringEvent(new KillMenuItemEnable()), 0, 0);
+	plisgoRoot->AddMenu(L"Switch to", IPtrStringEvent(new SwitchToMenuItemClick()), nMenu, IPtrStringEvent(new SwitchToMenuItemEnable()), 0, 0);
 
-	LoadDriveDevices();
-
-	HMODULE hModule = GetModuleHandle(NULL);
-
-	HRSRC hRes = FindResourceW(hModule, MAKEINTRESOURCEW(IDR_JPEG1), L"JPEG");
-
-	if (hRes != NULL)
-	{
-		DWORD nDataSize = SizeofResource(hModule, hRes);
-
-		HGLOBAL hReallyStaticMem = LoadResource(hModule, hRes);
-
-		if (hReallyStaticMem != NULL)
-		{
-			BYTE* pData = (BYTE*)LockResource(hReallyStaticMem);
-
-			if (pData != NULL)
-				m_ThumbnailPlaceHolder.reset(new PlisgoFSDataFile( pData, nDataSize ));
-		}
-	}
-
-	Update();
-}
-
-void				ProcessesFolder::RefreshProcesses()
-{
-	boost::unique_lock<boost::shared_mutex> lock(m_Mutex);
-
-	Update();
+	return plisgoRoot;
 }
 
 
-// PlisgoFSFolder interface
-
-bool				ProcessesFolder::ForEachChild(EachChild& rEachChild) const
+bool	ProcessesFolderShellInterface::IsShelled(IPtrPlisgoFSFile& rFile) const
 {
-	if (!m_Extras.ForEachFile(rEachChild))
+	return (dynamic_cast<ProcessesFolder*>(rFile.get()) != NULL);
+}
+
+
+bool	ProcessesFolderShellInterface::GetColumnEntry(IPtrPlisgoFSFile& rFile, const int nColumnIndex, std::wstring& rsResult) const
+{
+	ProcessFile* pProcessFile = dynamic_cast<ProcessFile*>(rFile.get());
+
+	if (pProcessFile == NULL)
 		return false;
 
-	boost::upgrade_lock<boost::shared_mutex> lock(m_Mutex);
-
-	{
-		boost::upgrade_to_unique_lock<boost::shared_mutex> rwLock(lock);
-
-		const_cast<ProcessesFolder*>(this)->Update();
-	}
-
-	for(std::map<DWORD, PROCESSENTRY32>::const_iterator it = m_Processes.begin();
-		it != m_Processes.end(); ++it)
-	{
-		IPtrPlisgoFSFile file = GetProcessFile(it->first);
-
-		if (file.get() != NULL)
-		{
-			WCHAR sName[MAX_PATH];
-
-			wsprintf(sName,L"%i", it->first);
-
-			if (!rEachChild.Do(sName, file))
-				return false;
-		}
-	}
-
-	return true;
-}
-
-
-IPtrPlisgoFSFile	ProcessesFolder::GetChild(LPCWSTR sName) const
-{
-	boost::upgrade_lock<boost::shared_mutex> lock(m_Mutex);
-
-	IPtrPlisgoFSFile result = m_Extras.GetFile(sName);
-
-	if (result.get() != NULL)
-		return result;
-
-	assert(sName != NULL);
-
-	if (!isdigit(sName[0]))
-		return IPtrPlisgoFSFile();
-
-	const DWORD nProcessID = _wtoi(sName);
-
-	return GetProcessFile(nProcessID);
-}
-
-
-
-
-//IShellInfoFetcher Interface
-
-
-bool				ProcessesFolder::ReadShelled(const std::wstring& rsFolderPath, IShellInfoFetcher::BasicFolder* pResult) const
-{
-	boost::shared_lock<boost::shared_mutex> lock(m_Mutex);
-
-	if (pResult == NULL)
-	{
-		if (rsFolderPath.length() > 1)
-			return false;
-
-		if (rsFolderPath.length() == 0)
-			return true;
-
-		return (rsFolderPath[0] == L'\\');
-	}
-
-
-	for(std::map<DWORD, PROCESSENTRY32>::const_iterator it = m_Processes.begin(); it != m_Processes.end(); ++it)
-	{
-		pResult->resize(pResult->size()+1);
-
-		IShellInfoFetcher::BasicFileInfo& rFile = pResult->back();
-
-		rFile.bIsFolder = false;
-		wcscpy_s(rFile.sName, MAX_PATH, (boost::wformat(L"%1%") %it->first).str().c_str());
-	}
-
-	return true;
-}
-
-
-bool				ProcessesFolder::GetColumnEntry(const std::wstring& rsFilePath, const int nColumnIndex, std::wstring& rsResult) const
-{
-	boost::shared_lock<boost::shared_mutex> lock(m_Mutex);
-
-	assert(rsFilePath.length() > 1);
-
-	const DWORD nProcessID = _wtoi(&rsFilePath.c_str()[1]); //Skip slash
-
-	std::map<DWORD, PROCESSENTRY32>::const_iterator it = m_Processes.find(nProcessID);
-
-	if (it == m_Processes.end())
-		return false;
+	const PROCESSENTRY32& rEntry = pProcessFile->GetProcessEntry32();
 
 	switch(nColumnIndex)
 	{
 	case 0:
-		rsResult = it->second.szExeFile;
+		rsResult = rEntry.szExeFile;
 		return true;
 	case 1:
-		rsResult = (boost::wformat(L"%1%") %it->second.cntThreads).str();
+		rsResult = (boost::wformat(L"%1%") %rEntry.cntThreads).str();
 		return true;
 	case 2:
-		rsResult = (boost::wformat(L"%1%") %it->second.th32ParentProcessID).str();
+		rsResult = (boost::wformat(L"%1%") %rEntry.th32ParentProcessID).str();
 		return true;
 	case 3:
 		{
-			HWND hWnd = GetProcessWindow(nProcessID);
+			HWND hWnd = GetProcessWindow(rEntry.th32ProcessID);
 
 			if (hWnd == NULL)
 				return false;
@@ -467,12 +355,14 @@ bool				ProcessesFolder::GetColumnEntry(const std::wstring& rsFilePath, const in
 }
 
 
-bool				ProcessesFolder::GetOverlayIcon(const std::wstring& rsFilePath, IconLocation& rResult) const
+bool	ProcessesFolderShellInterface::GetOverlayIcon(IPtrPlisgoFSFile& rFile, IconLocation& rResult) const
 {
-	if (rsFilePath.length() < 2)
+	ProcessFile* pProcessFile = dynamic_cast<ProcessFile*>(rFile.get());
+
+	if (pProcessFile == NULL)
 		return false;
 
-	if (CanTerminateProcess(_wtoi(&rsFilePath[1])))
+	if (CanTerminateProcess(pProcessFile->GetProcessEntry32().th32ProcessID))
 		return false;
 
 	rResult.Set(1,0);
@@ -481,55 +371,7 @@ bool				ProcessesFolder::GetOverlayIcon(const std::wstring& rsFilePath, IconLoca
 }
 
 
-void				ProcessesFolder::LoadDriveDevices()
-{
-	m_DriveDevices.clear();
-
-	WCHAR sDrives[MAX_PATH];
-
-	DWORD nDriveLen = GetLogicalDriveStrings(MAX_PATH, sDrives);
-
-	for(WCHAR* sDrive = sDrives; sDrive < &sDrives[nDriveLen];)
-	{
-		WCHAR sBuffer[MAX_PATH];
-
-		if (sDrive[2] == L'\\')
-			sDrive[2] = L'\0';
-
-		if (QueryDosDevice(sDrive, sBuffer, MAX_PATH))
-			m_DriveDevices.push_back(DriveEntry(sDrive, sBuffer));
-
-		sDrive += 4;
-	}
-}
-
-
-bool				ProcessesFolder::ResolveDevicePath(std::wstring& rsPath) const
-{
-	boost::upgrade_lock<boost::shared_mutex> lock(m_Mutex);
-
-	for(int n = 0; n < 2; ++n)
-	{
-		for(std::vector<DriveEntry>::const_iterator it = m_DriveDevices.begin(); it != m_DriveDevices.end(); ++it)
-		{
-			if (rsPath.find(it->second) == 0)
-			{
-				rsPath.replace(0, it->second.length(), it->first);
-
-				return true;
-			}
-		}
-
-		boost::upgrade_to_unique_lock<boost::shared_mutex> rwLock(lock);
-
-		const_cast<ProcessesFolder*>(this)->LoadDriveDevices();
-	}
-
-	return false;
-}
-
-
-BOOL CALLBACK	FoundCB(  HMODULE , LPCTSTR , LPTSTR , LONG_PTR lParam)
+static BOOL CALLBACK	FoundCB(  HMODULE , LPCTSTR , LPTSTR , LONG_PTR lParam)
 {
 	*((bool*)lParam) = true;
 
@@ -537,16 +379,14 @@ BOOL CALLBACK	FoundCB(  HMODULE , LPCTSTR , LPTSTR , LONG_PTR lParam)
 }
 
 
-
-bool				ProcessesFolder::GetCustomIcon(const std::wstring& rsFilePath, IconLocation& rResult) const
+bool	ProcessesFolderShellInterface::GetCustomIcon(IPtrPlisgoFSFile& rFile, IconLocation& rResult) const
 {
-	if (rsFilePath.length() < 2)
+	ProcessFile* pProcessFile = dynamic_cast<ProcessFile*>(rFile.get());
+
+	if (pProcessFile == NULL)
 		return false;
 
-	if (!isdigit(rsFilePath[1]))
-		return false;
-
-	const DWORD nProcessID = _wtoi(&rsFilePath.c_str()[1]); //Skip slash
+	const DWORD nProcessID = pProcessFile->GetProcessEntry32().th32ProcessID;
 
 	HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION, 0, nProcessID); 
 
@@ -580,7 +420,7 @@ bool				ProcessesFolder::GetCustomIcon(const std::wstring& rsFilePath, IconLocat
 	{
 		sFile.resize(nLength);
 
-		if (ResolveDevicePath(sFile))
+		//if (ResolveDevicePath(sFile))
 		{
 			HMODULE hModule = LoadLibraryEx(sFile.c_str(), NULL, LOAD_LIBRARY_AS_DATAFILE);
 
@@ -599,7 +439,7 @@ bool				ProcessesFolder::GetCustomIcon(const std::wstring& rsFilePath, IconLocat
 			}
 			else nLength = 0;
 		}
-		else nLength = 0;
+		//else nLength = 0;
 	}
 
 	CloseHandle(hProcess);
@@ -608,23 +448,38 @@ bool				ProcessesFolder::GetCustomIcon(const std::wstring& rsFilePath, IconLocat
 }
 
 
-bool				ProcessesFolder::GetThumbnail(const std::wstring& rsFilePath, LPCWSTR sExt, IPtrPlisgoFSFile& rThumbnailFile) const
+bool	ProcessesFolderShellInterface::GetThumbnail(IPtrPlisgoFSFile& rFile, std::wstring& rsExt, IPtrPlisgoFSFile& rThumbnailFile) const
 {
-	if (m_ThumbnailPlaceHolder.get() == NULL || sExt == NULL)
+	if (m_ThumbnailPlaceHolder.get() == NULL)
 		return false;
 
-	if (!MatchLower(sExt, L".jpg"))
+	if (dynamic_cast<ProcessFile*>(rFile.get()) == NULL)
 		return false;
-	
+
+	rsExt = L".jpg";
+
 	rThumbnailFile = m_ThumbnailPlaceHolder;
 
 	return true;
 }
 
 
-void				ProcessesFolder::Update()
+
+
+
+
+ProcessesFolder::ProcessesFolder()
 {
-	m_Processes.clear();
+	//Add stubs for mounting of Plisgo GUI files
+	m_Extras.AddFile(L".plisgofs", IPtrPlisgoFSFile(new PlisgoFSStringReadOnly()));
+	m_Extras.AddFile(L"Desktop.ini", IPtrPlisgoFSFile(new PlisgoFSStringReadOnly()));
+}
+
+
+bool				ProcessesFolder::ForEachChild(EachChild& rEachChild) const
+{
+	if (!m_Extras.ForEachFile(rEachChild))
+		return false;
 
 	HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS,0);
 
@@ -639,7 +494,14 @@ void				ProcessesFolder::Update()
 		{
 			do
 			{
-				m_Processes[pe.th32ProcessID] = pe;
+				WCHAR sName[MAX_PATH];
+
+				wsprintf(sName,L"%i", pe.th32ProcessID);
+
+				IPtrPlisgoFSFile file = boost::make_shared<ProcessFile>(pe);
+
+				if (!rEachChild.Do(sName, file))
+					return false;
 
 				pe.dwSize=sizeof(PROCESSENTRY32);
 			}
@@ -648,15 +510,52 @@ void				ProcessesFolder::Update()
 
 		CloseHandle(hSnapshot);
 	}
+
+	return true;
 }
 
 
-IPtrPlisgoFSFile	ProcessesFolder::GetProcessFile(const DWORD nProcessID) const
+IPtrPlisgoFSFile	ProcessesFolder::GetChild(LPCWSTR sName) const
 {
-	std::map<DWORD, PROCESSENTRY32>::const_iterator it = m_Processes.find(nProcessID);
+	IPtrPlisgoFSFile result = m_Extras.GetFile(sName);
 
-	if (it == m_Processes.end())
+	if (result.get() != NULL)
+		return result;
+
+	assert(sName != NULL);
+
+	if (!isdigit(sName[0]))
 		return IPtrPlisgoFSFile();
 
-	return boost::make_shared<ProcessFile>(it->second);
+	const DWORD nProcessID = _wtoi(sName);
+
+	HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS,0);
+
+	if (hSnapshot != NULL)
+	{
+		PROCESSENTRY32 pe;
+
+		// fill up its size
+		pe.dwSize=sizeof(PROCESSENTRY32);
+
+		if(Process32First(hSnapshot,&pe))
+		{
+			do
+			{
+				if (pe.th32ProcessID == nProcessID)
+				{
+					result = boost::make_shared<ProcessFile>(pe);
+
+					break;
+				}
+
+				pe.dwSize=sizeof(PROCESSENTRY32);
+			}
+			while(Process32Next(hSnapshot,&pe));   
+		}
+
+		CloseHandle(hSnapshot);
+	}
+
+	return result;
 }

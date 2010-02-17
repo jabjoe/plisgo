@@ -270,19 +270,17 @@ int					PlisgoVFS::ForEachChild(PlisgoFSFolder* pFolder, const std::wstring& rsL
 	if (pFolder == NULL)
 		return -ERROR_ACCESS_DENIED;
 
+	MountTree::SubKeyMap mntChildren;
+
+	m_MountTree.GetChildMap(rsLowerCasePath, mntChildren);
+
+	if (mntChildren.size())
 	{
-		boost::shared_lock<boost::shared_mutex> lock(m_CacheEntryMutex);
+		MountSensitiveEachChild cb(rCB, mntChildren);
 
-		MountTree::SubKeyMap mntChildren;
-		
-		if (m_MountTree.GetChildMap(rsLowerCasePath, mntChildren) && mntChildren.size())
-		{
-			MountSensitiveEachChild cb(rCB, mntChildren);
+		pFolder->ForEachChild(cb);
 
-			pFolder->ForEachChild(cb);
-
-			return 0;
-		}
+		return 0;
 	}
 
 	pFolder->ForEachChild(rCB);
@@ -358,6 +356,18 @@ int					PlisgoVFS::Repath(LPCWSTR sOldPath, LPCWSTR sNewPath, bool bReplaceExist
 
 	return 0;
 }
+
+
+IPtrPlisgoFSFile	PlisgoVFS::GetPlisgoFSFile(PlisgoFileHandle& rHandle) const
+{
+	OpenFileData* pOpenFileData = GetOpenFileData(rHandle);
+
+	if (pOpenFileData == NULL)
+		return IPtrPlisgoFSFile();
+
+	return pOpenFileData->File;
+}
+
 
 
 int					PlisgoVFS::Open(	PlisgoFileHandle&	rHandle,

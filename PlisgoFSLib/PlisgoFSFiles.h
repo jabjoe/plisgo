@@ -161,7 +161,31 @@ public:
 typedef boost::shared_ptr<PlisgoFSFolder>	IPtrPlisgoFSFolder;
 
 
+struct iequal_to : std::binary_function<std::wstring, std::wstring, bool>
+{
+    bool operator()(std::wstring const& x,
+        std::wstring const& y) const
+    {
+        return boost::algorithm::iequals(x, y, std::locale());
+    }
+};
 
+struct ihash : std::unary_function<std::wstring, std::size_t>
+{
+    std::size_t operator()(std::wstring const& x) const
+    {
+        std::size_t seed = 0;
+        std::locale locale;
+
+        for(std::wstring::const_iterator it = x.begin();
+            it != x.end(); ++it)
+        {
+            boost::hash_combine(seed, std::toupper(*it, locale));
+        }
+
+        return seed;
+    }
+};
 
 class PlisgoFSFileList
 {
@@ -176,9 +200,12 @@ public:
 	void				Clear();
 
 private:
-	mutable boost::shared_mutex					m_Mutex;
 	
-	std::map<std::wstring, IPtrPlisgoFSFile >	m_files;
+	typedef boost::unordered_map<std::wstring, IPtrPlisgoFSFile, ihash, iequal_to> FileMap;
+
+	mutable boost::shared_mutex		m_Mutex;
+	FileMap							m_Files;
+//	std::map<std::wstring, IPtrPlisgoFSFile >	m_files;
 };
 
 
@@ -286,29 +313,60 @@ private:
 };
 
 
-
-class PlisgoFSStringFile : public  PlisgoFSFile
+class PlisgoFSStringReadOnly : public  PlisgoFSFile
 {
 public:
-	PlisgoFSStringFile()												{ m_bReadOnly = m_bWriteOpen = false; }
-
-	PlisgoFSStringFile(	const std::wstring& sData, 
-						bool				bReadOnly = false);
-
-	PlisgoFSStringFile(	const std::string& sData, 
-						bool bReadOnly = false);
+	PlisgoFSStringReadOnly()			{ m_bVolatile = false; }
+	PlisgoFSStringReadOnly(	const std::wstring& sData);
+	PlisgoFSStringReadOnly(	const std::string& sData);
 
 	bool				IsValid() const									{ return !m_bVolatile; }
-
 	void				SetVolatile(bool bVolatile)						{ m_bVolatile = bVolatile; }
+
+	virtual void		GetWideString(std::wstring& rResult)			{ ToWide(rResult, m_sData); }
+	virtual void		GetString(std::string& rsResult)				{ rsResult = m_sData; }
+
+	virtual DWORD		GetAttributes() const							{ return FILE_ATTRIBUTE_HIDDEN|FILE_ATTRIBUTE_READONLY; }
+	virtual LONGLONG	GetSize() const									{ return m_sData.size(); }
+
+	virtual int			Open(	DWORD		nDesiredAccess,
+								DWORD		nShareMode,
+								DWORD		nCreationDisposition,
+								DWORD		nFlagsAndAttributes,
+								ULONGLONG*	pInstanceData);
+
+	virtual int			Read(	LPVOID		pBuffer,
+								DWORD		nNumberOfBytesToRead,
+								LPDWORD		pnNumberOfBytesRead,
+								LONGLONG	nOffset,
+								ULONGLONG*	pInstanceData);
+
+	virtual int			LockFile(	LONGLONG, LONGLONG ,ULONGLONG*	)	{ return 0; }
+	virtual int			UnlockFile(	LONGLONG, LONGLONG ,ULONGLONG*	)	{ return 0; }
+
+	virtual int			Close(ULONGLONG* pInstanceData);
+
+protected:
+	volatile bool					m_bVolatile;
+	std::string						m_sData;
+};
+
+
+class PlisgoFSStringFile : public PlisgoFSStringReadOnly
+{
+public:
+	PlisgoFSStringFile();
+	PlisgoFSStringFile(	const std::wstring& sData);
+	PlisgoFSStringFile(	const std::string& sData);
 
 	void				SetString(const std::wstring& rsData);
 	void				AddString(const std::wstring& rsData);
-	void				GetWideString(std::wstring& rResult);
 
 	void				SetString(const std::string& rsData);
 	void				AddString(const std::string& rsData);
-	void				GetString(std::string& rsResult);
+
+	virtual void		GetWideString(std::wstring& rResult);
+	virtual void		GetString(std::string& rsResult);
 
 	virtual DWORD		GetAttributes() const							{ return FILE_ATTRIBUTE_HIDDEN|((m_bReadOnly)?FILE_ATTRIBUTE_READONLY:0); }
 	virtual LONGLONG	GetSize() const;
@@ -349,9 +407,7 @@ public:
 private:
 	bool							m_bReadOnly;
 	bool							m_bWriteOpen;
-	bool							m_bVolatile;
 
-	std::string						m_sData;
 	mutable boost::shared_mutex		m_Mutex;
 };
 
@@ -541,6 +597,6 @@ inline IPtrPlisgoFSFile	GetPlisgoDesktopIniFile()
 {
 	std::string sData = "[.ShellClassInfo]\r\nCLSID={ADA19F85-EEB6-46F2-B8B2-2BD977934A79}\r\n";
 
-	return IPtrPlisgoFSFile(new PlisgoFSStringFile(sData, true));
+	return IPtrPlisgoFSFile(new PlisgoFSStringReadOnly(sData));
 }
 
