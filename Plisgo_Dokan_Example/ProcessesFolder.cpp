@@ -238,6 +238,40 @@ public:
 };
 
 
+
+static bool ResolveDevicePath(std::wstring& rsFile)
+{ 
+	WCHAR sDrives[MAX_PATH] = {0};
+      
+    if (!GetLogicalDriveStrings(MAX_PATH, sDrives))
+		return false;
+	
+	WCHAR* sDrivesPos = sDrives;
+
+	for(;*sDrivesPos;sDrivesPos += 4)
+	{
+		WCHAR sName[MAX_PATH];
+		WCHAR sDrive[3] = L" :";
+
+		sDrive[0] = *sDrivesPos;
+
+		if (!QueryDosDevice(sDrive, sName, MAX_PATH))
+			return false;
+
+		size_t nNameLen = wcslen(sName);
+
+		if (_wcsnicmp(rsFile.c_str(), sName, nNameLen) == 0)
+		{
+			rsFile.replace(0, nNameLen, sDrive);
+
+			return true;
+		}
+	}
+
+	return false;	
+}
+
+
 ProcessesFolderShellInterface::ProcessesFolderShellInterface()
 {
 	HMODULE hModule = GetModuleHandle(NULL);
@@ -420,7 +454,7 @@ bool	ProcessesFolderShellInterface::GetCustomIcon(IPtrPlisgoFSFile& rFile, IconL
 	{
 		sFile.resize(nLength);
 
-		//if (ResolveDevicePath(sFile))
+		if (ResolveDevicePath(sFile))
 		{
 			HMODULE hModule = LoadLibraryEx(sFile.c_str(), NULL, LOAD_LIBRARY_AS_DATAFILE);
 
@@ -439,7 +473,7 @@ bool	ProcessesFolderShellInterface::GetCustomIcon(IPtrPlisgoFSFile& rFile, IconL
 			}
 			else nLength = 0;
 		}
-		//else nLength = 0;
+		else nLength = 0;
 	}
 
 	CloseHandle(hProcess);
