@@ -25,6 +25,6 @@
 #ifndef __BASIC_FS_UI__
 #define __BASIC_FS_UI__
 
-extern PlisgoFolder*	GetBacisFSUI_PlisgoFolder(PlisgoFiles* pPlisgoFiles, BasicFile* pRoot);
+extern PlisgoFolder*	GetBacisFSUI_PlisgoFolder(PlisgoFiles* pPlisgoFiles, BasicFile* pRoot, LPCWSTR sMount);
 
 #endif //__BASIC_FS_UI__

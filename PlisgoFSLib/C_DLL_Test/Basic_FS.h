@@ -53,8 +53,9 @@ extern UINT			BasicFile_ReadData(BasicFile* pFile, UINT nPos, void* pData, UINT 
 
 // Folder functions
 
-extern BOOL			BasicFile_SetAsFolder(BasicFile* pFile);
 extern BOOL			BasicFile_IsFolder(BasicFile* pFile);
+
+extern BasicFile*	BasicFolder_Create();
 
 extern void			BasicFolder_AddChild(BasicFile* pFolder, LPCWSTR sName, BasicFile* pFile);
 extern void			BasicFolder_RemoveChild(BasicFile* pFolder, LPCWSTR sName);
@@ -68,6 +69,6 @@ extern BasicFile*	BasicFolder_WalkPath(BasicFile* pStart, LPCWSTR sPath);
 
 typedef BOOL (*BasicFolder_ForEachChildCB)(LPCWSTR sName, BasicFile* pFile, void* pData);
 
-extern void			BasicFolder_ForEachChild(BasicFile* pFolder, BasicFolder_ForEachChildCB cb, void* pData);
+extern BOOL			BasicFolder_ForEachChild(BasicFile* pFolder, BasicFolder_ForEachChildCB cb, void* pData);
 
 #endif //__BASICFILESYSTEM__

@@ -21,6 +21,8 @@
 	<http://www.gnu.org/licenses/>.
 */
 
+#define WIN32_EXTRA_LEAN
+#define WIN32_LEAN_AND_MEAN
 
 #include <stdio.h>
 #include <tchar.h>
@@ -32,44 +34,57 @@
 #include "Basic_FS_Host.h"
 
 
-
+/*
+This is the structure we use to keep track of folders openned by Plisgo
+*/
 struct BasicFS_HostFolder
 {
-	BasicFile*	pFile;
+	BasicFile*	pFolder;
 	UINT		nChildIndex;
 };
 typedef struct BasicFS_HostFolder BasicFS_HostFolder;
 
 
-
-static BOOL BasicFS_OpenHostFolderCB(LPCWSTR sPath, void** pHostFolderData, void* pData)
+/*
+This function is called when Plisgo opens the folder
+*/
+static BOOL BasicFS_OpenHostFolderCB(LPCWSTR sPath, void** ppHostFolderData, void* pData)
 {
-	BasicFile* pFile = BasicFolder_WalkPath((BasicFile*)pData, sPath);
+	BasicFile* pFile;
 	BasicFS_HostFolder* pBasicFS_Folder ;
+
+	assert(pData != NULL && sPath != NULL && ppHostFolderData != NULL);
+
+
+	pFile = BasicFolder_WalkPath((BasicFile*)pData, sPath);
 
 	if (pFile == NULL)
 		return FALSE;
 
 	pBasicFS_Folder = (BasicFS_HostFolder*)malloc(sizeof(BasicFS_HostFolder));
 
-	*pHostFolderData = pBasicFS_Folder;
+	*ppHostFolderData = pBasicFS_Folder;
 
-	pBasicFS_Folder->pFile = pFile;
+	pBasicFS_Folder->pFolder = pFile;
 	pBasicFS_Folder->nChildIndex = 0;
 
 	return TRUE;
 }
 
-
+/*
+This function is called while Plisgo is querying the children of the folder
+*/
 static BOOL BasicFS_NextHostFolderChildCB(void* pHostFolderData, WCHAR sChildName[MAX_PATH], BOOL* pbIsFolder, void* pData)
 {
 	BasicFS_HostFolder* pBasicFS_Folder = (BasicFS_HostFolder*)pHostFolderData;
 	BasicFile* pFile;
 
-	if (!BasicFolder_GetChildName(pBasicFS_Folder->pFile,  pBasicFS_Folder->nChildIndex, sChildName))
+	assert(pData != NULL && pbIsFolder != NULL && pHostFolderData != NULL);
+
+	if (!BasicFolder_GetChildName(pBasicFS_Folder->pFolder,  pBasicFS_Folder->nChildIndex, sChildName))
 		return FALSE;
 
-	pFile = BasicFolder_GetChildByIndex(pBasicFS_Folder->pFile, pBasicFS_Folder->nChildIndex);
+	pFile = BasicFolder_GetChildByIndex(pBasicFS_Folder->pFolder, pBasicFS_Folder->nChildIndex);
 
 	if (pFile == NULL)
 		return FALSE;
@@ -83,12 +98,17 @@ static BOOL BasicFS_NextHostFolderChildCB(void* pHostFolderData, WCHAR sChildNam
 	return TRUE;
 }
 
-
+/*
+This function is called while Plisgo is querying a specific child folder
+*/
 static BOOL BasicFS_QueryHostFolderChildCB(void* pHostFolderData, LPCWSTR sChildName, BOOL* pbIsFolder, void* pData)
 {
 	BasicFS_HostFolder* pBasicFS_Folder = (BasicFS_HostFolder*)pHostFolderData;
+	BasicFile* pChild;
 
-	BasicFile* pChild = BasicFolder_GetChild(pBasicFS_Folder->pFile, sChildName);
+	assert(pData != NULL && pbIsFolder != NULL && pHostFolderData != NULL && sChildName != NULL);
+
+	pChild = BasicFolder_GetChild(pBasicFS_Folder->pFolder, sChildName);
 
 	if (pChild == NULL)
 		return FALSE;
@@ -100,12 +120,16 @@ static BOOL BasicFS_QueryHostFolderChildCB(void* pHostFolderData, LPCWSTR sChild
 	return TRUE;
 }
 
-
+/*
+This function is called while Plisgo has finished with the folder
+*/
 static BOOL BasicFS_CloseHostFolderCB(void* pHostFolderData, void* pData)
 {
 	BasicFS_HostFolder* pBasicFS_Folder = (BasicFS_HostFolder*)pHostFolderData;
 
-	BasicFile_Release(pBasicFS_Folder->pFile);
+	assert(pData != NULL && pHostFolderData != NULL);
+
+	BasicFile_Release(pBasicFS_Folder->pFolder);
 
 	free(pBasicFS_Folder);
 
@@ -114,12 +138,17 @@ static BOOL BasicFS_CloseHostFolderCB(void* pHostFolderData, void* pData)
 
 
 
-void GetBasicFSPlisgoToHostCBs(PlisgoToHostCBs* pPlisgoToHostCBs)
+PlisgoToHostCBs* GetBasicFSPlisgoToHostCBs(BasicFile* pRoot)
 {
-	assert(pPlisgoToHostCBs != NULL);
+	static PlisgoToHostCBs hostCBS = {0};
 
-	pPlisgoToHostCBs->OpenHostFolderCB			= BasicFS_OpenHostFolderCB;
-	pPlisgoToHostCBs->NextHostFolderChildCB		= BasicFS_NextHostFolderChildCB;
-	pPlisgoToHostCBs->QueryHostFolderChildCB	= BasicFS_QueryHostFolderChildCB;
-	pPlisgoToHostCBs->CloseHostFolderCB			= BasicFS_CloseHostFolderCB;
+	assert(pRoot != NULL);
+
+	hostCBS.OpenHostFolderCB		= BasicFS_OpenHostFolderCB;
+	hostCBS.NextHostFolderChildCB	= BasicFS_NextHostFolderChildCB;
+	hostCBS.QueryHostFolderChildCB	= BasicFS_QueryHostFolderChildCB;
+	hostCBS.CloseHostFolderCB		= BasicFS_CloseHostFolderCB;
+	hostCBS.pUserData				= pRoot; //All out functions require the root as the userdata
+
+	return &hostCBS;
 }

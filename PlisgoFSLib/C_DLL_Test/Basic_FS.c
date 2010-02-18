@@ -21,10 +21,14 @@
 	<http://www.gnu.org/licenses/>.
 */
 
+#define WIN32_EXTRA_LEAN
+#define WIN32_LEAN_AND_MEAN
 
 #include <stdio.h>
 #include <tchar.h>
+#include <assert.h>
 #include <windows.h>
+#include <malloc.h>
 
 #include "Basic_FS.h"
 
@@ -79,6 +83,8 @@ BasicFile*	BasicFile_Create()
 
 void			BasicFile_GetStats(BasicFile* pFile, BasicStats* pStats)
 {
+	assert(pFile != NULL && pStats != NULL);
+
 	memcpy_s(pStats, sizeof(BasicStats), &pFile->stats, sizeof(BasicStats));
 
 	if (BasicFile_IsFolder(pFile))
@@ -89,6 +95,8 @@ void			BasicFile_GetStats(BasicFile* pFile, BasicStats* pStats)
 
 static BOOL ReleaseFolderChildrenCB(LPCWSTR sName, BasicFile* pFile, void* pData)
 {
+	assert(pFile != NULL);
+
 	BasicFile_Release(pFile);
 
 	return TRUE;
@@ -97,6 +105,8 @@ static BOOL ReleaseFolderChildrenCB(LPCWSTR sName, BasicFile* pFile, void* pData
 
 void			BasicFile_Release(BasicFile* pFile)
 {
+	assert(pFile != NULL);
+
 	--pFile->nRef;
 
 	if (pFile->nRef == 0)
@@ -116,6 +126,8 @@ void			BasicFile_Release(BasicFile* pFile)
 
 static void			BasicFile_WriteData_Internal(BasicFile* pFile, UINT nPos, void* pData, UINT nDataSize)
 {
+	assert(pFile != NULL && pData != NULL);
+
 	if (nPos+nDataSize > pFile->stats.nSize)
 	{
 		pFile->pData = realloc(pFile->pData, nPos+nDataSize);
@@ -132,6 +144,8 @@ static void			BasicFile_WriteData_Internal(BasicFile* pFile, UINT nPos, void* pD
 
 void			BasicFile_WriteData(BasicFile* pFile, UINT nPos, void* pData, UINT nDataSize)
 {
+	assert(pFile != NULL && pData != NULL);
+
 	if (pFile->stats.nAttr == FILE_ATTRIBUTE_DIRECTORY)
 		return;
 
@@ -145,6 +159,8 @@ static UINT			BasicFile_ReadData_Internal(BasicFile* pFile, UINT nPos, void* pDa
 	BYTE*	pDst;
 	BYTE*	pSrc;
 	UINT	n;
+
+	assert(pFile != NULL && pData != NULL);
 
 	if (nPos >= pFile->stats.nSize)
 		return 0;
@@ -168,6 +184,8 @@ static UINT			BasicFile_ReadData_Internal(BasicFile* pFile, UINT nPos, void* pDa
 
 UINT			BasicFile_ReadData(BasicFile* pFile, UINT nPos, void* pData, UINT nDataSize)
 {
+	assert(pFile != NULL && pData != NULL);
+
 	if (pFile->stats.nAttr == FILE_ATTRIBUTE_DIRECTORY)
 		return 0;
 
@@ -175,26 +193,31 @@ UINT			BasicFile_ReadData(BasicFile* pFile, UINT nPos, void* pData, UINT nDataSi
 }
 
 
-
-BOOL			BasicFile_SetAsFolder(BasicFile* pFile)
+BOOL			BasicFile_IsFolder(BasicFile* pFile)
 {
-	if (pFile->stats.nSize != 0)
-		return FALSE;
+	assert(pFile != NULL);
 
-	pFile->stats.nAttr = FILE_ATTRIBUTE_DIRECTORY;
-
-	return TRUE;
+	return (pFile->stats.nAttr&FILE_ATTRIBUTE_DIRECTORY);
 }
 
 
-BOOL			BasicFile_IsFolder(BasicFile* pFile)
+BasicFile*		BasicFolder_Create()
 {
-	return (pFile->stats.nAttr&FILE_ATTRIBUTE_DIRECTORY);
+	BasicFile*	pResult = BasicFile_Create();
+
+	if (pResult == NULL)
+		return NULL;
+	
+	pResult->stats.nAttr = FILE_ATTRIBUTE_DIRECTORY;
+
+	return pResult;
 }
 
 
 static UINT	BasicFolder_GetChildNum_Internal(BasicFile* pFolder)
 {
+	assert(pFolder != NULL);
+
 	if (!BasicFile_IsFolder(pFolder))
 		return 0;
 
@@ -205,6 +228,8 @@ static UINT	BasicFolder_GetChildNum_Internal(BasicFile* pFolder)
 static FolderEntry*		BasicFolder_GetChildEntry(BasicFile* pFolder, LPCWSTR sName)
 {
 	ULONG n;
+
+	assert(pFolder != NULL && sName != NULL);
 
 	if (!BasicFile_IsFolder(pFolder))
 		return NULL;
@@ -239,6 +264,8 @@ void			BasicFolder_AddChild(BasicFile* pFolder, LPCWSTR sName, BasicFile* pFile)
 {
 	FolderEntry* pEntry;
 
+	assert(pFolder != NULL && sName != NULL && pFile != NULL);
+
 	if (!BasicFile_IsFolder(pFolder))
 		return;
 
@@ -267,6 +294,8 @@ void			BasicFolder_RemoveChild(BasicFile* pFolder, LPCWSTR sName)
 {
 	FolderEntry* pFolderEntry = BasicFolder_GetChildEntry(pFolder, sName);
 
+	assert(pFolder != NULL && sName != NULL);
+
 	if (pFolderEntry->pFile != NULL)
 	{
 		BasicFile_Release(pFolderEntry->pFile);
@@ -278,6 +307,8 @@ void			BasicFolder_RemoveChild(BasicFile* pFolder, LPCWSTR sName)
 BasicFile*		BasicFolder_GetChild(BasicFile* pFolder, LPCWSTR sName)
 {
 	FolderEntry* pFolderEntry = BasicFolder_GetChildEntry(pFolder, sName);
+
+	assert(pFolder != NULL && sName != NULL);
 
 	if (pFolderEntry == NULL)
 		return NULL;
@@ -291,6 +322,8 @@ BasicFile*		BasicFolder_GetChild(BasicFile* pFolder, LPCWSTR sName)
 BasicFile*		BasicFolder_WalkPath(BasicFile* pCurrent, LPCWSTR sPath)
 {
 	LPCWSTR sNext;
+
+	assert(pCurrent != NULL && sPath != NULL);
 
 	if (!BasicFile_IsFolder(pCurrent))
 		return NULL;
@@ -327,12 +360,14 @@ BasicFile*		BasicFolder_WalkPath(BasicFile* pCurrent, LPCWSTR sPath)
 }
 
 
-void			BasicFolder_ForEachChild(BasicFile* pFolder, BasicFolder_ForEachChildCB cb, void* pData)
+BOOL		BasicFolder_ForEachChild(BasicFile* pFolder, BasicFolder_ForEachChildCB cb, void* pData)
 {
 	ULONG n;
 
+	assert(pFolder != NULL && cb != NULL);
+
 	if (!BasicFile_IsFolder(pFolder))
-		return;
+		return TRUE;
 
 	n = BasicFolder_GetChildNum_Internal(pFolder);
 
@@ -340,15 +375,20 @@ void			BasicFolder_ForEachChild(BasicFile* pFolder, BasicFolder_ForEachChildCB c
 	{
 		FolderEntry* pFolderEntry = &((FolderEntry*)pFolder->pData)[n];
 
-		if (pFolderEntry->pFile != NULL && !cb(pFolderEntry->sName, pFolderEntry->pFile, pData))
-			return;
+		if (pFolderEntry->pFile != NULL)
+			if (!cb(pFolderEntry->sName, pFolderEntry->pFile, pData))
+				return FALSE;
 	}
+
+	return TRUE;
 }
 
 
 BasicFile*	BasicFolder_GetChildByIndex(BasicFile* pFolder, int nIndex)
 {
 	ULONG n;
+
+	assert(pFolder != NULL);
 
 	if (!BasicFile_IsFolder(pFolder))
 		return NULL;
@@ -378,6 +418,8 @@ BasicFile*	BasicFolder_GetChildByIndex(BasicFile* pFolder, int nIndex)
 BOOL			BasicFolder_GetChildName(BasicFile* pFolder, int nIndex, WCHAR sChildName[MAX_PATH])
 {
 	ULONG n;
+
+	assert(pFolder != NULL);
 
 	if (!BasicFile_IsFolder(pFolder))
 		return FALSE;

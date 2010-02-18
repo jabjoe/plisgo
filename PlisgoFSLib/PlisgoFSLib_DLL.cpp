@@ -153,19 +153,13 @@ public:
 		return HostFolder::GetChild(sName);
 	}
 
-	virtual int					CreateChild(IPtrPlisgoFSFile& rChild, LPCWSTR sName, DWORD )
-	{
-		//This is only used to create stubs for .plisgofs and desktop.ini
-		if (sName == NULL)
-			return -ERROR_INVALID_NAME;
-
-		rChild.reset(new PlisgoFSStringReadOnly("STUB"));
-
-		return AddChild(sName, rChild);
-	}
-
 	virtual int					AddChild(LPCWSTR sName, IPtrPlisgoFSFile file)
 	{
+		IPtrPlisgoFSFile existing = HostFolder::GetChild(sName);
+
+		if (existing.get() == NULL)
+			return -ERROR_ACCESS_DENIED;
+
 		m_Extras.AddFile(sName, file);
 
 		return 0;
@@ -216,7 +210,7 @@ public:
 		}
 		else
 		{
-			PlisgoFSStringFile* pHostFile = dynamic_cast<PlisgoFSStringFile*>(rFile.get());
+			HostFile* pHostFile = dynamic_cast<HostFile*>(rFile.get());
 
 			if (pHostFile == NULL)
 				return false;
@@ -308,10 +302,14 @@ public:
 		if (!GetHostPath(rFile, sHostPath))
 			return false;
 
-		WCHAR sExt[4];
 		WCHAR sPathBuffer[MAX_PATH];
 
-		if (!m_CBs.GetThumbnailCB(sHostPath.c_str(), sExt, sPathBuffer, m_CBs.pUserData))
+		if (!m_CBs.GetThumbnailCB(sHostPath.c_str(), sPathBuffer, m_CBs.pUserData))
+			return false;
+
+		WCHAR* sExt = wcsrchr(sPathBuffer, L'.');
+
+		if (sExt == NULL)
 			return false;
 
 		rsExt = sExt;
@@ -407,15 +405,31 @@ int		PlisgoFilesDestroy(PlisgoFiles* pPlisgoFiles)
 
 
 
-int		PlisgoFolderCreate(PlisgoFiles* pPlisgoFiles, PlisgoFolder** ppPlisgoFolder, LPCWSTR sFolder, LPCWSTR sFSName, PlisgoGUICBs* pCBs)
+int		PlisgoFolderCreate(PlisgoFiles* pPlisgoFiles, PlisgoFolder** ppPlisgoFolder, LPCWSTR sFolder, PlisgoGUICBs* pCBs)
 {
-	if (pPlisgoFiles == NULL || ppPlisgoFolder == NULL || sFSName == NULL || pCBs == NULL)
+	if (pPlisgoFiles == NULL || ppPlisgoFolder == NULL || pCBs == NULL)
 		return -ERROR_BAD_ARGUMENTS;
 
 	IPtrPlisgoFSFile mountParent = pPlisgoFiles->VFS->TracePath(sFolder);
 
 	if (mountParent.get() == NULL)
 		return -ERROR_BAD_PATHNAME;
+
+	PlisgoFSFolder* pFolder = mountParent->GetAsFolder();
+
+	if (pFolder == NULL)
+		return -ERROR_BAD_PATHNAME;
+
+	IPtrPlisgoFSFile stub = pFolder->GetChild(L".plisgofs");
+
+	if (stub.get() == NULL)
+		return -ERROR_BAD_PATHNAME;
+
+	stub = pFolder->GetChild(L"Desktop.ini");
+
+	if (stub.get() == NULL)
+		return -ERROR_BAD_PATHNAME;
+
 
 	if (dynamic_cast<HostFolderWithExtras*>(mountParent.get()) == NULL)
 	{
@@ -435,9 +449,7 @@ int		PlisgoFolderCreate(PlisgoFiles* pPlisgoFiles, PlisgoFolder** ppPlisgoFolder
 	(*ppPlisgoFolder)->ShellInfoFetcher.reset(pIShellInfoFetcher);
 	(*ppPlisgoFolder)->sMount = sFolder;
 
-	wcscpy_s(pCBs->sFSName, MAX_PATH, sFSName);
-
-	IPtrRootPlisgoFSFolder Plisgo = pIShellInfoFetcher->CreatePlisgoFolder(L"", pPlisgoFiles->VFS);
+	IPtrRootPlisgoFSFolder Plisgo = pIShellInfoFetcher->CreatePlisgoFolder(sFolder, pPlisgoFiles->VFS);
 
 	if (Plisgo.get() == NULL || pIShellInfoFetcher == NULL)
 	{
@@ -612,9 +624,7 @@ static bool HostFileToSkip(IPtrPlisgoFSFile& rFile)
 
 	assert(pFile != NULL);
 
-	return (dynamic_cast<HostFolderWithExtras*>(pFile) == NULL &&
-				(dynamic_cast<HostFile*>(pFile) != NULL || 
-				 dynamic_cast<HostFolder*>(pFile) != NULL));
+	return (dynamic_cast<HostFile*>(pFile) != NULL || dynamic_cast<HostFolder*>(pFile) != NULL);
 }
 
 

@@ -21,11 +21,14 @@
 	<http://www.gnu.org/licenses/>.
 */
 
-
+#define WIN32_EXTRA_LEAN
+#define WIN32_LEAN_AND_MEAN
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <tchar.h>
 #include <windows.h>
+#include <assert.h>
 
 #include "../PlisgoFSLib_DLL.h"
 #include "Basic_FS.h"
@@ -33,6 +36,17 @@
 #include "Basic_FS_Host.h"
 
 
+static void PrintPlisgoFileInfo(PlisgoFileInfo* pPlisgoFileInfo, int nDepth)
+{
+	BOOL bFolder;
+
+	bFolder = ((pPlisgoFileInfo->nAttr & FILE_ATTRIBUTE_DIRECTORY) == FILE_ATTRIBUTE_DIRECTORY)?TRUE:FALSE;
+
+	while(nDepth--)
+		wprintf(L"    ");
+
+	wprintf(L"%s %s: %I64u\n", pPlisgoFileInfo->sName, (bFolder)?L"(folder)":L"", pPlisgoFileInfo->nSize);
+}
 
 
 
@@ -45,19 +59,15 @@ struct DumpTreePacket
 typedef struct DumpTreePacket DumpTreePacket;
 
 
-static BOOL DumpTreeCB(PlisgoFileInfo* pPlisgoFileInfo, void* pData)
+static BOOL DumpVirtualTreeCB(PlisgoFileInfo* pPlisgoFileInfo, void* pData)
 {
 	DumpTreePacket* pPacket = (DumpTreePacket*)pData;
 
-	int nDepth = pPacket->nDepth;
-	BOOL bFolder = ((pPlisgoFileInfo->nAttr & FILE_ATTRIBUTE_DIRECTORY) == FILE_ATTRIBUTE_DIRECTORY)?TRUE:FALSE;
+	assert(pData != NULL && pPlisgoFileInfo != NULL);
 
-	while(nDepth--)
-		wprintf(L"    ");
+	PrintPlisgoFileInfo(pPlisgoFileInfo, pPacket->nDepth);
 
-	wprintf(L"%s %s: %I64u\n", pPlisgoFileInfo->sName, (bFolder)?L"(folder)":L"", pPlisgoFileInfo->nSize);
-
-	if (bFolder)
+	if (pPlisgoFileInfo->nAttr & FILE_ATTRIBUTE_DIRECTORY)
 	{
 		size_t nPos = wcslen(pPacket->sPath);
 
@@ -72,7 +82,7 @@ static BOOL DumpTreeCB(PlisgoFileInfo* pPlisgoFileInfo, void* pData)
 
 		if (pVirtualFile != NULL)
 		{
-			PlisgoVirtualFileForEachChild(pVirtualFile, DumpTreeCB, pPacket);
+			PlisgoVirtualFileForEachChild(pVirtualFile, DumpVirtualTreeCB, pPacket);
 
 			PlisgoVirtualFileClose(pVirtualFile);
 		}
@@ -87,10 +97,8 @@ static BOOL DumpTreeCB(PlisgoFileInfo* pPlisgoFileInfo, void* pData)
 }
 
 
-BOOL DumpBasicFSTreeCB(LPCWSTR sName, BasicFile* pFile, void* pData)
+static void PrintBasicFile(LPCWSTR sName, BasicFile* pFile, int nDepth)
 {
-	int nDepth = *(int*)pData;
-	BOOL bFolder;
 	BasicStats stats;
 
 	while(nDepth--)
@@ -98,55 +106,141 @@ BOOL DumpBasicFSTreeCB(LPCWSTR sName, BasicFile* pFile, void* pData)
 
 	BasicFile_GetStats(pFile, &stats);
 
-	bFolder = ((stats.nAttr & FILE_ATTRIBUTE_DIRECTORY) == FILE_ATTRIBUTE_DIRECTORY);
+	wprintf(L"%s %s: %I64u\n", sName, (BasicFile_IsFolder(pFile))?L"(folder)":L"", stats.nSize);
+}
 
-	wprintf(L"%s %s: %I64u\n", sName, (bFolder)?L"(folder)":L"", stats.nSize);
 
-	if (bFolder)
+static void CreateTestTree(BasicFile* pParent, int nDepth)
+{
+	WCHAR sName[MAX_PATH];
+	int nChildNum;
+
+	assert(pParent != NULL);
+	
+	nChildNum = 1 + (rand() % 8);
+
+
+	while(nChildNum--)
 	{
-		++(*(int*)pData);
+		BOOL bFolder = (rand()%2 == 0);
 
-		BasicFolder_ForEachChild(pFile, DumpBasicFSTreeCB, pData);
+		BasicFile* pTemp;
 
-		--(*(int*)pData);
+		if (bFolder)
+			pTemp = BasicFolder_Create();
+		else
+			pTemp = BasicFile_Create();
+
+		wsprintf(sName, L"file_%i", rand()%100000);
+
+		BasicFolder_AddChild(pParent, sName, pTemp);
+
+		if (bFolder)
+			if (rand()%2 == 0 && nDepth < 6)
+				CreateTestTree(pTemp, nDepth+1);
+
+		BasicFile_Release(pTemp);
 	}
+}
+
+
+static BOOL FindRandomFolderCB(LPCWSTR sName, BasicFile* pFile, void* pData)
+{
+	DumpTreePacket* pPacket = (DumpTreePacket*)pData;
+
+	assert(pData != NULL && pFile != NULL && sName != NULL);
+
+	if (BasicFile_IsFolder(pFile))
+	{
+		size_t nPos = wcslen(pPacket->sPath);
+
+		if (sName[0] != L'\0')
+		{
+			wcscat_s(pPacket->sPath, MAX_PATH, L"\\");
+			wcscat_s(pPacket->sPath, MAX_PATH, sName);
+		}
+
+		if ((rand()%(GetTotalBasicFileNum())) == pPacket->nDepth)
+			return FALSE;
+
+		if (!BasicFolder_ForEachChild(pFile, FindRandomFolderCB, pData))
+			return FALSE;
+
+		pPacket->sPath[nPos] = L'\0';
+	}
+
+	++(pPacket->nDepth);
 
 	return TRUE;
 }
 
 
-
-static void CreateTestTree(BasicFile* pParent, int nDepth)
+static void FindRandomFolder(BasicFile* pRoot, WCHAR sMountTest[MAX_PATH])
 {
-	BOOL bHasSubFolder = FALSE;
-	WCHAR sName[MAX_PATH];
-	int nChildNum;
-	
-	nChildNum = 1 + (rand() % 20);
+	DumpTreePacket packet = {0};
 
+	assert(pRoot != NULL);
 
-	while(nChildNum--)
-	{
-		BasicFile* pTemp;
+	FindRandomFolderCB(L"",pRoot,&packet);
 
-		pTemp = BasicFile_Create();
-
-		wsprintf(sName, L"file_%i", rand()%100);
-
-		BasicFolder_AddChild(pParent, sName, pTemp);
-
-		if (nDepth < 4 && ((rand()%4 == 0) || (!bHasSubFolder && nChildNum == 0)))
-		{
-			BasicFile_SetAsFolder(pTemp);
-
-			CreateTestTree(pTemp, nDepth+1);
-
-			bHasSubFolder = TRUE;
-		}
-
-		BasicFile_Release(pTemp);
-	}
+	wcscpy_s(sMountTest, MAX_PATH, packet.sPath);
 }
+
+
+/*
+	Example of using virtual files along side own files
+*/
+
+static BOOL DumpCombinedTreeCB(LPCWSTR sName, BasicFile* pFile, void* pData)
+{
+	DumpTreePacket* pPacket = (DumpTreePacket*)pData;
+	PlisgoVirtualFile* pVirtualFile = NULL;
+	size_t nPos;
+
+	assert(pData != NULL && pFile != NULL && sName != NULL);
+
+	nPos = wcslen(pPacket->sPath);
+
+	if (sName[0] != L'\0')
+	{
+		wcscat_s(pPacket->sPath, MAX_PATH, L"\\");
+		wcscat_s(pPacket->sPath, MAX_PATH, sName);
+	}
+	
+	//Does this BasicFile have a virtual override?
+	PlisgoVirtualFileOpen(pPacket->pPlisgoFiles, pPacket->sPath, &pVirtualFile, GENERIC_READ, 0, OPEN_EXISTING, 0);
+
+	if (pVirtualFile != NULL)
+	{
+		//This BasicFile has a virtual override, use that instead
+		PlisgoFileInfo info;
+
+		if (PlisgoVirtualGetFileInfo(pVirtualFile, &info) == 0)
+			PrintPlisgoFileInfo(&info, pPacket->nDepth);
+
+		++(pPacket->nDepth);
+		PlisgoVirtualFileForEachChild(pVirtualFile, DumpVirtualTreeCB, pData);
+		--(pPacket->nDepth);
+
+		PlisgoVirtualFileClose(pVirtualFile);
+	}
+	else
+	{
+		//This BasicFile comes as is
+
+		PrintBasicFile(sName, pFile, pPacket->nDepth);
+
+		++(pPacket->nDepth);
+		BasicFolder_ForEachChild(pFile, DumpCombinedTreeCB, pData);
+		--(pPacket->nDepth);
+	}
+
+	pPacket->sPath[nPos] = L'\0';
+
+	return TRUE;
+}
+
+
 
 
 /*
@@ -156,71 +250,46 @@ static void CreateTestTree(BasicFile* pParent, int nDepth)
 
 int _tmain(int argc, _TCHAR* argv[])
 {
+	PlisgoFolder* pPlisgoFolder = NULL;
+	PlisgoFiles* pPlisgoFiles = NULL;	
+	BasicFile* pRoot = NULL;
+	WCHAR sMountTest[MAX_PATH];
 	int nError = 0;
-	BasicFile* pRoot;
-	PlisgoFiles* pPlisgoFiles = NULL;
+	ULONG64	nNow;
 
-	PlisgoToHostCBs	hostCBS = {0};
+	pRoot = BasicFolder_Create();
 
+	assert(pRoot != NULL);
 
-	GetBasicFSPlisgoToHostCBs(&hostCBS);
+	GetSystemTimeAsFileTime((FILETIME*)&nNow);
 
-	pRoot = BasicFile_Create();
-
-	hostCBS.pUserData = pRoot;
-
-	BasicFile_SetAsFolder(pRoot);
-
+	srand((ULONG)nNow);
 	CreateTestTree(pRoot, 0);
 
+	sMountTest[0] = L'\0';
+	
+	FindRandomFolder(pRoot, sMountTest);
 
-	nError = PlisgoFilesCreate(&pPlisgoFiles, &hostCBS);
+	nError = PlisgoFilesCreate(&pPlisgoFiles, GetBasicFSPlisgoToHostCBs(pRoot));
 
-	if (nError == 0 && pPlisgoFiles != NULL)
+	assert(nError == 0 && pPlisgoFiles != NULL);
+
+	pPlisgoFolder = GetBacisFSUI_PlisgoFolder(pPlisgoFiles, pRoot, sMountTest);
+
+	//Dump combined tree
 	{
-		PlisgoVirtualFile* pVirtualFile = NULL;
-		PlisgoFolder* pPlisgoFolder = NULL;
-		int nMenuItem = 0;
+		DumpTreePacket packet = {0};
 
-		pPlisgoFolder = GetBacisFSUI_PlisgoFolder(pPlisgoFiles, pRoot);
+		packet.pPlisgoFiles = pPlisgoFiles;
 
-		if (pPlisgoFolder != NULL)
-		{
-			//Right it's all populated, dump the tree!
-
-			//Open the root
-			PlisgoVirtualFileOpen(pPlisgoFiles, L"", &pVirtualFile, GENERIC_READ, 0, OPEN_EXISTING, 0);
-
-			if (pVirtualFile != NULL)
-			{
-				DumpTreePacket packet;
-
-				packet.nDepth = 0;
-				packet.pPlisgoFiles = pPlisgoFiles;
-				packet.sPath[0] = L'\0';
-
-				wprintf(L"\n\n======Extra \"Virtual\" filesystem =========\n\n");
-
-				PlisgoVirtualFileForEachChild(pVirtualFile, DumpTreeCB, &packet);
-
-				PlisgoVirtualFileClose(pVirtualFile);
-			}
-
-			{
-				int nDepth = 0;
-
-				wprintf(L"\n\n======\"Real\" filesystem =========\n\n");
-
-				BasicFolder_ForEachChild(pRoot, DumpBasicFSTreeCB, &nDepth);
-			}
-
-			PlisgoFolderDestroy(pPlisgoFolder);
-		}
-
-
-		PlisgoFilesDestroy(pPlisgoFiles);
+		DumpCombinedTreeCB(L"", pRoot, &packet);
 	}
 
+
+	if (pPlisgoFolder != NULL)
+		PlisgoFolderDestroy(pPlisgoFolder);
+	
+	PlisgoFilesDestroy(pPlisgoFiles);
 	BasicFile_Release(pRoot);
 
 	if (GetTotalBasicFileNum())

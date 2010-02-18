@@ -73,7 +73,7 @@ PLISGOCALL	int		PlisgoFilesDestroy(PlisgoFiles* pPlisgoFiles);
 typedef BOOL (*PlisgoIsShelledFolderCB)(LPCWSTR sFolderPath, void* pData);
 typedef BOOL (*PlisgoGetColumnEntryCB)(LPCWSTR sFile, UINT nColumn, WCHAR sBuffer[MAX_PATH], void* pData);
 typedef BOOL (*PlisgoGetIconCB)(LPCWSTR sFile, BOOL* pbUsesList, UINT* pnList, WCHAR sPathBuffer[MAX_PATH], UINT* pnEntryIndex, void* pData);
-typedef BOOL (*PlisgoGetThumbnailCB)(LPCWSTR sFile, WCHAR sThumbnailExt[4], WCHAR sPathBuffer[MAX_PATH], void* pData);
+typedef BOOL (*PlisgoGetThumbnailCB)(LPCWSTR sFile, WCHAR sPathBuffer[MAX_PATH], void* pData);
 
 //Called for menu enabled test and when menu item clicked.
 typedef BOOL (*PlisgoPathCB)(LPCWSTR sFile, void* pData); 
@@ -101,7 +101,7 @@ typedef struct PlisgoGUICBs PlisgoGUICBs;
 typedef struct PlisgoFolder PlisgoFolder;
 
 
-PLISGOCALL	int		PlisgoFolderCreate(PlisgoFiles* pPlisgoFiles, PlisgoFolder** ppPlisgoFolder, LPCWSTR sFolder, LPCWSTR sFSName, PlisgoGUICBs* pCBs);
+PLISGOCALL	int		PlisgoFolderCreate(PlisgoFiles* pPlisgoFiles, PlisgoFolder** ppPlisgoFolder, LPCWSTR sFolder, PlisgoGUICBs* pCBs);
 PLISGOCALL	int		PlisgoFolderDestroy(PlisgoFolder* pPlisgoFolder);
 
 

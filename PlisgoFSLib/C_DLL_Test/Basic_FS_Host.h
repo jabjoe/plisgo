@@ -21,11 +21,10 @@
 	<http://www.gnu.org/licenses/>.
 */
 
+
 #ifndef __BASIC_FS_HOST__
 #define __BASIC_FS_HOST__
 
-typedef struct PlisgoToHostCBs PlisgoToHostCBs;
-
-extern void GetBasicFSPlisgoToHostCBs(PlisgoToHostCBs* pPlisgoToHostCBs);
+extern PlisgoToHostCBs* GetBasicFSPlisgoToHostCBs(BasicFile* pRoot);
 
 #endif //__BASIC_FS_HOST__
