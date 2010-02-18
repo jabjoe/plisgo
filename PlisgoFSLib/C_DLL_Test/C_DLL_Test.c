@@ -101,7 +101,7 @@ BOOL TestPlisgoGetThumbnailCB(LPCWSTR sFile, WCHAR sThumbnailExt[4], WCHAR sPath
 	if (pFile == NULL)
 		return FALSE;
 
-	wcscpy_s(sThumbnailExt, 4, L".jpg");
+	wcscpy_s(sThumbnailExt, 4, L"jpg");
 
 	BasicFile_Release(pFile);
 
