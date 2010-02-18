@@ -177,6 +177,14 @@
 				>
 			</File>
 			<File
+				RelativePath=".\Basic_FS_Host.c"
+				>
+			</File>
+			<File
+				RelativePath=".\Basic_FS_UI.c"
+				>
+			</File>
+			<File
 				RelativePath=".\C_DLL_Test.c"
 				>
 			</File>
@@ -186,6 +194,14 @@
 			>
 			<File
 				RelativePath=".\Basic_FS.h"
+				>
+			</File>
+			<File
+				RelativePath=".\Basic_FS_Host.h"
+				>
+			</File>
+			<File
+				RelativePath=".\Basic_FS_UI.h"
 				>
 			</File>
 		</Filter>

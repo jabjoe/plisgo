@@ -23,192 +23,14 @@
 
 
 
-
-#ifndef _WIN32_WINNT            // Specifies that the minimum required platform is Windows Vista.
-#define _WIN32_WINNT 0x0600     // Change this to the appropriate value to target other versions of Windows.
-#endif
-
 #include <stdio.h>
 #include <tchar.h>
 #include <windows.h>
+
 #include "../PlisgoFSLib_DLL.h"
 #include "Basic_FS.h"
-
-
-
-
-
-
-
-BOOL TestIsShelledCB(LPCWSTR sPath, void* pData)
-{
-	BasicFile* pFile = BasicFolder_WalkPath((BasicFile*)pData, sPath);
-
-	if (pFile == NULL)
-		return FALSE;
-
-	BasicFile_Release(pFile);
-
-	return TRUE;
-}
-
-
-BOOL TestPlisgoGetColumnEntryCB(LPCWSTR sFile, UINT nColumn, WCHAR sBuffer[MAX_PATH], void* pData)
-{
-	BasicFile* pFile = BasicFolder_WalkPath((BasicFile*)pData, sFile);
-
-	if (pFile == NULL)
-		return FALSE;
-
-	BasicFile_Release(pFile);
-
-	return FALSE;
-
-}
-
-
-BOOL TestPlisgoGetOverlayIconCB(LPCWSTR sFile, BOOL* pbUsesList, UINT* pnList, WCHAR sPathBuffer[MAX_PATH], UINT* pnEntryIndex, void* pData)
-{
-	BasicFile* pFile = BasicFolder_WalkPath((BasicFile*)pData, sFile);
-
-	if (pFile == NULL)
-		return FALSE;
-
-	BasicFile_Release(pFile);
-
-	return FALSE;
-}
-
-
-BOOL TestPlisgoGetCustomIconCB(LPCWSTR sFile, BOOL* pbUsesList, UINT* pnList, WCHAR sPathBuffer[MAX_PATH], UINT* pnEntryIndex, void* pData)
-{
-	BasicFile* pFile = BasicFolder_WalkPath((BasicFile*)pData, sFile);
-
-	if (pFile == NULL)
-		return FALSE;
-
-	BasicFile_Release(pFile);
-
-	return FALSE;
-}
-
-
-
-BOOL TestPlisgoGetThumbnailCB(LPCWSTR sFile, WCHAR sThumbnailExt[4], WCHAR sPathBuffer[MAX_PATH], void* pData)
-{
-	BasicFile* pFile = BasicFolder_WalkPath((BasicFile*)pData, sFile);
-
-	if (pFile == NULL)
-		return FALSE;
-
-	wcscpy_s(sThumbnailExt, 4, L"jpg");
-
-	BasicFile_Release(pFile);
-
-	return FALSE;
-}
-
-
-BOOL TestOnClickCB(LPCWSTR sFile, void* pData)
-{
-	//Our menu item has been click on
-
-	return TRUE;
-}
-
-
-BOOL TestIsEnabledCB(LPCWSTR sFile, void* pData)
-{
-	//We want our menu item enabled regardless of what file
-
-	return TRUE;
-}
-
-
-
-struct BasicFS_HostFolder
-{
-	BasicFile*	pFile;
-	UINT		nChildIndex;
-};
-typedef struct BasicFS_HostFolder BasicFS_HostFolder;
-
-
-
-BOOL BasicFS_OpenHostFolderCB(LPCWSTR sPath, void** pHostFolderData, void* pData)
-{
-	BasicFile* pFile = BasicFolder_WalkPath((BasicFile*)pData, sPath);
-	BasicFS_HostFolder* pBasicFS_Folder ;
-
-	if (pFile == NULL)
-		return FALSE;
-
-	pBasicFS_Folder = (BasicFS_HostFolder*)malloc(sizeof(BasicFS_HostFolder));
-
-	*pHostFolderData = pBasicFS_Folder;
-
-	pBasicFS_Folder->pFile = pFile;
-	pBasicFS_Folder->nChildIndex = 0;
-
-	return TRUE;
-}
-
-
-BOOL BasicFS_NextHostFolderChildCB(void* pHostFolderData, WCHAR sChildName[MAX_PATH], BOOL* pbIsFolder, void* pData)
-{
-	BasicFS_HostFolder* pBasicFS_Folder = (BasicFS_HostFolder*)pHostFolderData;
-	BasicFile* pFile;
-
-	if (!BasicFolder_GetChildName(pBasicFS_Folder->pFile,  pBasicFS_Folder->nChildIndex, sChildName))
-		return FALSE;
-
-	pFile = BasicFolder_GetChildByIndex(pBasicFS_Folder->pFile, pBasicFS_Folder->nChildIndex);
-
-	if (pFile == NULL)
-		return FALSE;
-
-	(pBasicFS_Folder->nChildIndex)++;
-
-	*pbIsFolder = BasicFile_IsFolder(pFile);
-
-	BasicFile_Release(pFile);
-
-	return TRUE;
-}
-
-
-BOOL BasicFS_QueryHostFolderChildCB(void* pHostFolderData, LPCWSTR sChildName, BOOL* pbIsFolder, void* pData)
-{
-	BasicFS_HostFolder* pBasicFS_Folder = (BasicFS_HostFolder*)pHostFolderData;
-
-	BasicFile* pChild = BasicFolder_GetChild(pBasicFS_Folder->pFile, sChildName);
-
-	if (pChild == NULL)
-		return FALSE;
-
-	*pbIsFolder = BasicFile_IsFolder(pChild);
-
-	BasicFile_Release(pChild);
-
-	return TRUE;
-}
-
-
-BOOL BasicFS_CloseHostFolderCB(void* pHostFolderData, void* pData)
-{
-	BasicFS_HostFolder* pBasicFS_Folder = (BasicFS_HostFolder*)pHostFolderData;
-
-	BasicFile_Release(pBasicFS_Folder->pFile);
-
-	free(pBasicFS_Folder);
-
-	return TRUE;
-}
-
-
-
-
-
+#include "Basic_FS_UI.h"
+#include "Basic_FS_Host.h"
 
 
 
@@ -338,29 +160,18 @@ int _tmain(int argc, _TCHAR* argv[])
 	BasicFile* pRoot;
 	PlisgoFiles* pPlisgoFiles = NULL;
 
-	PlisgoGUICBs	shellCBs = {0};
 	PlisgoToHostCBs	hostCBS = {0};
 
-	shellCBs.IsShelledFolderCB	= &TestIsShelledCB;
-	shellCBs.GetColumnEntryCB	= &TestPlisgoGetColumnEntryCB;
-	shellCBs.GetCustomIconCB	= &TestPlisgoGetCustomIconCB;
-	shellCBs.GetOverlayIconCB	= &TestPlisgoGetOverlayIconCB;
-	shellCBs.GetThumbnailCB		= &TestPlisgoGetThumbnailCB;
 
-	hostCBS.OpenHostFolderCB		= BasicFS_OpenHostFolderCB;
-	hostCBS.NextHostFolderChildCB	= BasicFS_NextHostFolderChildCB;
-	hostCBS.QueryHostFolderChildCB	= BasicFS_QueryHostFolderChildCB;
-	hostCBS.CloseHostFolderCB		= BasicFS_CloseHostFolderCB;
+	GetBasicFSPlisgoToHostCBs(&hostCBS);
 
 	pRoot = BasicFile_Create();
 
-	shellCBs.pUserData = pRoot;
 	hostCBS.pUserData = pRoot;
 
 	BasicFile_SetAsFolder(pRoot);
 
 	CreateTestTree(pRoot, 0);
-
 
 
 	nError = PlisgoFilesCreate(&pPlisgoFiles, &hostCBS);
@@ -371,25 +182,10 @@ int _tmain(int argc, _TCHAR* argv[])
 		PlisgoFolder* pPlisgoFolder = NULL;
 		int nMenuItem = 0;
 
-		PlisgoFolderCreate(pPlisgoFiles, &pPlisgoFolder, L"", L"test", &shellCBs); 		
+		pPlisgoFolder = GetBacisFSUI_PlisgoFolder(pPlisgoFiles, pRoot);
 
 		if (pPlisgoFolder != NULL)
 		{
-			PlisgoFolderAddColumn(pPlisgoFolder, L"Test Column");
-			PlisgoFolderSetColumnType(pPlisgoFolder, 0, 1);
-			PlisgoFolderSetColumnAlignment(pPlisgoFolder, 0, 1);
-			PlisgoFolderAddIconsList(pPlisgoFolder, L"C:\\Windows\\Blue Lace 16.bmp");
-
-			PlisgoFolderAddCustomFolderIcon(pPlisgoFolder, 0, 0, 0, 0);
-			PlisgoFolderAddCustomDefaultIcon(pPlisgoFolder, 0 , 0);
-			PlisgoFolderAddCustomExtensionIcon(pPlisgoFolder, L".txt", 0, 0);
-
-			PlisgoFolderAddMenuItem(pPlisgoFolder, &nMenuItem, L"testMenu", &TestOnClickCB, -1, &TestIsEnabledCB, 0, 0, NULL);
-			PlisgoFolderAddMenuSeparatorItem(pPlisgoFolder, -1);
-			PlisgoFolderAddMenuItem(pPlisgoFolder, &nMenuItem, L"testMenu2", &TestOnClickCB, -1, &TestIsEnabledCB, 0, 0, NULL);
-			PlisgoFolderAddMenuItem(pPlisgoFolder, &nMenuItem, L"testMenu3", &TestOnClickCB, nMenuItem, &TestIsEnabledCB, 0, 0, NULL); //Child menu item
-
-
 			//Right it's all populated, dump the tree!
 
 			//Open the root
