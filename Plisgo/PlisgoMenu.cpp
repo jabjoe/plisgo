@@ -67,16 +67,7 @@ static HTREEITEM	GetChildByName(LPCWSTR sName, HWND hWnd, HTREEITEM hItem, size_
 
 		bool bMatch = true;
 
-		for(LPCWSTR sA = sBuffer, sB = sName;
-			*sA != L'\0' && *sB != L'\0' && ((size_t)(sB-sName) < nNameLength) ;
-			++sA, ++sB)
-			if (tolower(*sA) != tolower(*sB))
-			{
-				bMatch = false;
-				break;
-			}
-
-		if (bMatch)
+		if (_wcsnicmp(sBuffer, sName, nNameLength) == 0)
 			return hChild;
 		else
 			hChild = TreeView_GetNextSibling(hWnd, hChild);
@@ -192,7 +183,7 @@ static void			UpdateItem(IShellFolder* pDesktop, const std::wstring& rsFullPath)
 
 
 
-static void			RefreshFreeNode(IShellFolder* pDesktop, HWND hWnd, HTREEITEM hItem, const std::wstring& rsFullPath, DoneCacheMap& rDoneCache )
+static void			RefreshTreeNode(IShellFolder* pDesktop, HWND hWnd, HTREEITEM hItem, const std::wstring& rsFullPath, DoneCacheMap& rDoneCache )
 {
 	if (rDoneCache.count(rsFullPath) == 0)
 	{
@@ -219,7 +210,7 @@ static void			RefreshFreeNode(IShellFolder* pDesktop, HWND hWnd, HTREEITEM hItem
 	while(hChild != NULL)
 	{
 		if (GetTreeItemName(hWnd, hChild, sBuffer, MAX_PATH))
-			RefreshFreeNode(pDesktop, hWnd, hChild, rsFullPath + L"\\" + sBuffer, rDoneCache);
+			RefreshTreeNode(pDesktop, hWnd, hChild, rsFullPath + L"\\" + sBuffer, rDoneCache);
 
 		hChild = TreeView_GetNextSibling(hWnd, hChild);
 	}
@@ -254,7 +245,7 @@ static void			RefreshSelection(IShellFolder* pDesktop, HWND hWnd, const std::wst
 		HTREEITEM hFolder = FollowRelativePath(it->begin()+rsBase.length(), hWnd, hRootNode);
 
 		if (hFolder != NULL)
-			RefreshFreeNode(pDesktop, hWnd, hFolder, *it, rDoneCache);
+			RefreshTreeNode(pDesktop, hWnd, hFolder, *it, rDoneCache);
 	}
 }
 
