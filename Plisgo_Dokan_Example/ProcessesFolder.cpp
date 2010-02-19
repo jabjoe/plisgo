@@ -60,7 +60,7 @@ private:
 
 
 
-DWORD WINAPI ProcessTerminator(uintptr_t nProcessID)
+static void ProcessTerminator(uintptr_t nProcessID)
 {
 	HANDLE hProcess = OpenProcess(PROCESS_TERMINATE, FALSE, nProcessID);
 
@@ -89,18 +89,8 @@ DWORD WINAPI ProcessTerminator(uintptr_t nProcessID)
 			if (hProcess != NULL)
 				CloseHandle(hProcess);
 
-			if (bTerminated)
-			{
-
-				WCHAR sFile[MAX_PATH];
-
-				wsprintf(sFile, L"X:\\processes\\%i", nProcessID);
-
-				SHChangeNotify(SHCNE_DELETE, SHCNF_PATH|SHCNF_FLUSH, sFile, NULL);
-
-				SHChangeNotify(SHCNE_UPDATEDIR, SHCNF_PATH|SHCNF_FLUSH, L"X:\\processes", NULL);
-			}
-			else MessageBox(GetTopWindow(0), L"Can't Terminate Process", L"ProcessFS", MB_ICONERROR);
+			if (!bTerminated)
+				MessageBox(GetTopWindow(0), L"Can't Terminate Process", L"ProcessFS", MB_ICONERROR);
 		}
 	}
 	else
@@ -111,8 +101,6 @@ DWORD WINAPI ProcessTerminator(uintptr_t nProcessID)
 
 		MessageBox(GetTopWindow(0), sBuffer, L"ProcessFS", MB_ICONERROR);
 	}
-
-	return 0;
 }
 
 
@@ -137,7 +125,7 @@ public:
 	virtual bool Do(LPCWSTR sPath)
 	{
 		if (sPath != NULL && sPath[0] != L'\0')
-			CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)ProcessTerminator, (LPVOID)_wtoi(&sPath[1]), 0, NULL);
+			ProcessTerminator(_wtoi(&sPath[1]));
 
 		return true;
 	}

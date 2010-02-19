@@ -32,9 +32,6 @@ int gShellIDList = RegisterClipboardFormat(CFSTR_SHELLIDLIST);
 #define HIDA_GetPIDLItem(pida, i) (LPCITEMIDLIST)(((LPBYTE)pida)+(pida)->aoffset[i+1])
 
 
-typedef std::tr1::unordered_map<std::wstring, bool>		DoneCacheMap;
-
-
 
 /*
 	We don't know if the icons in the treenode have changed, so assume they have.
@@ -148,7 +145,6 @@ static HTREEITEM	FindDrive(HTREEITEM hParent, WCHAR sDrive[], HWND hWnd, int nDe
 }
 
 
-
 static HTREEITEM	FindDrive(WCHAR nDrive, HWND hWnd)
 {
 	HTREEITEM hRoot = TreeView_GetRoot(hWnd);
@@ -169,110 +165,14 @@ static HTREEITEM	FindDrive(WCHAR nDrive, HWND hWnd)
 }
 
 
-static void			UpdateItem(IShellFolder* pDesktop, const std::wstring& rsFullPath)
+struct TreeSelectionPacket
 {
-	PIDLIST_RELATIVE pIDL;
-
-	if (SUCCEEDED(pDesktop->ParseDisplayName(NULL, NULL, (LPWSTR)rsFullPath.c_str(), NULL, &pIDL, NULL)))
-	{
-		SHChangeNotify(SHCNE_UPDATEITEM, SHCNF_IDLIST|SHCNF_FLUSH, pIDL, NULL);
-
-		ILFree(pIDL);
-	}
-}
-
-
-
-static void			RefreshTreeNode(IShellFolder* pDesktop, HWND hWnd, HTREEITEM hItem, const std::wstring& rsFullPath, DoneCacheMap& rDoneCache )
-{
-	if (rDoneCache.count(rsFullPath) == 0)
-	{
-		UpdateItem(pDesktop, rsFullPath);
-
-		rDoneCache[rsFullPath] = true;
-	}
-
-	TVITEM item = {0};
-
-	item.mask = TVIF_CHILDREN|TVIF_HANDLE;
-	item.hItem = hItem;
-
-	if (!TreeView_GetItem(hWnd, &item))
-		return;
-
-	if (item.cChildren == I_CHILDRENCALLBACK)
-		return;
-
-	HTREEITEM hChild = TreeView_GetChild(hWnd, hItem);
-
-	WCHAR sBuffer[MAX_PATH];
-
-	while(hChild != NULL)
-	{
-		if (GetTreeItemName(hWnd, hChild, sBuffer, MAX_PATH))
-			RefreshTreeNode(pDesktop, hWnd, hChild, rsFullPath + L"\\" + sBuffer, rDoneCache);
-
-		hChild = TreeView_GetNextSibling(hWnd, hChild);
-	}
-}
-
-
-
-
-
-static void			RefreshSelection(IShellFolder* pDesktop, HWND hWnd, const std::wstring& rsBase, const WStringList& rPaths, DoneCacheMap& rDoneCache )
-{
-	if (hWnd == NULL)
-		return;
-
-	HTREEITEM hRoot = TreeView_GetRoot(hWnd);
-
-	if (hRoot == NULL)
-		return;
-
-	HTREEITEM hDrive = FindDrive(rsBase[0], hWnd);
-
-	if (hDrive == NULL)
-		return;
-
-	HTREEITEM hRootNode = (rsBase.length() > 3)?FollowRelativePath(rsBase.begin()+3, hWnd, hDrive):hDrive;
-
-	if (hRootNode == NULL)
-		return;
-
-	for(WStringList::const_iterator it = rPaths.begin(); it != rPaths.end(); ++it)
-	{
-		HTREEITEM hFolder = FollowRelativePath(it->begin()+rsBase.length(), hWnd, hRootNode);
-
-		if (hFolder != NULL)
-			RefreshTreeNode(pDesktop, hWnd, hFolder, *it, rDoneCache);
-	}
-}
-
-
-
-struct RefreshFolderSelectionPacket
-{
-	RefreshFolderSelectionPacket(	IShellFolder*		_pDesktop,
-									const std::wstring&	_rsBase,
-									const WStringList&	_rsFolders) :
-															rsBase(_rsBase),
-															rsFolders(_rsFolders),
-															pDesktop(_pDesktop)
-	{}
-
-	const std::wstring&		rsBase;
-	const WStringList&		rsFolders;
-	DoneCacheMap			DoneCache;
-	IShellFolder*			pDesktop;
+	std::map<HWND, std::wstring>	SelectionMap;
+	std::wstring					sBase;
 };
 
 
-
-
-
-
-BOOL CALLBACK	RefreshFolderSelectionCB(HWND hWnd, LPARAM lParam)
+BOOL CALLBACK	StoreSelectionCB(HWND hWnd, LPARAM lParam)
 {
 	WCHAR sBuffer[MAX_PATH] = {0};
 
@@ -280,9 +180,88 @@ BOOL CALLBACK	RefreshFolderSelectionCB(HWND hWnd, LPARAM lParam)
 
 	if (wcscmp(L"SysTreeView32", sBuffer) == 0)
 	{
-		RefreshFolderSelectionPacket* pPacket = (RefreshFolderSelectionPacket*)lParam;
+		HTREEITEM hRoot = TreeView_GetRoot(hWnd);
 
-		RefreshSelection(pPacket->pDesktop, hWnd, pPacket->rsBase, pPacket->rsFolders, pPacket->DoneCache);
+		if (hRoot == NULL)
+			return FALSE;
+
+		TreeSelectionPacket* pPacket = (TreeSelectionPacket*)lParam;
+
+		HTREEITEM hDrive = FindDrive(pPacket->sBase[0], hWnd);
+
+		if (hDrive == NULL)
+			return FALSE;
+
+		HTREEITEM hSelection = TreeView_GetSelection(hWnd);
+
+		if (hSelection == NULL)
+			return FALSE;
+
+		std::wstring sSelection;
+
+		while(hSelection != NULL && hSelection != hDrive)
+		{
+			WCHAR sBuffer[MAX_PATH];
+
+			GetTreeItemName(hWnd, hSelection, sBuffer, MAX_PATH);
+
+			wcscat_s(sBuffer, MAX_PATH, L"\\");
+
+			sSelection.insert(0, sBuffer);
+
+			hSelection = TreeView_GetParent(hWnd, hSelection);
+		}
+
+		if (hSelection == hDrive)
+		{
+			WCHAR sDrive[] = L" :\\";
+
+			sDrive[0] = pPacket->sBase[0];
+
+			sSelection.insert(0, sDrive);
+			sSelection.resize(sSelection.length()-1); //Remove trailing slash
+
+			pPacket->SelectionMap[hWnd] = sSelection;
+		}
+
+		return FALSE;
+	}
+
+	return TRUE;
+}
+
+
+BOOL CALLBACK	RestoreSelectionCB(HWND hWnd, LPARAM lParam)
+{
+	WCHAR sBuffer[MAX_PATH] = {0};
+
+	::GetClassName(hWnd, sBuffer, MAX_PATH);
+
+	if (wcscmp(L"SysTreeView32", sBuffer) == 0)
+	{
+		TreeSelectionPacket* pPacket = (TreeSelectionPacket*)lParam;
+
+		std::map<HWND, std::wstring>::const_iterator it = pPacket->SelectionMap.find(hWnd);
+
+		if (it == pPacket->SelectionMap.end())
+			return FALSE;
+
+		HTREEITEM hRoot = TreeView_GetRoot(hWnd);
+
+		if (hRoot == NULL)
+			return FALSE;
+
+		HTREEITEM hDrive = FindDrive(pPacket->sBase[0], hWnd);
+
+		if (hDrive == NULL)
+			return FALSE;
+
+		HTREEITEM hFolder = FollowRelativePath(it->second.begin()+3, hWnd, hDrive);
+
+		if (hFolder != NULL)
+			TreeView_SelectItem(hWnd, hFolder);
+
+		return FALSE;
 	}
 
 	return TRUE;
@@ -297,57 +276,6 @@ struct AsyncClickPacket
 	WStringList			Selection;
 	std::wstring		sBasePath;
 };
-
-
-
-/*
-void RefreshIcons()
-{
-    HKEY hKey = NULL;
-
-    LONG nResult = ::RegOpenKeyEx(HKEY_CURRENT_USER,  L"Control Panel\\Desktop\\WindowMetrics", 0,KEY_READ,&hKey);
-
-	if (hKey == NULL)
-		return;
-	
-	WCHAR sBuffer[MAX_PATH] = {0};
-    DWORD nBufferSize = sizeof(sBuffer);
-    DWORD nType = REG_SZ;
-
-    RegQueryValueEx(hKey,L"Shell Icon Size",0,&nType,(BYTE*)sBuffer,&nBufferSize);
-
-    RegCloseKey(hKey);
-	hKey = NULL;
-
-    const int nSize = _wtoi(sBuffer);
-	wsprintf(sBuffer, L"%d",nSize+1);
-
-    nResult = ::RegOpenKeyEx(HKEY_CURRENT_USER, L"Control Panel\\Desktop\\WindowMetrics", 0,KEY_WRITE,&hKey);
-
-	if (hKey != NULL)
-	{
-		RegSetValueEx(hKey,L"Shell Icon Size",0,REG_SZ, (const BYTE*)sBuffer,sizeof(WCHAR)*wcslen(sBuffer));
-
-		RegCloseKey(hKey);
-		hKey = NULL;
-
-		::SendMessageTimeout(HWND_BROADCAST , WM_SETTINGCHANGE, SPI_SETNONCLIENTMETRICS,NULL,SMTO_NORMAL,5000,NULL);
-	}
-
-	wsprintf(sBuffer, L"%d",nSize);
-
-    nResult = ::RegOpenKeyEx(HKEY_CURRENT_USER, L"Control Panel\\Desktop\\WindowMetrics", 0,KEY_WRITE,&hKey);
-
-	if (hKey != NULL)
-	{
-		RegSetValueEx(hKey,L"Shell Icon Size",0,REG_SZ, (const BYTE*)sBuffer,sizeof(WCHAR)*wcslen(sBuffer));
-	    
-		RegCloseKey(hKey);
-		hKey = NULL;
-	}
-
-    ::SendMessageTimeout(HWND_BROADCAST , WM_SETTINGCHANGE, SPI_SETNONCLIENTMETRICS,NULL,SMTO_NORMAL,5000,NULL);
-}*/
 
 
 void __cdecl AsyncClickPacketCB( AsyncClickPacket* pPacket )
@@ -370,33 +298,36 @@ void __cdecl AsyncClickPacketCB( AsyncClickPacket* pPacket )
 
 	boost::trim_right_if(sBasePath, boost::is_any_of(L"\\"));
 
-	for(WStringList::const_iterator it = selection.begin(); it != selection.end(); ++it)
+	HWND hExplorer = FindWindowEx(GetDesktopWindow(), NULL, L"ExploreWClass", NULL);
+
+	TreeSelectionPacket packet;
+
+	packet.sBase = sBasePath;
+
+	EnumChildWindows(hExplorer, StoreSelectionCB, (LPARAM)&packet);
+
+	for(WStringList::iterator it = selection.begin(); it != selection.end(); ++it)
 	{
-		std::wstring sPath = sBasePath + *it;
-		
-		if ((GetFileAttributes(sPath.c_str()) & FILE_ATTRIBUTE_DIRECTORY) == FILE_ATTRIBUTE_DIRECTORY)
-			folders.push_back(sPath);
-		else
-			UpdateItem(pShellDesktop.p, sPath);
-	}
+		it->insert(0, sBasePath);
 
-	if (folders.size())
-	{
-		RefreshFolderSelectionPacket packet(pShellDesktop.p, sBasePath, folders);
-
-		HWND hExplorer = FindWindowEx(GetDesktopWindow(), NULL, L"ExploreWClass", NULL);
-
-		while(hExplorer != NULL)
+		if (GetFileAttributes(it->c_str()) & FILE_ATTRIBUTE_DIRECTORY)
 		{
-			EnumChildWindows(hExplorer, RefreshFolderSelectionCB, (LPARAM)&packet);
-
-			hExplorer = FindWindowEx(GetDesktopWindow(), hExplorer, L"ExploreWClass", NULL);
+			//It's worse case, but it acturally works
+			SHChangeNotify(SHCNE_RMDIR, SHCNF_PATHW, it->c_str(), NULL);
+			SHChangeNotify(SHCNE_MKDIR, SHCNF_PATHW|SHCNF_FLUSH, it->c_str(), NULL);
 		}
-
-		for(WStringList::const_iterator it = folders.begin(); it != folders.end(); ++it)
-			if (packet.DoneCache.count(*it) == 0)
-				UpdateItem(pShellDesktop.p, *it);
+		else SHChangeNotify(SHCNE_UPDATEITEM, SHCNF_PATHW|SHCNF_FLUSH, it->c_str(), NULL);
 	}
+
+	assert(selection.size());
+
+	size_t nSlash = selection[0].rfind(L'\\');
+
+	assert(nSlash != -1);
+
+	SHChangeNotify(SHCNE_UPDATEDIR, SHCNF_PATHW|SHCNF_FLUSH, selection[0].substr(0, nSlash).c_str(), NULL);
+
+	EnumChildWindows(hExplorer, RestoreSelectionCB, (LPARAM)&packet);
 }
 
 
