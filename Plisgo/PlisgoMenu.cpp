@@ -256,7 +256,10 @@ BOOL CALLBACK	RestoreSelectionCB(HWND hWnd, LPARAM lParam)
 		if (hDrive == NULL)
 			return FALSE;
 
-		HTREEITEM hFolder = FollowRelativePath(it->second.begin()+3, hWnd, hDrive);
+		HTREEITEM hFolder = hDrive;
+
+		if (it->second.length() > 3)
+			hFolder = FollowRelativePath(it->second.begin()+3, hWnd, hDrive);
 
 		if (hFolder != NULL)
 			TreeView_SelectItem(hWnd, hFolder);
