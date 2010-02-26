@@ -298,13 +298,18 @@ void __cdecl AsyncClickPacketCB( AsyncClickPacket* pPacket )
 
 	boost::trim_right_if(sBasePath, boost::is_any_of(L"\\"));
 
-	HWND hExplorer = FindWindowEx(GetDesktopWindow(), NULL, L"ExploreWClass", NULL);
-
 	TreeSelectionPacket packet;
 
 	packet.sBase = sBasePath;
 
-	EnumChildWindows(hExplorer, StoreSelectionCB, (LPARAM)&packet);
+	HWND hExplorer = FindWindowEx(GetDesktopWindow(), NULL, L"ExploreWClass", NULL);
+
+	while(hExplorer != NULL)
+	{
+		EnumChildWindows(hExplorer, StoreSelectionCB, (LPARAM)&packet);
+
+		hExplorer = FindWindowEx(GetDesktopWindow(), hExplorer, L"ExploreWClass", NULL);
+	}
 
 	for(WStringList::iterator it = selection.begin(); it != selection.end(); ++it)
 	{
@@ -327,7 +332,14 @@ void __cdecl AsyncClickPacketCB( AsyncClickPacket* pPacket )
 
 	SHChangeNotify(SHCNE_UPDATEDIR, SHCNF_PATHW|SHCNF_FLUSH, selection[0].substr(0, nSlash).c_str(), NULL);
 
-	EnumChildWindows(hExplorer, RestoreSelectionCB, (LPARAM)&packet);
+	hExplorer = FindWindowEx(GetDesktopWindow(), NULL, L"ExploreWClass", NULL);
+
+	while(hExplorer != NULL)
+	{
+		EnumChildWindows(hExplorer, RestoreSelectionCB, (LPARAM)&packet);
+
+		hExplorer = FindWindowEx(GetDesktopWindow(), hExplorer, L"ExploreWClass", NULL);
+	}
 }
 
 
