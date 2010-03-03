@@ -178,7 +178,7 @@ public:
 
 
 	IShellInfoFetcher*			GetShellInfoFetcher() const { return m_IShellInfoFetcher.get(); }
-	IPtrPlisgoVFS				GetVFS() const				{ return m_VFS; }
+	IPtrPlisgoVFS				GetVFS() const				{ return m_VFS.lock(); }
 
 protected:
 
@@ -207,6 +207,6 @@ private:
 
 	bool						m_DisabledStandardColumn[8];
 
-	IPtrPlisgoVFS				m_VFS;
+	boost::weak_ptr<PlisgoVFS>	m_VFS;
 	std::wstring				m_sPath;
 };
