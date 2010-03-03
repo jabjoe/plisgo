@@ -1143,7 +1143,7 @@ static void		ManualIconBlitTo32Alphaed(HDC hDC, DWORD *pDstPixels, const LONG nW
 
 HBITMAP			CreateAlphaBitmap(HDC hDC, LONG nWidth, LONG nHeight, DWORD** ppBits )
 {
-	BITMAPV5HEADER bi = {0};
+	/*BITMAPV5HEADER bi = {0};
 
     bi.bV5Size			= sizeof(BITMAPV5HEADER);
     bi.bV5Width			= nWidth;
@@ -1156,7 +1156,18 @@ HBITMAP			CreateAlphaBitmap(HDC hDC, LONG nWidth, LONG nHeight, DWORD** ppBits )
     bi.bV5RedMask		=  0x00FF0000;
     bi.bV5GreenMask		=  0x0000FF00;
     bi.bV5BlueMask		=  0x000000FF;
-    bi.bV5AlphaMask		=  0xFF000000; 
+    bi.bV5AlphaMask		=  0xFF000000; */
+
+//This is an alternative I found, that doesn't sometimes crash with a device by zero exception.
+	BITMAPINFO bi = {0};
+
+	bi.bmiHeader.biSize			= sizeof(BITMAPINFOHEADER);
+	bi.bmiHeader.biWidth		= nWidth;
+	bi.bmiHeader.biHeight		= nHeight;
+	bi.bmiHeader.biPlanes		= 1;
+	bi.bmiHeader.biBitCount		= 32;
+	bi.bmiHeader.biCompression	= BI_RGB;
+	bi.bmiHeader.biSizeImage	= nWidth * nHeight * 4;
 
 	return CreateDIBSection(hDC, (BITMAPINFO *)&bi, DIB_RGB_COLORS, (void **)ppBits, NULL, 0);
 }
