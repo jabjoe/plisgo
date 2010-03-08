@@ -237,6 +237,8 @@ protected:
 	void	RefreshIconList(LONG nHeight);
 
 	void	RefreshItemImages();
+	void	AddItem(LPITEMIDLIST pIDL);
+	bool	DeleteItem(LPITEMIDLIST pIDL);
 
 
 	class AsynLoader

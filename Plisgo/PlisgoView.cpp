@@ -134,6 +134,24 @@ static LPITEMIDLIST	ListViewGetItemIDL(HWND hList, int nItem)
 }
 
 
+static int			ListViewGetItemFromIDL(HWND hList, LPITEMIDLIST pIDL)
+{
+	const int nItemCount = ListView_GetItemCount(hList);
+
+	for(int n = 0; n < nItemCount; ++n)
+	{
+		LPITEMIDLIST pIDL2 = ListViewGetItemIDL(hList, n);
+
+		if (ILIsEqual(pIDL, pIDL2))
+			return n;
+	}
+
+	return -1;
+}
+
+
+
+
 
 CPlisgoView::AsynLoader::AsynLoader(HWND				hWnd,
 									IPtrRefIconList		iconList,
@@ -908,8 +926,6 @@ STDMETHODIMP CPlisgoView::TranslateAccelerator(LPMSG pMsg)
 				if (nError != 0)
 					return S_FALSE;
 
-				Refresh();
-
 				return hr;
 			}
 			else if (pMsg->wParam == VK_BACK)
@@ -1233,6 +1249,40 @@ LRESULT		 CPlisgoView::OnSetFocus(	UINT uMsg, WPARAM wParam,
 }
 
 
+void		 CPlisgoView::AddItem(LPITEMIDLIST pIDL)
+{
+    LVITEM lvi = {0};
+
+    lvi.mask	= LVIF_TEXT | LVIF_IMAGE | LVIF_PARAM;
+    lvi.iItem	= ListView_GetItemCount(m_hList);
+    lvi.iImage	= I_IMAGECALLBACK;
+	lvi.lParam	= (LPARAM)ILClone(pIDL); //THIS MUST BE FREED
+	lvi.pszText	= LPSTR_TEXTCALLBACKW;
+
+	ListView_InsertItem(m_hList, &lvi);
+
+	m_IconSources.resize(m_IconSources.size()+1); //Grow by one
+}
+
+
+bool		CPlisgoView::DeleteItem(LPITEMIDLIST pIDL)
+{
+	int nItem = ListViewGetItemFromIDL(m_hList, pIDL);
+
+	if (nItem != -1)
+	{
+		ListView_DeleteItem(m_hList, nItem);
+
+		m_IconSources.erase(m_IconSources.begin()+nItem);
+
+		return true;
+	}
+
+	return false;
+}
+
+
+
 void		 CPlisgoView::FillList()
 {
 	CComPtr<IEnumIDList> pEnum;
@@ -1253,20 +1303,8 @@ void		 CPlisgoView::FillList()
 	{
         ATLASSERT(1 == nFetched);
 
-        LVITEM lvi = {0};
-
-		LPITEMIDLIST pIDL = ILClone(ILFindLastID(pidl));
-
-        lvi.mask	= LVIF_TEXT | LVIF_IMAGE | LVIF_PARAM;
-        lvi.iItem	= ListView_GetItemCount(m_hList);
-        lvi.iImage	= I_IMAGECALLBACK;
-		lvi.lParam	= (LPARAM)pIDL; //THIS MUST BE FREED
-		lvi.pszText	= LPSTR_TEXTCALLBACKW;
-
-		ListView_InsertItem(m_hList, &lvi);
+		AddItem(ILFindLastID(pidl));
 	}
-
-	m_IconSources.resize(ListView_GetItemCount(m_hList));
 
 	m_nSortedColumn = 0;
 	m_bForwardSort = true;
@@ -1336,6 +1374,8 @@ void		 CPlisgoView::HandleDeactivate()
 
 LRESULT		 CPlisgoView::OnCustomViewShellMessage(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& rbHandled)
 {
+	LONG nEvent = (LONG)lParam;
+
 	PIDLIST_ABSOLUTE pFullIDL = ((PIDLIST_ABSOLUTE*)wParam)[0]; //Second is a terminator
 
 	PUIDLIST_RELATIVE pChildIDL = ILFindChild(m_pContainingFolder->GetIDList(), pFullIDL);
@@ -1352,43 +1392,67 @@ LRESULT		 CPlisgoView::OnCustomViewShellMessage(UINT uMsg, WPARAM wParam, LPARAM
 		}
 		else if (pNextIDL->mkid.cb == 0)
 		{
-			//Refresh child .......
 
-			const int nItemCount = ListView_GetItemCount(m_hList);
-
-			for(int n = 0; n < nItemCount; ++n)
+			switch(nEvent)
 			{
-				LPITEMIDLIST pIDL = ListViewGetItemIDL(m_hList, n);
-
-				if (ILIsEqual(pIDL, pChildIDL))
+			case SHCNE_RENAMEITEM:
+			case SHCNE_RENAMEFOLDER:
 				{
-					LVITEM item = {0};
+					PIDLIST_ABSOLUTE	pNewFullIDL = ((PIDLIST_ABSOLUTE*)wParam)[1];
+					PUIDLIST_RELATIVE	pNewChildIDL = ILFindChild(m_pContainingFolder->GetIDList(), pNewFullIDL);
 
-					item.mask		= LVIF_TEXT|LVIF_IMAGE;
-					item.pszText	= LPSTR_TEXTCALLBACKW;
-					item.iImage		= I_IMAGECALLBACK;
-					item.iItem		= n;
-
-					ListView_SetItem(m_hList, &item);
-
-					HWND hHeader = ListView_GetHeader(m_hList);
-
-					if (hHeader != NULL && hHeader != INVALID_HANDLE_VALUE)
-					{
-						const int nColumnCount = Header_GetItemCount(hHeader);
-
-						for(int i = 1; i < nColumnCount; ++i)
-						{
-							item.mask		= LVIF_TEXT;
-							item.iSubItem	= i;
-
-							ListView_SetItem(m_hList, &item);
-						}
-					}
-
+					pChildIDL = pNewChildIDL; //IDL already changed.
 					break;
 				}
+
+			case SHCNE_CREATE:
+			case SHCNE_MKDIR:
+				{
+					if (ListViewGetItemFromIDL(m_hList, pChildIDL) == -1)
+						AddItem(pChildIDL);
+
+					return 0;
+				}
+			case SHCNE_DELETE:
+			case SHCNE_RMDIR:
+				{
+					DeleteItem(pChildIDL);			
+
+					return 0;
+				}
 			}
+
+			//Refresh child .......
+
+			const int nItem = ListViewGetItemFromIDL(m_hList, pChildIDL);
+
+			if (nItem != -1)
+			{
+				LVITEM item = {0};
+
+				item.mask		= LVIF_TEXT|LVIF_IMAGE;
+				item.pszText	= LPSTR_TEXTCALLBACKW;
+				item.iImage		= I_IMAGECALLBACK;
+				item.iItem		= nItem;
+
+				ListView_SetItem(m_hList, &item);
+
+				HWND hHeader = ListView_GetHeader(m_hList);
+
+				if (hHeader != NULL && hHeader != INVALID_HANDLE_VALUE)
+				{
+					const int nColumnCount = Header_GetItemCount(hHeader);
+
+					for(int i = 1; i < nColumnCount; ++i)
+					{
+						item.mask		= LVIF_TEXT;
+						item.iSubItem	= i;
+
+						ListView_SetItem(m_hList, &item);
+					}
+				}
+			}
+			else Refresh();
 		}
 	}
 	

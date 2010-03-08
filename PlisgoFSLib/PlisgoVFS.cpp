@@ -396,41 +396,48 @@ int					PlisgoVFS::Open(	PlisgoFileHandle&	rHandle,
 
 	if (file.get() == NULL)
 	{
-		if (nCreationDisposition == OPEN_EXISTING ||
-			nCreationDisposition == TRUNCATE_EXISTING)
-			return -ERROR_FILE_NOT_FOUND;
-
-		size_t nSlash = sPathLowerCase.rfind(L'\\');
-
-		nSlash = (nSlash == -1)?0:nSlash;
-
-		IPtrPlisgoFSFile parent = TracePath(sPathLowerCase.substr(0, nSlash));
-
-		if (parent.get() == NULL)
-			return -ERROR_PATH_NOT_FOUND;
-		
-		PlisgoFSFolder* pFolder = parent->GetAsFolder();
-
-		if (pFolder == NULL)
-			return -ERROR_PATH_NOT_FOUND; //wtf, silly user
-
-		nError = pFolder->CreateChild(file, GetNameFromPath(sPath), nFlagsAndAttributes);
-
-		if (file.get() != NULL)
+		if (nCreationDisposition != OPEN_EXISTING && nCreationDisposition != TRUNCATE_EXISTING)
 		{
-			AddToCache(sPathLowerCase, file);
+			size_t nSlash = sPathLowerCase.rfind(L'\\');
 
-			nError = file->Open(nDesiredAccess, nShareMode, OPEN_EXISTING, nFlagsAndAttributes, &nOpenInstaceData);
+			nSlash = (nSlash == -1)?0:nSlash;
+
+			IPtrPlisgoFSFile parent = TracePath(sPathLowerCase.substr(0, nSlash));
+
+			if (parent.get() != NULL)
+			{
+				PlisgoFSFolder* pFolder = parent->GetAsFolder();
+
+				if (pFolder != NULL)
+				{
+					nError = pFolder->CreateChild(file, GetNameFromPath(sPath), nFlagsAndAttributes);
+
+					if (file.get() != NULL)
+					{
+						AddToCache(sPathLowerCase, file);
+
+						nError = file->Open(nDesiredAccess, nShareMode, OPEN_EXISTING, nFlagsAndAttributes, &nOpenInstaceData);
+					}
+					else
+					{
+						assert(nError != 0);
+					}
+				}
+				else nError = -ERROR_PATH_NOT_FOUND; //wtf, silly user
+			}
+			else nError = -ERROR_PATH_NOT_FOUND;
 		}
-		else
-		{
-			assert(nError != 0);
-		}
+		else nError = -ERROR_FILE_NOT_FOUND;
 	}
 	else nError = file->Open(nDesiredAccess, nShareMode, nCreationDisposition, nFlagsAndAttributes, &nOpenInstaceData);
 
 	if (nError != 0)
+	{		
+		if (file.get() == NULL && m_pLog != NULL)
+			m_pLog->NotFoundFile(sPathLowerCase);
+
 		return nError;
+	}
 
 	assert(file.get() != NULL);
 
