@@ -171,9 +171,6 @@ IPtrPlisgoFSRoot	PlisgoFSFolderReg::GetPlisgoFSRoot(LPCWSTR sPathUnprocessed) co
 		if (nLen == 0)
 			return IPtrPlisgoFSRoot();
 
-		if (GetFileAttributes(sPathUnprocessed) == INVALID_FILE_ATTRIBUTES)
-			return IPtrPlisgoFSRoot();
-
 		sPath.assign(nLen, L' ');
 
 		std::transform(sPathUnprocessed, sPathUnprocessed+nLen, sPath.begin(), PrePathCharacter);
@@ -184,48 +181,40 @@ IPtrPlisgoFSRoot	PlisgoFSFolderReg::GetPlisgoFSRoot(LPCWSTR sPathUnprocessed) co
 
 	boost::upgrade_lock<boost::shared_mutex> lock(m_Mutex);
 
-	RootCacheMap::const_iterator it = m_RootCache.find(sPath);
-
-	if (it != m_RootCache.end())
-		return ReturnValidRoot(it->second, sPath);
-
 	size_t nSlash = sPath.length();
 
-	while(nSlash != -1)
-	{
-		std::wstring sSection = sPath.substr(0, nSlash);
-
-		it = m_RootCache.find(sSection);
-
-		if (it != m_RootCache.end())
-			return ReturnValidRoot(it->second, sPath);
-
-		nSlash = sPath.rfind(L'\\', nSlash-1);
-	}
-
-
-	boost::upgrade_to_unique_lock<boost::shared_mutex> rwLock(lock);
-
-	it = m_RootCache.find(sPath);
-
-	if (it != m_RootCache.end())
-		return ReturnValidRoot(it->second, sPath);
-
-	nSlash = sPath.length();
+	std::wstring sSection = sPath;
 
 	while(nSlash != -1)
 	{
-		std::wstring sSection = sPath.substr(0, nSlash);
+		sSection.resize(nSlash);
 
-		it = m_RootCache.find(sSection);
+		const DWORD nAttr = GetFileAttributes((sSection + L"\\.plisgofs").c_str());
+
+		RootCacheMap::const_iterator it = m_RootCache.find(sSection);
 
 		if (it != m_RootCache.end())
-			return ReturnValidRoot(it->second, sPath);
-
-		const DWORD nAttr = GetFileAttributes((sSection + L"\\.plisgofs\\").c_str());
-
-		if (nAttr != INVALID_FILE_ATTRIBUTES && (nAttr & FILE_ATTRIBUTE_DIRECTORY))
 		{
+			if (nAttr == INVALID_FILE_ATTRIBUTES || !(nAttr & FILE_ATTRIBUTE_DIRECTORY))
+			{
+				boost::upgrade_to_unique_lock<boost::shared_mutex> rwLock(lock);
+
+				it = m_RootCache.find(sSection);
+
+				if (it != m_RootCache.end())
+					const_cast<PlisgoFSFolderReg*>(this)->m_RootCache.erase(it);
+			}
+			else return ReturnValidRoot(it->second, sPath);
+		}
+		else if (nAttr != INVALID_FILE_ATTRIBUTES && (nAttr & FILE_ATTRIBUTE_DIRECTORY))
+		{
+			boost::upgrade_to_unique_lock<boost::shared_mutex> rwLock(lock);
+
+			it = m_RootCache.find(sSection);
+
+			if (it != m_RootCache.end())
+				return ReturnValidRoot(it->second, sPath);
+
 			IPtrPlisgoFSRoot root = const_cast<PlisgoFSFolderReg*>(this)->CreateRoot(sSection);
 
 			return ReturnValidRoot(root, sPath);
