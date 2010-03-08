@@ -26,16 +26,20 @@
 #include "PlisgoFSFiles.h"
 #include "TreeCache.h"
 
+
+class PlisgoVFSOpenLog
+{
+public:
+	virtual void OpenFile(const std::wstring& rsPath) = 0;
+	virtual void CloseFile(const std::wstring& rsPath) = 0;
+};
+
+
+
 class PlisgoVFS
 {
 public:
-	PlisgoVFS(IPtrPlisgoFSFolder root)
-	{
-		assert(root.get() != NULL);
-		m_Root = root;
-		m_OpenFileNum = 0;
-		m_nCacheEntryMaxLife = 10000000 * 30; //NTSECOND * 30
-	}
+	PlisgoVFS(IPtrPlisgoFSFolder root, PlisgoVFSOpenLog* pLog = NULL);
 
 	IPtrPlisgoFSFile			TracePath(LPCWSTR sPath, IPtrPlisgoFSFile* pParent = NULL) const;
 
@@ -157,7 +161,8 @@ private:
 
 	typedef TreeCache<IPtrPlisgoFSFile>		MountTree;
 
-	MountTree					m_MountTree;
+	MountTree								m_MountTree;
+	PlisgoVFSOpenLog*						m_pLog;
 };
 
 typedef boost::shared_ptr<PlisgoVFS>	IPtrPlisgoVFS;

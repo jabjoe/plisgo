@@ -23,6 +23,14 @@
 
 #include "PlisgoVFS.h"
 
+PlisgoVFS::PlisgoVFS(IPtrPlisgoFSFolder root, PlisgoVFSOpenLog* pLog)
+{
+	assert(root.get() != NULL);
+	m_Root = root;
+	m_OpenFileNum = 0;
+	m_nCacheEntryMaxLife = 10000000 * 30; //NTSECOND * 30
+	m_pLog = pLog;
+}
 
 
 bool				PlisgoVFS::AddMount(LPCWSTR sMount, IPtrPlisgoFSFile Mount)
@@ -444,6 +452,9 @@ int					PlisgoVFS::Open(	PlisgoFileHandle&	rHandle,
 	pOpenFileData->sPath = sPathLowerCase;
 	pOpenFileData->nData = nOpenInstaceData;
 
+	if (m_pLog != NULL)
+		m_pLog->OpenFile(sPathLowerCase);
+
 	rHandle = (PlisgoFileHandle)pOpenFileData;
 
 	return 0;
@@ -601,6 +612,9 @@ int					PlisgoVFS::Close(PlisgoFileHandle&	rHandle, bool bDeleteOnClose)
 	}
 
 	boost::unique_lock<boost::shared_mutex>	lock(m_OpenFilePoolMutex);
+
+	if (m_pLog != NULL)
+		m_pLog->CloseFile(pOpenFileData->sPath);
 
 	m_OpenFilePool.destroy(pOpenFileData);
 
