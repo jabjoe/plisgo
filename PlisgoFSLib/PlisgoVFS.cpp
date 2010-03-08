@@ -404,7 +404,7 @@ int					PlisgoVFS::Open(	PlisgoFileHandle&	rHandle,
 		PlisgoFSFolder* pFolder = parent->GetAsFolder();
 
 		if (pFolder == NULL)
-			return -ERROR_PATH_NOT_FOUND; //wtf
+			return -ERROR_PATH_NOT_FOUND; //wtf, silly user
 
 		nError = pFolder->CreateChild(file, GetNameFromPath(sPath), nFlagsAndAttributes);
 
@@ -413,6 +413,10 @@ int					PlisgoVFS::Open(	PlisgoFileHandle&	rHandle,
 			AddToCache(sPathLowerCase, file);
 
 			nError = file->Open(nDesiredAccess, nShareMode, OPEN_EXISTING, nFlagsAndAttributes, &nOpenInstaceData);
+		}
+		else
+		{
+			assert(nError != 0);
 		}
 	}
 	else nError = file->Open(nDesiredAccess, nShareMode, nCreationDisposition, nFlagsAndAttributes, &nOpenInstaceData);
