@@ -27,9 +27,11 @@ extern HICON		GetSpecificIcon( const std::wstring& rsFile, const int nIndex, con
 
 extern HBITMAP		CreateAlphaBitmap(HDC hDC, LONG nWidth, LONG nHeight, DWORD** ppBits = NULL);
 
+extern HBITMAP		ExtractAsBitmap(HINSTANCE hHandle, LPCWSTR sName, LPCWSTR sType, UINT* pnHeight = NULL);
+
+extern HICON		CreateIconFromBitMap(HBITMAP hBitmap, const UINT nAimHeight);
+
 extern HICON		EnsureIconSizeResolution(HICON hIcon, LONG nHeight);
-
-
 
 extern HICON		BurnTogether(HICON hFirst, POINT &rFirst, HICON hSecond, POINT &rSecond, UINT nHeight, bool bOutline = false);
 
@@ -42,4 +44,5 @@ extern int			AddIconToResourcedFile(const std::wstring& rsFile, const HICON hIco
 extern bool			WriteToIconFile(const std::wstring& rsFile, HICON hIcon, bool bAppend = true);
 
 extern HICON		ExtractIconFromImageListFile(const std::wstring& rsFile, const UINT nIndex, const UINT nAimHeight);
+
 extern HIMAGELIST	LoadImageList(const std::wstring& rsFile, const UINT nHeight);

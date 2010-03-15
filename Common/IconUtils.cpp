@@ -56,7 +56,7 @@ bool		ExtIsIconFile(LPCWSTR sExt)
 }
 
 
-static HICON	CreateIconFromBitMap(HBITMAP hBitmap, const UINT nAimHeight)
+HICON	CreateIconFromBitMap(HBITMAP hBitmap, const UINT nAimHeight)
 {
 	BITMAP bm = {0};
 
@@ -1474,3 +1474,69 @@ HICON			LoadAsIcon(const std::wstring& rsPath, const UINT nAimHeight)
 	return CreateIconFromBitMap(hBitmap, nAimHeight);
 }
 	
+
+HBITMAP		ExtractAsBitmap(HINSTANCE hExeHandle, LPCWSTR sName, LPCWSTR sType, UINT* pnHeight)
+{
+	assert(hExeHandle != NULL);
+	assert(sName != NULL);
+	assert(sType != NULL);
+
+	HBITMAP hResult = NULL;
+
+	HRSRC hRes = FindResourceW(hExeHandle, sName, sType);
+
+	if (hRes != NULL)
+	{
+		DWORD nSize = SizeofResource(NULL, hRes);
+
+		HGLOBAL hReallyStaticMem = LoadResource(hExeHandle, hRes);
+
+		if (hReallyStaticMem != NULL)
+		{
+			PVOID pData = LockResource(hReallyStaticMem);
+
+			if (pData != NULL)
+			{
+				IStream* pStream = NULL;
+
+				//The HGLOBAL from LoadResource isn't a real one, and CreateStreamOnHGlobal need a real one.
+				HGLOBAL hGlobal = ::GlobalAlloc(GMEM_MOVEABLE, nSize);
+
+				void* pBuffer = ::GlobalLock(hGlobal);
+
+				CopyMemory(pBuffer, pData, nSize);
+
+				CreateStreamOnHGlobal(hGlobal, FALSE, &pStream);
+
+				if (pStream != NULL)
+				{
+					Gdiplus::GdiplusStartupInput	GDiplusStartupInputData;
+					ULONG_PTR						nDiplusToken;
+
+					Gdiplus::GdiplusStartup(&nDiplusToken, &GDiplusStartupInputData, NULL);
+
+					Gdiplus::Bitmap* pBitmap = Gdiplus::Bitmap::FromStream(pStream);
+
+					if (pBitmap != NULL)
+					{
+						pBitmap->GetHBITMAP(Gdiplus::Color(), &hResult);
+
+						if (pnHeight != NULL)
+							*pnHeight = pBitmap->GetHeight();
+
+						delete pBitmap;
+					}
+
+					Gdiplus::GdiplusShutdown(nDiplusToken);
+
+					pStream->Release();
+				}
+
+				::GlobalUnlock(hGlobal);
+				::GlobalFree(hGlobal);
+			}
+		}
+	}
+
+	return hResult;
+}
