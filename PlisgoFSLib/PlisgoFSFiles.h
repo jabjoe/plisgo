@@ -243,6 +243,46 @@ protected:
 
 
 
+class PlisgoFSDataFileReadOnly : public PlisgoFSFile
+{
+public:
+	PlisgoFSDataFileReadOnly(	void*	pData,
+								size_t	nDataSize,
+								bool	bOwnMemory = false,
+								bool	bFreeNotDelete = false);
+
+	~PlisgoFSDataFileReadOnly();
+
+	virtual DWORD			GetAttributes() const							{ return FILE_ATTRIBUTE_READONLY; }
+	virtual LONGLONG		GetSize() const									{ return m_nDataSize; }
+	const BYTE*				GetData() const									{ return m_pData; }
+
+	virtual bool			GetFileTimes(FILETIME& rCreation, FILETIME& rLastAccess, FILETIME& rLastWrite) const
+	{
+		rCreation = rLastAccess = rLastWrite = m_Time;
+		return true;
+	}
+
+	virtual int				Open(	DWORD		nDesiredAccess,
+									DWORD		nShareMode,
+									DWORD		nCreationDisposition,
+									DWORD		nFlagsAndAttributes,
+									ULONGLONG*	pInstanceData);
+
+	virtual int				Read(	LPVOID		pBuffer,
+									DWORD		nNumberOfBytesToRead,
+									LPDWORD		pnNumberOfBytesRead,
+									LONGLONG	nOffset,
+									ULONGLONG*	pInstanceData);
+
+private:
+	BYTE*			m_pData;
+	size_t			m_nDataSize;
+	bool			m_bOwnMemory;
+	bool			m_bFreeNotDelete;
+	FILETIME		m_Time;
+};
+
 
 
 class PlisgoFSDataFile : public PlisgoFSFile

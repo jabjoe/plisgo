@@ -389,6 +389,83 @@ int		PlisgoFSStorageFolder::CreateChild(IPtrPlisgoFSFile& rChild, LPCWSTR sName,
 /*
 ****************************************************************************
 */
+
+PlisgoFSDataFileReadOnly::PlisgoFSDataFileReadOnly(	void*	pData,
+													size_t	nDataSize,
+													bool	bOwnMemory,
+													bool	bFreeNotDelete)
+{
+	m_pData = (BYTE*)pData;
+	m_nDataSize = nDataSize;
+	m_bOwnMemory = bOwnMemory;
+	m_bFreeNotDelete = bFreeNotDelete;
+}
+
+
+PlisgoFSDataFileReadOnly::~PlisgoFSDataFileReadOnly()
+{
+	if (m_bOwnMemory)
+	{
+		if (m_bFreeNotDelete)
+			free(m_pData);
+		else
+			delete m_pData;
+	}
+}
+
+
+
+int		PlisgoFSDataFileReadOnly::Open(	DWORD		nDesiredAccess,
+										DWORD		nShareMode,
+										DWORD		nCreationDisposition,
+										DWORD		nFlagsAndAttributes,
+										ULONGLONG*	pInstanceData)
+{
+	if (nFlagsAndAttributes & FILE_ATTRIBUTE_DIRECTORY)
+		return -ERROR_ACCESS_DENIED;
+
+	int nError = PlisgoFSFile::Open(	nDesiredAccess,
+										nShareMode,
+										nCreationDisposition,
+										nFlagsAndAttributes,
+										pInstanceData);
+	if (nError != 0)
+		return nError;
+
+	bool bWrite = (nDesiredAccess & GENERIC_WRITE || nDesiredAccess & GENERIC_ALL || nDesiredAccess & FILE_WRITE_DATA);
+
+	if (bWrite)
+		return -ERROR_ACCESS_DENIED;
+
+	return 0;
+}
+
+
+int		PlisgoFSDataFileReadOnly::Read(	LPVOID		pBuffer,
+										DWORD		nNumberOfBytesToRead,
+										LPDWORD		pnNumberOfBytesRead,
+										LONGLONG	nOffset,
+										ULONGLONG*	)
+{
+	if (m_pData != NULL && nOffset < m_nDataSize)
+	{
+		const DWORD	nLength	= (DWORD)(m_nDataSize-nOffset);
+		const DWORD	nCopySize = min(nLength,nNumberOfBytesToRead);
+
+		memcpy_s(pBuffer, nNumberOfBytesToRead, &m_pData[nOffset], nCopySize);
+
+		*pnNumberOfBytesRead = nCopySize;
+
+		return 0;
+	}
+	else *pnNumberOfBytesRead = 0;
+
+	return -ERROR_HANDLE_EOF;
+}
+
+/*
+****************************************************************************
+*/
 PlisgoFSDataFile::PlisgoFSDataFile(BYTE* pData, size_t nDataSize, bool bReadOnly, bool bCopy)
 {
 	m_pData = NULL;
