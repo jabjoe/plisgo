@@ -626,8 +626,6 @@ public:
 
 	PlisgoFSFolder*				GetAsFolder() const							{ return m_file->GetAsFolder(); }
 
-	virtual bool				GetRealPath(std::wstring& rsResult) const	{ return m_file->GetRealPath(rsResult); }
-
 protected:
 	IPtrPlisgoFSFile m_file;
 };
