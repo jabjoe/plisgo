@@ -93,9 +93,6 @@ public:
 	virtual PlisgoFSFolder*		GetAsFolder() const							{ return NULL; }
 	template<typename T>
 	void						GetFileInfo(T* pFileInfo) const;
-
-
-	virtual bool				GetRealPath(std::wstring& ) const			{ return false; }
 };
 
 
@@ -516,8 +513,6 @@ public:
 
 	const std::wstring&		GetRealPath() const		{ return m_sRealFile; }
 
-	virtual bool			GetRealPath(std::wstring& rsResult) const			{ rsResult = m_sRealFile; return true; }
-
 private:
 
 	std::wstring	m_sRealFile;
@@ -560,8 +555,6 @@ public:
 	virtual int					GetRemoveChildError(LPCWSTR sName) const;
 
 	virtual int					RemoveChild(LPCWSTR sName);
-
-	virtual bool				GetRealPath(std::wstring& rsResult) const			{ rsResult = m_sRealPath; return true; }
 private:
 
 	IPtrPlisgoFSFile			GetChild(	WIN32_FIND_DATAW& rFind) const;
