@@ -78,20 +78,20 @@ typedef boost::shared_ptr<IShellInfoFetcher>		IPtrIShellInfoFetcher;
 
 
 template<class T>
-class StringEventRedirect : public StringEvent
+class FileEventRedirect : public FileEvent
 {
 public:
-	typedef bool (T::*EventMethod)(LPCWSTR sPath);
+	typedef bool (T::*EventMethod)(IPtrPlisgoFSFile& rFile);
 
-	StringEventRedirect(EventMethod Method, T* pObj)
+	FileEventRedirect(EventMethod Method, T* pObj)
 	{
 		m_Method	= Method;
 		m_pObj		= pObj;
 	}
 
-	virtual bool Do(LPCWSTR sPath)
+	virtual bool Do(IPtrPlisgoFSFile& rFile)
 	{
-		return (m_pObj->*m_Method)(sPath);
+		return (m_pObj->*m_Method)(rFile);
 	}
 
 protected:
@@ -114,14 +114,14 @@ public:
 	bool						AddPngIcons(HINSTANCE hExeHandle, int nListIndex, LPCWSTR sName)							{ return AddIcons(hExeHandle, nListIndex, sName, L"PNG", L"png"); }
 	bool						AddIcons(int nListIndex, const std::wstring& sFilename);
 
-	void						AddSeparator(int nParentMenu = -1)	{ AddMenu(NULL,IPtrStringEvent(),nParentMenu); }
+	void						AddSeparator(int nParentMenu = -1)	{ AddMenu(NULL,IPtrFileEvent(),nParentMenu); }
 
 	int							AddMenu(LPCWSTR			sText,
-										IPtrStringEvent	onClickEvent = IPtrStringEvent(),
+										IPtrFileEvent	onClickEvent = IPtrFileEvent(),
 										int				nParentMenu = -1,
-										IPtrStringEvent enabledEvent = IPtrStringEvent(),
 										int				nIconList = -1,
-										int				nIconIndex = -1);
+										int				nIconIndex = -1,
+										IPtrFileEvent	enabledEvent = IPtrFileEvent());
 
 	void						AddCustomFolderIcon(int	nClosedIconList, int nClosedIconIndex,
 													int	nOpenIconList, int nOpenIconIndex);
@@ -179,6 +179,7 @@ public:
 
 	IShellInfoFetcher*			GetShellInfoFetcher() const { return m_IShellInfoFetcher.get(); }
 	IPtrPlisgoVFS				GetVFS() const				{ return m_VFS.lock(); }
+	const std::wstring&			GetPath() const				{ return m_sPath; }
 
 protected:
 

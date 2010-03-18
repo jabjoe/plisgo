@@ -170,6 +170,37 @@ private:
 };
 
 
+static	bool	GetHostPath(IPtrPlisgoFSFile& rFile, std::wstring& rsResult)
+{
+	if (rFile.get() == NULL)
+		return false;
+
+	PlisgoFSFolder* pFolder = rFile->GetAsFolder();
+
+	BOOL bCallResult = FALSE;
+
+	if (pFolder != NULL)
+	{
+		HostFolder* pHostFolder = dynamic_cast<HostFolder*>(pFolder);
+
+		if (pHostFolder == NULL)
+			return false;
+
+		rsResult = pHostFolder->GetHostPath();
+	}
+	else
+	{
+		HostFile* pHostFile = dynamic_cast<HostFile*>(rFile.get());
+
+		if (pHostFile == NULL)
+			return false;
+
+		pHostFile->GetWideString(rsResult);
+	}
+
+	return true;
+}
+
 
 
 class C_IShellInfoFetcher : public IShellInfoFetcher
@@ -188,39 +219,6 @@ public:
 
 
 	virtual LPCWSTR	GetFFSName() const	{ return m_CBs.sFSName; }
-
-
-	bool	GetHostPath(IPtrPlisgoFSFile& rFile, std::wstring& rsResult) const
-	{
-		if (rFile.get() == NULL)
-			return false;
-
-		PlisgoFSFolder* pFolder = rFile->GetAsFolder();
-
-		BOOL bCallResult = FALSE;
-
-		if (pFolder != NULL)
-		{
-			HostFolder* pHostFolder = dynamic_cast<HostFolder*>(pFolder);
-
-			if (pHostFolder == NULL)
-				return false;
-
-			rsResult = pHostFolder->GetHostPath();
-		}
-		else
-		{
-			HostFile* pHostFile = dynamic_cast<HostFile*>(rFile.get());
-
-			if (pHostFile == NULL)
-				return false;
-
-			pHostFile->GetWideString(rsResult);
-		}
-
-		return true;
-	}
-
 
 	virtual bool IsShelled(IPtrPlisgoFSFile& rFile) const
 	{
@@ -351,11 +349,11 @@ struct PlisgoVirtualFile
 
 
 
-class C_StringEvent : public StringEvent
+class C_FileEvent : public FileEvent
 {
 public:
 
-	C_StringEvent(PlisgoPathCB cb, void* pUserData)
+	C_FileEvent(PlisgoPathCB cb, void* pUserData)
 	{
 		assert(cb != NULL);
 
@@ -363,9 +361,13 @@ public:
 		m_pUserData = pUserData;
 	}
 
-	virtual bool Do(LPCWSTR sPath)
+	virtual bool Do(IPtrPlisgoFSFile& rFile)
 	{
-		return (m_CB(sPath, m_pUserData))?true:false;
+		std::wstring sPath;
+
+		GetHostPath(rFile, sPath);
+
+		return (m_CB(sPath.c_str(), m_pUserData))?true:false;
 	}
 
 	PlisgoPathCB	m_CB;
@@ -586,16 +588,16 @@ int		PlisgoFolderAddMenuItem(PlisgoFolder*	pPlisgoFolder,
 	if (pPlisgoFolder == NULL || pnResultIndex == NULL || sText == NULL)
 		return -ERROR_BAD_ARGUMENTS;
 
-	IPtrStringEvent onClickObj;
-	IPtrStringEvent isEnabledObj;
+	IPtrFileEvent onClickObj;
+	IPtrFileEvent isEnabledObj;
 
 	if (onClickCB != NULL)
-		onClickObj.reset(new C_StringEvent(onClickCB, pCBUserData));
+		onClickObj.reset(new C_FileEvent(onClickCB, pCBUserData));
 
 	if (isEnabledCB != NULL)
-		isEnabledObj.reset(new C_StringEvent(isEnabledCB, pCBUserData));
+		isEnabledObj.reset(new C_FileEvent(isEnabledCB, pCBUserData));
 
-	*pnResultIndex = pPlisgoFolder->Plisgo->AddMenu(sText, onClickObj, nParentMenu, isEnabledObj, nIconList, nIconIndex);
+	*pnResultIndex = pPlisgoFolder->Plisgo->AddMenu(sText, onClickObj, nParentMenu, nIconList, nIconIndex, isEnabledObj);
 
 	return 0;
 }

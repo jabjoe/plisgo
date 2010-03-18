@@ -723,11 +723,11 @@ public:
 
 
 int					RootPlisgoFSFolder::AddMenu(LPCWSTR			sText,
-												IPtrStringEvent	onClickEvent,
+												IPtrFileEvent	onClickEvent,
 												int				nParentMenu,
-												IPtrStringEvent enabledEvent,
 												int				nIconList,
-												int				nIconIndex)
+												int				nIconIndex, 
+												IPtrFileEvent	enabledEvent)
 {
 	boost::unique_lock<boost::shared_mutex> lock(m_Mutex);
 
@@ -749,7 +749,7 @@ int					RootPlisgoFSFolder::AddMenu(LPCWSTR			sText,
 
 		std::wstring sMenuName = (boost::wformat(L".menu_%1%") %nResult).str();
 
-		pMenuFolder->AddChild(sMenuName.c_str(), IPtrPlisgoFSFile(new PlisgoFSMenuItem(onClickEvent, enabledEvent, sText, nIconList, nIconIndex)));
+		pMenuFolder->AddChild(sMenuName.c_str(), IPtrPlisgoFSFile(new PlisgoFSMenuItem(this, onClickEvent, enabledEvent, sText, nIconList, nIconIndex)));
 	}
 	else
 	{
@@ -759,7 +759,7 @@ int					RootPlisgoFSFolder::AddMenu(LPCWSTR			sText,
 
 		++m_nRootMenuNum;
 
-		AddChild(sMenuName.c_str(), IPtrPlisgoFSFile(new PlisgoFSMenuItem(onClickEvent, enabledEvent, sText, nIconList, nIconIndex)));
+		AddChild(sMenuName.c_str(), IPtrPlisgoFSFile(new PlisgoFSMenuItem(this, onClickEvent, enabledEvent, sText, nIconList, nIconIndex)));
 	}
 
 	return nResult;

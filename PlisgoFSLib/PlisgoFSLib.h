@@ -53,15 +53,6 @@ typedef	WCHAR		FileNameBuffer[MAX_PATH];
 extern void			FromWide(std::string& rsDst, const std::wstring& sSrc);
 extern void			ToWide(std::wstring& rDst, const std::string& sSrc);
 
-class StringEvent
-{
-public:
-	virtual ~StringEvent() {}
-	virtual bool Do(LPCWSTR) = 0;
-};
-
-typedef boost::shared_ptr<StringEvent>	IPtrStringEvent;
-
 
 
 inline size_t				CopyToLower(LPWSTR sDst, size_t nDstSize, LPCWSTR sSrc)

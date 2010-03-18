@@ -118,14 +118,23 @@ static bool CanTerminateProcess(DWORD nProcessID)
 
 
 
-class KillMenuItemClick : public StringEvent
+class KillMenuItemClick : public FileEvent
 {
 public:
 
-	virtual bool Do(LPCWSTR sPath)
+	virtual bool Do(IPtrPlisgoFSFile& rFile)
 	{
-		if (sPath != NULL && sPath[0] != L'\0')
-			ProcessTerminator(_wtoi(&sPath[1]));
+		if (rFile.get() == NULL)
+			return true;
+
+		ProcessFile* pProcessFile = dynamic_cast<ProcessFile*>(rFile.get());
+
+		if (pProcessFile == NULL)
+			return true;
+
+		DWORD nProcess = pProcessFile->GetProcessEntry32().th32ProcessID;
+
+		ProcessTerminator(nProcess);
 
 		return true;
 	}
@@ -137,18 +146,22 @@ private:
 
 
 
-class KillMenuItemEnable : public StringEvent
+class KillMenuItemEnable : public FileEvent
 {
 public:
-	virtual bool Do(LPCWSTR sPath)
+	virtual bool Do(IPtrPlisgoFSFile& rFile)
 	{
-		if (sPath == NULL)
+		if (rFile.get() == NULL)
 			return true;
 
-		if (sPath[0] == L'\0')
-			return false;
+		ProcessFile* pProcessFile = dynamic_cast<ProcessFile*>(rFile.get());
 
-		return CanTerminateProcess(_wtoi(&sPath[1]));
+		if (pProcessFile == NULL)
+			return true;
+
+		DWORD nProcess = pProcessFile->GetProcessEntry32().th32ProcessID;
+
+		return CanTerminateProcess(nProcess);
 	}
 };
 
@@ -176,16 +189,21 @@ static HWND		GetProcessWindow(DWORD nProcessID)
 
 
 
-class SwitchToMenuItemClick : public StringEvent
+class SwitchToMenuItemClick : public FileEvent
 {
 public:
 
-	virtual bool Do(LPCWSTR sPath)
+	virtual bool Do(IPtrPlisgoFSFile& rFile)
 	{
-		if (sPath == NULL || sPath[0] == L'\0')
+		if (rFile.get() == NULL)
 			return true;
 
-		DWORD nProcess = _wtoi(&sPath[1]);
+		ProcessFile* pProcessFile = dynamic_cast<ProcessFile*>(rFile.get());
+
+		if (pProcessFile == NULL)
+			return true;
+
+		DWORD nProcess = pProcessFile->GetProcessEntry32().th32ProcessID;
 
 		HWND hWnd = GetProcessWindow(nProcess);
 
@@ -209,19 +227,21 @@ public:
 };
 
 
-class SwitchToMenuItemEnable : public StringEvent
+class SwitchToMenuItemEnable : public FileEvent
 {
 public:
 
-	virtual bool Do(LPCWSTR sPath)
+	virtual bool Do(IPtrPlisgoFSFile& rFile)
 	{
-		if (sPath == NULL)
+		if (rFile.get() == NULL)
 			return true;
 
-		if (sPath[0] == L'\0')
-			return false;
+		ProcessFile* pProcessFile = dynamic_cast<ProcessFile*>(rFile.get());
 
-		return (GetProcessWindow(_wtoi(&sPath[1])) != NULL);
+		if (pProcessFile == NULL)
+			return true;
+
+		return (GetProcessWindow(pProcessFile->GetProcessEntry32().th32ProcessID) != NULL);
 	}
 };
 
@@ -319,10 +339,10 @@ IPtrRootPlisgoFSFolder ProcessesFolderShellInterface::CreatePlisgoFolder(const s
 	plisgoRoot->DisableStandardColumn(RootPlisgoFSFolder::StdColumn_Date_Crt);
 	plisgoRoot->DisableStandardColumn(RootPlisgoFSFolder::StdColumn_Date_Acc);
 
-	int nMenu = plisgoRoot->AddMenu(L"Processes", IPtrStringEvent(), -1, IPtrStringEvent(), 0, 0);
+	int nMenu = plisgoRoot->AddMenu(L"Processes", IPtrFileEvent(), -1, 0, 0);
 
-	plisgoRoot->AddMenu(L"Kill Selected", IPtrStringEvent(new KillMenuItemClick()), nMenu, IPtrStringEvent(new KillMenuItemEnable()), 0, 0);
-	plisgoRoot->AddMenu(L"Switch to", IPtrStringEvent(new SwitchToMenuItemClick()), nMenu, IPtrStringEvent(new SwitchToMenuItemEnable()), 0, 0);
+	plisgoRoot->AddMenu(L"Kill Selected", IPtrFileEvent(new KillMenuItemClick()), nMenu, 0, 0, IPtrFileEvent(new KillMenuItemEnable()));
+	plisgoRoot->AddMenu(L"Switch to", IPtrFileEvent(new SwitchToMenuItemClick()), nMenu, 0, 0, IPtrFileEvent(new SwitchToMenuItemEnable()));
 
 	return plisgoRoot;
 }

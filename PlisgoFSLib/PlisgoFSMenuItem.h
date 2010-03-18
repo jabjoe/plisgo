@@ -25,13 +25,16 @@
 
 #include "PlisgoFSFiles.h"
 
+class RootPlisgoFSFolder;
+
 
 class PlisgoFSMenuItem : public PlisgoFSStorageFolder
 {
 public:
 
-	PlisgoFSMenuItem(	IPtrStringEvent		onClickEvent,
-						IPtrStringEvent		enabledEvent,
+	PlisgoFSMenuItem(	RootPlisgoFSFolder*	pOwner,
+						IPtrFileEvent		onClickEvent,
+						IPtrFileEvent		enabledEvent,
 						LPCWSTR				sUserText,
 						int					nIconList = -1,
 						int					nIconIndex = -1);

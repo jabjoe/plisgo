@@ -35,7 +35,7 @@ class EnabledFile : public PlisgoFSStringFile
 public:
 	
 	EnabledFile(boost::shared_ptr<SelectionFile>	selectionFile,
-				IPtrStringEvent						enabledEvent);
+				IPtrFileEvent						enabledEvent);
 
 	virtual int		Open(	DWORD		nDesiredAccess,
 							DWORD		nShareMode,
@@ -43,7 +43,7 @@ public:
 							DWORD		nFlagsAndAttributes,
 							ULONGLONG*	pInstanceData);
 private:
-	IPtrStringEvent						m_EnabledEvent;
+	IPtrFileEvent						m_EnabledEvent;
 	boost::shared_ptr<SelectionFile>	m_selectionFile;
 };
 
@@ -51,7 +51,16 @@ private:
 class SelectionFile : public PlisgoFSStringFile
 {
 public:
-	bool		CallPerPath(StringEvent& rEvent);
+
+	SelectionFile(RootPlisgoFSFolder* pOwner)
+	{
+		m_pOwner = pOwner;
+	}
+
+	bool		CallPerPath(FileEvent& rEvent);
+
+private:
+	RootPlisgoFSFolder*	m_pOwner;
 };
 
 
@@ -60,7 +69,7 @@ class ClickFile : public PlisgoFSStringFile
 public:
 	
 	ClickFile(	boost::shared_ptr<SelectionFile>	selectionFile,
-				IPtrStringEvent						onClickEvent);
+				IPtrFileEvent						onClickEvent);
 
 	virtual int		Open(	DWORD		nDesiredAccess,
 							DWORD		nShareMode,
@@ -76,9 +85,12 @@ public:
 
 	virtual int		FlushBuffers(ULONGLONG* pInstanceData);
 
+	virtual int		Close(ULONGLONG* pInstanceData);
+
 private:
-	IPtrStringEvent						m_OnClickEvent;
+	IPtrFileEvent						m_OnClickEvent;
 	bool								m_bClicked;
+	bool								m_bDoneClick;
 	boost::shared_ptr<SelectionFile>	m_selectionFile;
 };
 
@@ -88,7 +100,7 @@ private:
 
 
 EnabledFile::EnabledFile(	boost::shared_ptr<SelectionFile>	selectionFile,
-							IPtrStringEvent						enabledEvent) : PlisgoFSStringFile("0")
+							IPtrFileEvent						enabledEvent) : PlisgoFSStringFile("0")
 {
 	m_EnabledEvent = enabledEvent;
 	m_selectionFile = selectionFile;
@@ -152,7 +164,7 @@ static LPCWSTR SkipSeperators(LPCWSTR sPaths)
 
 
 
-bool	SelectionFile::CallPerPath(StringEvent& rEvent)
+bool	SelectionFile::CallPerPath(FileEvent& rEvent)
 {
 	bool bResult = false;
 
@@ -164,13 +176,21 @@ bool	SelectionFile::CallPerPath(StringEvent& rEvent)
 
 	LPCWSTR sNextSeperator = FindNextSeperator(sCStr);
 
+	const std::wstring& rsBase	= m_pOwner->GetPath();
+	IPtrPlisgoVFS vfs			= m_pOwner->GetVFS();
+
 	while(sNextSeperator != NULL)
 	{
 		const WCHAR temp = *sNextSeperator;
 
 		*const_cast<WCHAR*>(sNextSeperator) = 0;
 
-		bResult |= rEvent.Do(sCStr);
+		std::wstring sPath = rsBase + sCStr;
+
+		IPtrPlisgoFSFile file = vfs->TracePath(sPath.c_str());
+		
+		if (file.get() != NULL)
+			bResult |= rEvent.Do(file);
 
 		*const_cast<WCHAR*>(sNextSeperator) = temp;
 
@@ -185,20 +205,28 @@ bool	SelectionFile::CallPerPath(StringEvent& rEvent)
 	}
 
 	if (sCStr[0] != '\0')
-		bResult |= rEvent.Do(sCStr);
+	{
+		std::wstring sPath = rsBase + sCStr;
 
-	bResult |= rEvent.Do(NULL); //Inform event object list is complete.
+		IPtrPlisgoFSFile file = vfs->TracePath(sPath.c_str());
+		
+		if (file.get() != NULL)
+			bResult |= rEvent.Do(file);
+	}
+
+	bResult |= rEvent.Do(IPtrPlisgoFSFile()); //Inform event object list is complete.
 	
 	return bResult;
 }
 
 
 ClickFile::ClickFile(	boost::shared_ptr<SelectionFile>	selectionFile,
-						IPtrStringEvent						onClickEvent)
+						IPtrFileEvent						onClickEvent)
 						: m_OnClickEvent(onClickEvent), PlisgoFSStringFile("0")
 {
 	m_selectionFile = selectionFile;
 	m_bClicked = false;
+	m_bDoneClick = false;
 }
 
 
@@ -209,6 +237,7 @@ int		ClickFile::Open(	DWORD		nDesiredAccess,
 							ULONGLONG*	pInstanceData)
 {
 	m_bClicked = false;
+	m_bDoneClick = false;
 
 	return PlisgoFSStringFile::Open(	nDesiredAccess, 
 								nShareMode,
@@ -249,7 +278,18 @@ int		ClickFile::FlushBuffers(ULONGLONG* pInstanceData)
 	if (m_bClicked && *pInstanceData == GENERIC_WRITE && m_OnClickEvent.get() != NULL)
 		m_selectionFile->CallPerPath(*m_OnClickEvent);
 
+	m_bDoneClick = true;
+
 	return PlisgoFSStringFile::FlushBuffers(pInstanceData);
+}
+
+
+int		ClickFile::Close(ULONGLONG* pInstanceData)
+{
+	if (m_bClicked && !m_bDoneClick)
+		FlushBuffers(pInstanceData);
+
+	return PlisgoFSStringFile::Close(pInstanceData);
 }
 
 
@@ -257,10 +297,9 @@ int		ClickFile::FlushBuffers(ULONGLONG* pInstanceData)
 
 
 
-
-
-PlisgoFSMenuItem::PlisgoFSMenuItem(	IPtrStringEvent		onClickEvent,
-									IPtrStringEvent		enabledEvent,
+PlisgoFSMenuItem::PlisgoFSMenuItem(	RootPlisgoFSFolder*	pOwner,
+									IPtrFileEvent		onClickEvent,
+									IPtrFileEvent		enabledEvent,
 									LPCWSTR				sUserText,
 									int					nIconList,
 									int					nIconIndex)
@@ -276,7 +315,7 @@ PlisgoFSMenuItem::PlisgoFSMenuItem(	IPtrStringEvent		onClickEvent,
 			AddChild(L".icon", IPtrPlisgoFSFile(new PlisgoFSStringReadOnly(fmt.str())));
 		}
 		
-		boost::shared_ptr<SelectionFile> selectionFile(new SelectionFile());
+		boost::shared_ptr<SelectionFile> selectionFile(new SelectionFile(pOwner));
 
 		AddChild(L".selection", selectionFile);
 

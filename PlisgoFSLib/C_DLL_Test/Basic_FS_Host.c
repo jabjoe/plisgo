@@ -28,6 +28,7 @@
 #include <tchar.h>
 #include <assert.h>
 #include <windows.h>
+#include <stdlib.h>
 
 #include "../PlisgoFSLib_DLL.h"
 #include "Basic_FS.h"

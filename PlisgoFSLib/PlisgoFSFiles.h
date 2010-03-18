@@ -639,3 +639,12 @@ inline IPtrPlisgoFSFile	GetPlisgoDesktopIniFile()
 	return IPtrPlisgoFSFile(new PlisgoFSStringReadOnly(sData));
 }
 
+
+class FileEvent
+{
+public:
+	virtual ~FileEvent() {}
+	virtual bool Do(IPtrPlisgoFSFile& rFile) = 0;
+};
+
+typedef boost::shared_ptr<FileEvent>	IPtrFileEvent;
