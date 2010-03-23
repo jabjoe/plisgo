@@ -198,4 +198,12 @@ extern bool			ReadTextFromFile(std::wstring& rsResult, LPCWSTR sFile);
 extern bool			ReadIntFromFile(int& rnResult, LPCWSTR sFile);
 extern bool			ReadDoubleFromFile(double& rnResult, LPCWSTR sFile);
 
+extern void			PrintInterfaceName(REFIID riid);
+
+
+#define HRESULTTOLRESULT(_hr) (_hr&0x7FFFFFFF)
+#define LRESULTTOHRESULT(_lr) ((HRESULT)(0x80000000 | ((DWORD)_lr >> 1)))
+
+
+
 #define TOPOWEROFTWO(_x) ((_x%2)?_x+1:_x)

@@ -497,7 +497,7 @@ bool		 CPlisgoMenu::InsertPlisgoMenuToMenu(HMENU hMenu, const IPtrPlisgoFSMenu& 
 		itemInfo.fType		= MF_STRING;
 		itemInfo.fState		= MFS_ENABLED;
 		itemInfo.dwTypeData	= (LPWSTR)rsText.c_str();
-		itemInfo.cch		= rsText.length();
+		itemInfo.cch		= (UINT)rsText.length();
 	}
 	else
 	{

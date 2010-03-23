@@ -81,7 +81,7 @@ protected:
 BEGIN_MSG_MAP(CPlisgoView)
 
 	if (MessageProcessHock(hWnd, uMsg, wParam, lParam, lResult))
-		return lResult;
+		return TRUE;
 
     MESSAGE_HANDLER(WM_CREATE, OnCreate)
     MESSAGE_HANDLER(WM_SIZE, OnSize)

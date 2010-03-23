@@ -53,7 +53,7 @@ public:
 		FLOAT	= 2
 	};
 
-	ULONG				GetColumnNum() const							{ return m_Columns.size(); }
+	ULONG				GetColumnNum() const							{ return (ULONG)m_Columns.size(); }
 	const std::wstring&	GetColumnHeader(int nIndex) const				{ return m_Columns[nIndex].sHeader; }
 	ColumnAlignment		GetColumnAlignment(int nIndex) const			{ return m_Columns[nIndex].eAlignment; }
 	ColumnType			GetColumnType(int nIndex) const					{ return m_Columns[nIndex].eType; }

@@ -43,7 +43,7 @@ PlisgoFSMenu::PlisgoFSMenu(IPtrFSIconRegistry FSIcons, const std::wstring& rsPat
 			for(WStringList::const_iterator it = rSelection.begin(); it != rSelection.end(); ++it)
 			{
 				LPCWSTR sPos = it->c_str();
-				int nLength = it->length();
+				int nLength = (int)it->length();
 		
 				DWORD nWritten = 0;
 

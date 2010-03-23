@@ -274,7 +274,7 @@ static void RunTempFileCheanUp()
 static bool WriteIconLocationToInfoFile(HANDLE hFile, const IconLocation& rIconLocation)
 {
 	DWORD nWritten = 0;
-	ULONG32 nLength = rIconLocation.sPath.length()+1;
+	ULONG32 nLength = (ULONG32)rIconLocation.sPath.length()+1;
 
 	WriteFile(hFile, &nLength, sizeof(ULONG32), &nWritten, NULL);
 
@@ -832,7 +832,7 @@ int		RefIconList::GetFreeSlot()
 		if (*it == false)
 		{
 			*it = true;
-			return it-m_EntryUsed.begin();
+			return (int)(it-m_EntryUsed.begin());
 		}
 	}
 
@@ -1042,7 +1042,7 @@ void	RefIconList::RemoveOlderThan(ULONG64 n100ns)
 			{
 				boost::upgrade_to_unique_lock<boost::shared_mutex> rwLock(lock);
 
-				std::map<int, std::wstring>::iterator it = m_ExtensionsInverse.find(nIndex);
+				std::map<int, std::wstring>::iterator it = m_ExtensionsInverse.find((int)nIndex);
 
 				if (it != m_ExtensionsInverse.end())
 				{

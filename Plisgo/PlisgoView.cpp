@@ -36,8 +36,6 @@
 
 const UINT CF_PREFERREDDROPEFFECT = RegisterClipboardFormat(CFSTR_PREFERREDDROPEFFECT);
 
-#define HRESULTTOLRESULT(_hr) (_hr&0x7FFFFFFF)
-
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -291,7 +289,7 @@ void	CPlisgoView::AsynLoader::DoJob(const Job& rJob)
 				pItem->iItem		= rJob.nItem;
 				pItem->iSubItem		= rJob.nSubItem;
 				pItem->pszText		= (LPWSTR)(((BYTE*)pItem)+nAlignedItem);
-				pItem->cchTextMax	= sText.length();
+				pItem->cchTextMax	= (int)sText.length();
 
 				memcpy_s(pItem->pszText, nTextSize, sText.c_str(), nTextSize);
 
@@ -453,7 +451,7 @@ int CALLBACK CPlisgoView::DefaultCompareItems(LPARAM l1, LPARAM l2, LPARAM lData
 	}
 	else
 	{
-		int nPlisgoColumnIndex = pThis->m_nSortedColumn-pThis->m_nColumnIDMap.size();
+		int nPlisgoColumnIndex = pThis->m_nSortedColumn-(int)pThis->m_nColumnIDMap.size();
 
 		WCHAR sAName[MAX_PATH];
 		WCHAR sBName[MAX_PATH];
@@ -790,7 +788,7 @@ HGLOBAL		 CPlisgoView::GetSelectionAsDropData()
 	int nDropDataSize = sizeof(DROPFILES);
 
 	for(WStringList::const_iterator it = selection.begin(); it != selection.end(); ++it)
-		nDropDataSize += (1+it->length()) * sizeof(WCHAR);
+		nDropDataSize += (1+(int)it->length()) * sizeof(WCHAR);
 
 	nDropDataSize += sizeof(WCHAR);
 
@@ -925,6 +923,14 @@ STDMETHODIMP CPlisgoView::TranslateAccelerator(LPMSG pMsg)
 
 				if (nError != 0)
 					return S_FALSE;
+
+				for(WStringList::iterator it = selection.begin(); it != selection.end(); ++it)
+				{
+					if (GetFileAttributes(it->c_str()) & FILE_ATTRIBUTE_DIRECTORY)
+						SHChangeNotify(SHCNE_RMDIR, SHCNF_PATHW|SHCNF_FLUSH, it->c_str(), NULL);
+					else
+						SHChangeNotify(SHCNE_DELETE, SHCNF_PATHW|SHCNF_FLUSH, it->c_str(), NULL);
+				}
 
 				return hr;
 			}
@@ -1769,7 +1775,7 @@ void		 CPlisgoView::RefreshIconList(LONG nHeight)
 	if (m_pAsynLoader != NULL)
 		delete m_pAsynLoader;
 
-	m_pAsynLoader = new AsynLoader(m_hWnd, m_IconList, m_nColumnIDMap.size(), m_PlisgoFSFolder, m_pContainingFolder->GetPath());
+	m_pAsynLoader = new AsynLoader(m_hWnd, m_IconList, (int)m_nColumnIDMap.size(), m_PlisgoFSFolder, m_pContainingFolder->GetPath());
 
 	ListView_SetImageList(m_hList, m_IconList->GetImageList(), LVSIL_SMALL );
 	ListView_SetImageList(m_hList, m_IconList->GetImageList(), LVSIL_NORMAL );
@@ -1825,7 +1831,7 @@ void		 CPlisgoView::InsertViewToMenu(HMENU hMenu, std::vector<MenuClickPacket>& 
 	itemInfo.fState		= (m_FolderSettings.ViewMode == FVM_THUMBNAIL)?MFS_CHECKED:MFS_ENABLED;
 	itemInfo.dwTypeData	= L"Thumbnails";
 	itemInfo.cch		= 11;
-	itemInfo.wID		= nIDOffset+rClickEvents.size();
+	itemInfo.wID		= nIDOffset+(UINT)rClickEvents.size();
 	rClickEvents.push_back(MenuClickPacket(this,&CPlisgoView::OnThumbnailsViewMenuItemClick));
 
 	::InsertMenuItem(hMenu, nPos, TRUE, &itemInfo);
@@ -1833,7 +1839,7 @@ void		 CPlisgoView::InsertViewToMenu(HMENU hMenu, std::vector<MenuClickPacket>& 
 	itemInfo.fState		= (m_FolderSettings.ViewMode == FVM_TILE)?MFS_CHECKED:MFS_ENABLED;
 	itemInfo.dwTypeData	= L"Large";
 	itemInfo.cch		= 6;
-	itemInfo.wID		= nIDOffset+rClickEvents.size();
+	itemInfo.wID		= nIDOffset+(UINT)rClickEvents.size();
 	rClickEvents.push_back(MenuClickPacket(this,&CPlisgoView::OnLargeViewMenuItemClick));
 
 	::InsertMenuItem(hMenu, nPos+1, TRUE, &itemInfo);
@@ -1841,7 +1847,7 @@ void		 CPlisgoView::InsertViewToMenu(HMENU hMenu, std::vector<MenuClickPacket>& 
 	itemInfo.fState		= (m_FolderSettings.ViewMode == FVM_DETAILS)?MFS_CHECKED:MFS_ENABLED;
 	itemInfo.dwTypeData	= L"Details";
 	itemInfo.cch		= 8;
-	itemInfo.wID		= nIDOffset+rClickEvents.size();
+	itemInfo.wID		= nIDOffset+(UINT)rClickEvents.size();
 	rClickEvents.push_back(MenuClickPacket(this,&CPlisgoView::OnDetailsViewMenuItemClick));
 
 	::InsertMenuItem(hMenu, nPos+2, TRUE, &itemInfo);
@@ -1883,7 +1889,7 @@ void		 CPlisgoView::InsertPasteToMenu(HMENU hMenu, std::vector<MenuClickPacket>&
 	itemInfo.fState		= (bCanPaste)?0:MFS_GRAYED;
 	itemInfo.dwTypeData	= L"Paste";
 	itemInfo.cch		= 6;
-	itemInfo.wID		= nIDOffset+rClickEvents.size();
+	itemInfo.wID		= nIDOffset+(UINT)rClickEvents.size();
 	rClickEvents.push_back(MenuClickPacket(this,&CPlisgoView::OnPaste));
 
 	::InsertMenuItem(hMenu, nPos, TRUE, &itemInfo);
@@ -2066,7 +2072,7 @@ LRESULT		 CPlisgoView::FillInItem(LVITEM* pItem)
 		}
 		else
 		{
-			int nPlisgoColumnIndex = pItem->iSubItem-m_nColumnIDMap.size();
+			int nPlisgoColumnIndex = pItem->iSubItem-(int)m_nColumnIDMap.size();
 
 			IPtrPlisgoFSRoot rootFSFolder = m_PlisgoFSFolder;
 

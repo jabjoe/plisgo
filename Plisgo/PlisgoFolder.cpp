@@ -97,6 +97,9 @@ HRESULT				CPlisgoFolder::Initialize(LPCITEMIDLIST pIDL, const std::wstring& rsP
 
 			if ( !FAILED(nResult) )
 				m_PlisgoFSFolder = PlisgoFSFolderReg::GetSingleton()->GetPlisgoFSRoot(rsPath.c_str());
+
+			if (m_PlisgoFSFolder.get() == NULL)
+				return E_FAIL;
 		}
 	}
 
@@ -141,7 +144,13 @@ static const GUID IID_HACK_IShellView3 = {0xEC39FA88,0xF8AF,0x41CF,{0x84,0x21,0x
 
 STDMETHODIMP CPlisgoFolder::CreateViewObject(HWND hWnd, REFIID rIID, void** ppResult)
 {
-	if (rIID == IID_IShellView	||
+	if (ppResult == NULL)
+		return E_INVALIDARG;
+
+	*ppResult = NULL;
+
+	if (rIID == IID_IPlisgoView	||
+		rIID == IID_IShellView	||
 		rIID == IID_IShellView2 ||
 		rIID == IID_IDropTarget ||
 		rIID == IID_IOleWindow	||
@@ -167,8 +176,6 @@ STDMETHODIMP CPlisgoFolder::CreateViewObject(HWND hWnd, REFIID rIID, void** ppRe
 		return hr;
 	}
 
-	if (rIID == IID_IExtractIconA)
-		return E_NOINTERFACE;
 
 	if (rIID == IID_IExtractIconW && m_PlisgoFSFolder.get() != NULL)
 	{
@@ -185,10 +192,30 @@ STDMETHODIMP CPlisgoFolder::CreateViewObject(HWND hWnd, REFIID rIID, void** ppRe
 		}
 	}
 
-	if (rIID == IID_HACK_IShellView3)
-		return E_NOINTERFACE;
+	if (rIID == IID_IContextMenu ||
+		rIID == IID_IContextMenu2 ||
+		rIID == IID_IContextMenu3)
+	{
+		return m_pCurrent->CreateViewObject(hWnd, rIID, ppResult);
+	}
 
-	return m_pCurrent->CreateViewObject(hWnd, rIID, ppResult);
+	if (rIID == IID_IShellIcon)
+		return QueryInterface(IID_IShellIcon, ppResult);
+
+
+	HRESULT hr = m_pCurrent->CreateViewObject(hWnd, rIID, ppResult);
+/*
+	OutputDebugStringW(L"CreateViewObject");
+
+	PrintInterfaceName(rIID);
+
+	WCHAR sBuffer[MAX_PATH]; 
+
+	wsprintfW(sBuffer, L"result 0x%x\n", hr);
+
+	OutputDebugStringW(sBuffer);*/
+
+	return hr;
 }
 
 
@@ -211,31 +238,26 @@ HRESULT		 CPlisgoFolder::CreateIPlisgoFolder(LPCITEMIDLIST pIDL, LPBC pBC, REFII
 		rIID == IID_IPersistFolder ||
 		rIID == IID_IShellIcon)
 	{
-		HRESULT hr;
+		std::wstring sPath;
 
-		DWORD nAttr = 0;
+		HRESULT hr = GetPathOf(sPath, pIDL);
 
-		hr = GetAttributesOf(1, &pIDL, &nAttr);
-
-		if ( FAILED(hr))
+		if (FAILED(hr))
 			return hr;
 
-		if (!(nAttr&SFGAO_FOLDER))
-			return E_NOTIMPL; //Not for me
+		const DWORD nAttr = GetFileAttributes(sPath.c_str());
 
-		WCHAR sName[MAX_PATH];
-
-		hr = GetItemName(pIDL, sName, MAX_PATH);
-
-		if ( FAILED(hr))
-			return hr;
+		if (nAttr == INVALID_FILE_ATTRIBUTES || !(nAttr&FILE_ATTRIBUTE_DIRECTORY))
+			return E_FAIL;
 
 		CComObject<CPlisgoFolder>* pShellFolder;
 
 		hr = CComObject<CPlisgoFolder>::CreateInstance ( &pShellFolder );
 
-		if ( FAILED(hr) || pShellFolder == NULL)
+		if ( FAILED(hr))
 			return hr;
+
+		assert(pShellFolder != NULL);
 
 		pShellFolder->AddRef();
 
@@ -243,18 +265,19 @@ HRESULT		 CPlisgoFolder::CreateIPlisgoFolder(LPCITEMIDLIST pIDL, LPBC pBC, REFII
 
 		if (pChildFull != NULL)
 		{
-			hr = pShellFolder->Initialize(pChildFull, m_sPath + L"\\" += sName);
+			hr = pShellFolder->Initialize(pChildFull, sPath);
 
 			ILFree(pChildFull);
 		}
 		else hr = E_FAIL;
 
-		if ( !FAILED(hr) )
+		if ( SUCCEEDED(hr) )
 			hr = pShellFolder->QueryInterface(rIID, ppResult);
+		else
+			hr = E_NOTIMPL; //Try the encapulated COM object
 		
 		pShellFolder->Release();
-		
-		
+				
 		return hr;
 	}
 
@@ -292,6 +315,8 @@ STDMETHODIMP CPlisgoFolder::GetUIObjectOf(HWND hWnd, UINT cidl, LPCITEMIDLIST* p
 	if (m_PlisgoFSFolder.get() != NULL && rIID == IID_IExtractIconW && cidl == 1)
 		return CreatePlisgoExtractIcon(*pIDL, hWnd, ppResult);
 
+	PrintInterfaceName(rIID);
+
 	return m_pCurrent->GetUIObjectOf(hWnd, cidl, pIDL, rIID, pnReserved, ppResult);
 }
 
@@ -300,11 +325,11 @@ HRESULT		 CPlisgoFolder::GetTextOfColumn(PCUITEMID_CHILD pIDL, UINT nColumn, WCH
 {
 	SHELLDETAILS sd = {0};
 
-	LRESULT hr = const_cast<CPlisgoFolder*>(this)->GetDetailsOf(pIDL, nColumn, &sd);
+	HRESULT hr = const_cast<CPlisgoFolder*>(this)->GetDetailsOf(pIDL, nColumn, &sd);
 
 	if (SUCCEEDED(hr) && hr != S_FALSE)
 	{
-		hr = StrRetToBuf(&sd.str, pIDL, sBuffer, nBufferSize);
+		hr = StrRetToBuf(&sd.str, pIDL, sBuffer, (UINT)nBufferSize);
 
 		if (sd.str.uType == STRRET_WSTR)
 			CoTaskMemFree(sd.str.pOleStr);
@@ -325,7 +350,7 @@ HRESULT			CPlisgoFolder::GetItemName(PCUITEMID_CHILD pIDL, WCHAR* sBuffer, size_
 	if (FAILED(hr))
 		return hr;
 
-	hr = StrRetToBuf(&name, pIDL, sBuffer, nBufferSize);
+	hr = StrRetToBuf(&name, pIDL, sBuffer, (UINT)nBufferSize);
 
 	if (name.uType == STRRET_WSTR)
 		CoTaskMemFree(name.pOleStr);

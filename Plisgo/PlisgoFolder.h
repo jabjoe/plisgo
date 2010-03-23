@@ -80,15 +80,17 @@ END_COM_MAP()
 			iid == IID_IShellFolder || iid == IID_IShellFolder2 ||
 			iid == IID_IPersistFolder3 || iid == IID_IPersistFolder2 ||
 			iid == IID_IPersistFolder || iid == IID_IPersist ||
-			iid == IID_IShellIcon)
+			iid == IID_IShellIcon || iid == IID_IUnknown)
 			return CComObjectRootBase::InternalQueryInterface(pThis, pEntries, iid, ppvObject);
+
+		HRESULT hr = E_NOTIMPL;
 
 		IShellFolder2* pCaptured = ((CPlisgoFolder*)pThis)->GetCaptured();
 
 		if (pCaptured != NULL)
-			return pCaptured->QueryInterface(iid, ppvObject);
-		else
-			return E_NOTIMPL;
+			hr = pCaptured->QueryInterface(iid, ppvObject);
+		
+		return  hr;
 	}
 
 public:
@@ -124,21 +126,20 @@ public:
 	
     STDMETHOD(GetAttributesOf) (UINT cidl, LPCITEMIDLIST* apidl, LPDWORD rgfInOut)
 	{
-		HRESULT nResult = m_pCurrent->GetAttributesOf(cidl, apidl, rgfInOut);
+		if (rgfInOut == NULL)
+			return E_INVALIDARG;
 
-		*rgfInOut |= SFGAO_ISSLOW;
-		*rgfInOut |= SFGAO_VALIDATE;
-
-		if ((*rgfInOut & SFGAO_FOLDER) &&
-			!(*rgfInOut & SFGAO_STORAGE) &&
-			(*rgfInOut & SFGAO_STREAM) )
+		for(UINT n = 0; n < cidl; ++n)
 		{
-			*rgfInOut &= ~SFGAO_STREAM;
-			*rgfInOut |= SFGAO_STORAGE;
+			HRESULT hr = GetAttributesOf(apidl[n], rgfInOut);
+
+			if (FAILED(hr))
+				return hr;
 		}
 
-		return nResult;
+		return S_OK;
 	}
+
 
     STDMETHOD(GetDisplayNameOf) (LPCITEMIDLIST pIDL, DWORD nFlahs, LPSTRRET name)
 	{
@@ -201,6 +202,53 @@ public:
 
 	// IShellIcon
 	STDMETHOD(GetIconOf)( LPCITEMIDLIST pIDL, UINT nFlags, LPINT lpIconIndex);
+
+	HRESULT	GetPathOf(std::wstring& rsResult, LPCITEMIDLIST pIDL)
+	{
+		if (pIDL == NULL)
+			return E_INVALIDARG;
+
+		WCHAR sName[MAX_PATH];
+
+		HRESULT nResult = GetItemName(pIDL, sName, MAX_PATH);
+
+		if (FAILED(nResult))
+			return nResult;
+
+		rsResult = m_sPath;
+		rsResult += L"\\";
+		rsResult += sName;
+
+		return S_OK;
+	}
+
+	
+    HRESULT GetAttributesOf(LPCITEMIDLIST pIDL, LPDWORD rgfInOut)
+	{
+		if (rgfInOut == NULL)
+			return E_INVALIDARG;
+
+		std::wstring sPath;
+
+		HRESULT hr = GetPathOf(sPath, pIDL);
+
+		if (FAILED(hr))
+			return hr;
+
+		const DWORD nAttr = GetFileAttributes(sPath.c_str());
+
+		if (nAttr == INVALID_FILE_ATTRIBUTES)
+			return STG_E_FILENOTFOUND;
+
+		*rgfInOut = SFGAO_ISSLOW | SFGAO_STORAGE;
+
+		if (nAttr&FILE_ATTRIBUTE_DIRECTORY)
+			*rgfInOut |= SFGAO_FOLDER;
+
+		return S_OK;
+	}
+
+
 
 	IPtrPlisgoFSRoot	GetPlisgoFSLocal() const	{ return m_PlisgoFSFolder; }
 
