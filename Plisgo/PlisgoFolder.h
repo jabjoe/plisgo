@@ -243,7 +243,7 @@ public:
 		*rgfInOut = SFGAO_ISSLOW | SFGAO_STORAGE;
 
 		if (nAttr&FILE_ATTRIBUTE_DIRECTORY)
-			*rgfInOut |= SFGAO_FOLDER;
+			*rgfInOut |= SFGAO_FOLDER|SFGAO_HASSUBFOLDER; //Too much work to check every folder for sub folders
 
 		return S_OK;
 	}
