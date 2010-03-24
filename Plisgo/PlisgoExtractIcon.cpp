@@ -102,7 +102,7 @@ STDMETHODIMP CPlisgoExtractIcon::Extract(	LPCTSTR pszFile, UINT nIconIndex, HICO
 		if (!m_PlisgoFSFolder->GetPathIconLocation(Location, m_sPath, iconList, m_bOpen))
 			return E_FAIL;
 
-		if (!iconList->GetIcon(*pHiconSmall, Location))
+		if (!iconList->GetIcon(*pHiconLarge, Location))
 			return E_FAIL;			
 	}
 
