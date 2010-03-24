@@ -261,7 +261,7 @@ public:
 	const std::wstring&	GetPath() const			{ return m_sPath; }
 
 protected:
-	HRESULT				Initialize(LPCITEMIDLIST pIDL, const std::wstring& rsPath);
+	HRESULT				Initialize(LPCITEMIDLIST pIDL, const std::wstring& rsPath, IPtrPlisgoFSRoot& rPlisgoFSFolder );
 
 private:
 

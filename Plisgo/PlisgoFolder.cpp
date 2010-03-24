@@ -72,38 +72,41 @@ STDMETHODIMP CPlisgoFolder::Initialize(LPCITEMIDLIST pIDL)
 	if (nResult != S_OK)
 		return nResult;
 
-	return Initialize(pIDL, sPath);
+	IPtrPlisgoFSRoot plisgoFSFolder = PlisgoFSFolderReg::GetSingleton()->GetPlisgoFSRoot(sPath.c_str());
+
+	if (plisgoFSFolder.get() == NULL)
+		return E_FAIL;
+
+	return Initialize(pIDL, sPath, plisgoFSFolder);
 }
 
 
-HRESULT				CPlisgoFolder::Initialize(LPCITEMIDLIST pIDL, const std::wstring& rsPath)
+HRESULT				CPlisgoFolder::Initialize(LPCITEMIDLIST pIDL, const std::wstring& rsPath, IPtrPlisgoFSRoot& rPlisgoFSFolder )
 {
-	m_pIDL = ILCloneFull(pIDL);
-
 	if (m_pCurrent != NULL)
-		m_pCurrent->Release();
+		return CO_E_ALREADYINITIALIZED;
 
-	HRESULT nResult = GetShellIShellFolder2Implimentation(&m_pCurrent);
+	HRESULT hr = GetShellIShellFolder2Implimentation(&m_pCurrent);
 
-	if ( !FAILED(nResult) )
+	if ( SUCCEEDED(hr) )
 	{
 		CComQIPtr<IPersistFolder> pPersistFolder(m_pCurrent);
 
 		if ( pPersistFolder.p != NULL)
 		{
-			nResult = pPersistFolder->Initialize(pIDL);
+			hr = pPersistFolder->Initialize(pIDL);
 
-			m_sPath = rsPath;
-
-			if ( !FAILED(nResult) )
-				m_PlisgoFSFolder = PlisgoFSFolderReg::GetSingleton()->GetPlisgoFSRoot(rsPath.c_str());
-
-			if (m_PlisgoFSFolder.get() == NULL)
-				return E_FAIL;
+			if (SUCCEEDED(hr))
+			{
+				m_sPath				= rsPath;
+				m_PlisgoFSFolder	= rPlisgoFSFolder;
+				m_pIDL				= ILCloneFull(pIDL);
+			}
 		}
+		else hr = E_FAIL;
 	}
 
-	return nResult;
+	return hr;
 }
 
 
@@ -204,16 +207,6 @@ STDMETHODIMP CPlisgoFolder::CreateViewObject(HWND hWnd, REFIID rIID, void** ppRe
 
 
 	HRESULT hr = m_pCurrent->CreateViewObject(hWnd, rIID, ppResult);
-/*
-	OutputDebugStringW(L"CreateViewObject");
-
-	PrintInterfaceName(rIID);
-
-	WCHAR sBuffer[MAX_PATH]; 
-
-	wsprintfW(sBuffer, L"result 0x%x\n", hr);
-
-	OutputDebugStringW(sBuffer);*/
 
 	return hr;
 }
@@ -229,14 +222,12 @@ STDMETHODIMP CPlisgoFolder::EnumObjects(HWND hWnd, DWORD nFlags, LPENUMIDLIST* p
 
 HRESULT		 CPlisgoFolder::CreateIPlisgoFolder(LPCITEMIDLIST pIDL, LPBC pBC, REFIID rIID, void** ppResult)
 {
+	//Only if a folder is being asked for
 	if (rIID == IID_IPlisgoFolder ||
-		rIID == IID_IUnknown ||
-		rIID == IID_IPersist ||
 		rIID == IID_IShellFolder ||
 		rIID == IID_IShellFolder2 ||
 		rIID == IID_IPersistFolder2 ||
-		rIID == IID_IPersistFolder ||
-		rIID == IID_IShellIcon)
+		rIID == IID_IPersistFolder)
 	{
 		std::wstring sPath;
 
@@ -245,40 +236,43 @@ HRESULT		 CPlisgoFolder::CreateIPlisgoFolder(LPCITEMIDLIST pIDL, LPBC pBC, REFII
 		if (FAILED(hr))
 			return hr;
 
-		const DWORD nAttr = GetFileAttributes(sPath.c_str());
+		IPtrPlisgoFSRoot plisgoFSFolder = PlisgoFSFolderReg::GetSingleton()->GetPlisgoFSRoot(sPath.c_str());
 
-		if (nAttr == INVALID_FILE_ATTRIBUTES || !(nAttr&FILE_ATTRIBUTE_DIRECTORY))
-			return E_FAIL;
-
-		CComObject<CPlisgoFolder>* pShellFolder;
-
-		hr = CComObject<CPlisgoFolder>::CreateInstance ( &pShellFolder );
-
-		if ( FAILED(hr))
-			return hr;
-
-		assert(pShellFolder != NULL);
-
-		pShellFolder->AddRef();
-
-		LPITEMIDLIST pChildFull = ILCombine(m_pIDL, pIDL);
-
-		if (pChildFull != NULL)
+		if (plisgoFSFolder.get() != NULL)
 		{
-			hr = pShellFolder->Initialize(pChildFull, sPath);
+			const DWORD nAttr = GetFileAttributes(sPath.c_str());
 
-			ILFree(pChildFull);
+			if (nAttr == INVALID_FILE_ATTRIBUTES || !(nAttr&FILE_ATTRIBUTE_DIRECTORY))
+				return E_FAIL;
+
+			CComObject<CPlisgoFolder>* pShellFolder;
+
+			hr = CComObject<CPlisgoFolder>::CreateInstance ( &pShellFolder );
+
+			if ( FAILED(hr))
+				return hr;
+
+			assert(pShellFolder != NULL);
+
+			pShellFolder->AddRef();
+
+			LPITEMIDLIST pChildFull = ILCombine(m_pIDL, pIDL);
+
+			if (pChildFull != NULL)
+			{
+				hr = pShellFolder->Initialize(pChildFull, sPath, plisgoFSFolder);
+
+				ILFree(pChildFull);
+			}
+			else hr = E_FAIL;
+
+			if ( SUCCEEDED(hr) )
+				hr = pShellFolder->QueryInterface(rIID, ppResult);
+			
+			pShellFolder->Release();
+					
+			return hr;
 		}
-		else hr = E_FAIL;
-
-		if ( SUCCEEDED(hr) )
-			hr = pShellFolder->QueryInterface(rIID, ppResult);
-		else
-			hr = E_NOTIMPL; //Try the encapulated COM object
-		
-		pShellFolder->Release();
-				
-		return hr;
 	}
 
 	return E_NOTIMPL;
@@ -314,8 +308,6 @@ STDMETHODIMP CPlisgoFolder::GetUIObjectOf(HWND hWnd, UINT cidl, LPCITEMIDLIST* p
 
 	if (m_PlisgoFSFolder.get() != NULL && rIID == IID_IExtractIconW && cidl == 1)
 		return CreatePlisgoExtractIcon(*pIDL, hWnd, ppResult);
-
-	PrintInterfaceName(rIID);
 
 	return m_pCurrent->GetUIObjectOf(hWnd, cidl, pIDL, rIID, pnReserved, ppResult);
 }
