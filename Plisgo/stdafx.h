@@ -180,7 +180,6 @@ inline ULONG64	HashFromPreHash(ULONG64 nHash)
 }
 
 
-
 inline ULONG64		SimpleHash64(const wchar_t* sKey)
 {
 	ULONG64 nResult = 0;
@@ -193,10 +192,6 @@ inline ULONG64		SimpleHash64(const wchar_t* sKey)
 }
 
 extern HRESULT		GetShellIShellFolder2Implimentation(IShellFolder2** ppResult);
-
-extern bool			ReadTextFromFile(std::wstring& rsResult, LPCWSTR sFile);
-extern bool			ReadIntFromFile(int& rnResult, LPCWSTR sFile);
-extern bool			ReadDoubleFromFile(double& rnResult, LPCWSTR sFile);
 
 extern void			PrintInterfaceName(REFIID riid);
 

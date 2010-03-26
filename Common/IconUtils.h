@@ -39,6 +39,8 @@ extern HICON		LoadAsIcon(const std::wstring& rsFile, UINT nHeight);
 
 extern bool			ExtractIconInfoForExt( std::wstring& rsIconFilePath, int& rnIconIndex, LPCWSTR sExt );
 
+extern bool			ExtractOwnIconInfoOfFile( std::wstring& rsIconFilePath, int& rnIconIndex, const std::wstring& rsFile);
+
 extern int			AddIconToResourcedFile(const std::wstring& rsFile, const HICON hIcon);
 
 extern bool			WriteToIconFile(const std::wstring& rsFile, HICON hIcon, bool bAppend = true);

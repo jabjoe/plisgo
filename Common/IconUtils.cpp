@@ -27,34 +27,6 @@
 
 
 
-bool		ExtIsCodeImage(LPCWSTR sExt)
-{
-	return (sExt != NULL && sExt[0] == L'.' &&
-		((tolower(sExt[1]) == L'e' && tolower(sExt[2]) == L'x' && tolower(sExt[3]) == L'e') ||
-		(tolower(sExt[1]) == L'd' && tolower(sExt[2]) == L'l' && tolower(sExt[3]) == L'l')));
-}
-
-
-bool		ExtIsShortcut(LPCWSTR sExt)
-{
-	return (sExt != NULL && sExt[0] != L'\0' &&
-		(tolower(sExt[1]) == L'l' && tolower(sExt[2]) == L'n' && tolower(sExt[3]) == L'k'));
-}
-
-
-bool		ExtIsShortcutUrl(LPCWSTR sExt)
-{
-	return (sExt != NULL && sExt[0] != L'\0' &&
-		(tolower(sExt[1]) == L'u' && tolower(sExt[2]) == L'r' && tolower(sExt[3]) == L'l'));
-}
-
-
-bool		ExtIsIconFile(LPCWSTR sExt)
-{
-	return (sExt != NULL && sExt[0] != L'\0' &&
-		(tolower(sExt[1]) == L'i' && tolower(sExt[2]) == L'c' && tolower(sExt[3]) == L'o'));
-}
-
 
 HICON	CreateIconFromBitMap(HBITMAP hBitmap, const UINT nAimHeight)
 {
@@ -147,7 +119,7 @@ HICON	CreateIconFromBitMap(HBITMAP hBitmap, const UINT nAimHeight)
 }
 
 
-static bool		ReadShortcutTarget(std::wstring& rsTarget, LPCWSTR sLinkFile)
+static bool		GetShortcutIconLocation(std::wstring& rsIconPath, int& rnIndex, LPCWSTR sLinkFile)
 {
 	CComPtr<IShellLink>		pSL;
 
@@ -167,28 +139,21 @@ static bool		ReadShortcutTarget(std::wstring& rsTarget, LPCWSTR sLinkFile)
 	if (FAILED(hr))
 		return false;
 
-	rsTarget.assign(MAX_PATH, L' ');
+	WCHAR sBuffer[MAX_PATH];
 
-	hr = pSL->GetPath(const_cast<wchar_t*>(rsTarget.c_str()), (int)rsTarget.length(), NULL, SLGP_SHORTPATH);
+	hr = pSL->GetIconLocation(sBuffer, MAX_PATH, &rnIndex);
 
-	while (hr == TBS_E_INSUFFICIENT_BUFFER)
-	{
-		rsTarget.assign(rsTarget.length()*2,L' ');
+	if (FAILED(hr))
+		return false;
 
-		hr = pSL->GetPath(const_cast<wchar_t*>(rsTarget.c_str()), (int)rsTarget.length(), NULL, SLGP_SHORTPATH);
-	}
+	rsIconPath = sBuffer;
 
-	if (hr == S_OK)
-	{
-		rsTarget.resize(wcslen(rsTarget.c_str()));
-
-		return true;
-	}
-	else rsTarget.resize(0);
-
-	return false;
+	return true;
 }
 
+static bool		ReadUrlShortcutTarget(std::wstring& rsTarget, LPCWSTR sLinkFile)
+{
+}
 
 
 
@@ -986,8 +951,9 @@ HICON			GetSpecificIcon( const std::wstring& rsFile, const int nIndex, const UIN
 		else if (ExtIsShortcut(sExt))
 		{
 			std::wstring sTarget;
+			int nIndex;
 
-			if (ReadShortcutTarget(sTarget, rsFile.c_str()))
+			if (GetShortcutIconLocation(sTarget, nIndex, rsFile.c_str()))
 				hIcon = GetSpecificIcon(sTarget, nIndex, nHeight);
 			else
 				hIcon = ExtractIcon(ghInstance, rsFile.c_str(), nIndex);
@@ -1473,9 +1439,9 @@ HICON			LoadAsIcon(const std::wstring& rsPath, const UINT nAimHeight)
 
 	return CreateIconFromBitMap(hBitmap, nAimHeight);
 }
-	
 
-HBITMAP		ExtractAsBitmap(HINSTANCE hExeHandle, LPCWSTR sName, LPCWSTR sType, UINT* pnHeight)
+
+HBITMAP			ExtractAsBitmap(HINSTANCE hExeHandle, LPCWSTR sName, LPCWSTR sType, UINT* pnHeight)
 {
 	assert(hExeHandle != NULL);
 	assert(sName != NULL);
@@ -1539,4 +1505,79 @@ HBITMAP		ExtractAsBitmap(HINSTANCE hExeHandle, LPCWSTR sName, LPCWSTR sType, UIN
 	}
 
 	return hResult;
+}
+
+
+
+bool			ExtractOwnIconInfoOfFile( std::wstring& rsIconFilePath, int& rnIconIndex, const std::wstring& rsFile)
+{
+	size_t nDot = rsFile.rfind(L'.');
+
+	if (nDot == -1)
+		return false;
+	
+	LPCWSTR sExt = &rsFile[nDot];
+
+	if (ExtIsCodeImage(sExt))
+	{
+		rsIconFilePath		= rsFile;
+		rnIconIndex			= 0;
+
+		return true;
+	}
+	else if (ExtIsIconFile(sExt))
+	{
+		rsIconFilePath		= rsFile;
+		rnIconIndex			= 0;
+
+		return true;
+	}
+	else if (ExtIsShortcut(sExt))
+	{
+		return GetShortcutIconLocation(rsIconFilePath, rnIconIndex, rsFile.c_str());
+	}
+	else if (ExtIsShortcutUrl(sExt))
+	{
+		std::wstring sFileData;
+
+		if (!ReadTextFromFile(sFileData, rsFile.c_str()))
+			return false;
+		
+		std::transform(sFileData.begin(),sFileData.end(),sFileData.begin(),tolower);
+
+		size_t nStartPos = sFileData.find(L"\niconfile");
+		
+		if (nStartPos != -1)
+		{
+			size_t nPos = nStartPos + 9;
+
+			for(WCHAR c = sFileData[nPos]; c == L' ' || c == L'='; ++nPos, c = sFileData[nPos]);
+
+			size_t nEndPos = sFileData.find(L'\r', nPos );
+
+			if (nEndPos != -1)
+				rsIconFilePath = sFileData.substr(nPos, nEndPos-nPos);
+			else
+				rsIconFilePath = sFileData.substr(nPos);
+
+			rnIconIndex = 0;
+
+			nStartPos = sFileData.find(L"\niconindex");
+
+			if (nStartPos != -1)
+			{
+				nPos = nStartPos + 10;
+
+				for(WCHAR c = sFileData[nPos]; c == L' ' || c == L'='; ++nPos, c = sFileData[nPos]);
+
+				rnIconIndex = _wtoi(&sFileData.c_str()[nPos]);
+			}
+			
+			return true;
+		}
+
+		return false;
+	}
+
+	return false;
 }

@@ -208,25 +208,14 @@ static DWORD WINAPI CleanUpOldPlisgoTempFilesCB( LPVOID  )
 			std::string sInfoFile(sTemp);
 			sInfoFile+= findData.cFileName;
 
-			bool bDelete = false;
+			boost::interprocess::scoped_lock<boost::interprocess::file_lock> lock(fileLock);
 
+			if (OldAndShouldBeDeleted(sInfoFile))
 			{
-				boost::interprocess::sharable_lock<boost::interprocess::file_lock> lock(fileLock);
-
-				bDelete = OldAndShouldBeDeleted(sInfoFile);
-			}
-
-			if (bDelete)
-			{
-				boost::interprocess::scoped_lock<boost::interprocess::file_lock> lock(fileLock);
-
-				if (OldAndShouldBeDeleted(sInfoFile))
-				{
-					DeleteFileA(sInfoFile.c_str());
-					size_t nDot = sInfoFile.rfind(L'.');
-					if (nDot != -1)
-						DeleteFileA((sInfoFile.substr(0, nDot) += ".ico").c_str());
-				}
+				DeleteFileA(sInfoFile.c_str());
+				size_t nDot = sInfoFile.rfind(L'.');
+				if (nDot != -1)
+					DeleteFileA((sInfoFile.substr(0, nDot) += ".ico").c_str());
 			}
 		}
 		while(FindNextFileA(hFind, &findData) != 0);
@@ -679,63 +668,21 @@ RefIconList::RefIconList(UINT nHeight)
 
 bool	RefIconList::GetFileIconLocation(IconLocation& rIconLocation, const std::wstring& rsPath) const
 {
-	std::wstring sKey;
-
-	GetLowerCaseExtension(sKey, rsPath);
-
-	if (ExtIsCodeImage(sKey.c_str()) || ExtIsIconFile(sKey.c_str()))
+	if (ExtractOwnIconInfoOfFile(rIconLocation.sPath, rIconLocation.nIndex, rsPath))
 	{
-		rIconLocation.sPath		= rsPath;
-		rIconLocation.nIndex	= 0;
+		//Has it's own icon
 
 		int nTemp;
 
 		if (GetIconLocationIndex(nTemp, rIconLocation))
 			return true;
+
+		//But it can't be loaded........ use the default
 	}
-	else if (ExtIsShortcutUrl(sKey.c_str()))
-	{
-		std::wstring sFileData;
 
-		if (ReadTextFromFile(sFileData, rsPath.c_str()))
-		{
-			std::transform(sFileData.begin(),sFileData.end(),sFileData.begin(),tolower);
+	std::wstring sKey;
 
-			size_t nStartPos = sFileData.find(L"\niconfile");
-			
-			if (nStartPos != -1)
-			{
-				size_t nPos = nStartPos + 9;
-
-				for(WCHAR c = sFileData[nPos]; c == L' ' || c == L'='; ++nPos, c = sFileData[nPos]);
-
-				size_t nEndPos = sFileData.find(L'\r', nPos );
-
-				if (nEndPos != -1)
-					rIconLocation.sPath = sFileData.substr(nPos, nEndPos-nPos);
-				else
-					rIconLocation.sPath = sFileData.substr(nPos);
-
-				if (GetFileAttributes(rIconLocation.sPath.c_str()) != INVALID_FILE_ATTRIBUTES)
-				{
-					rIconLocation.nIndex = 0;
-
-					nStartPos = sFileData.find(L"\niconindex");
-
-					if (nStartPos != -1)
-					{
-						nPos = nStartPos + 10;
-
-						for(WCHAR c = sFileData[nPos]; c == L' ' || c == L'='; ++nPos, c = sFileData[nPos]);
-
-						rIconLocation.nIndex = _wtoi(&sFileData.c_str()[nPos]);
-					}
-					
-					return true;
-				}
-			}
-		}
-	}
+	GetLowerCaseExtension(sKey, rsPath);
 
 	boost::upgrade_lock<boost::shared_mutex> lock(m_Mutex);
 

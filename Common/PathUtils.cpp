@@ -25,6 +25,36 @@
 #include "PathUtils.h"
 
 
+
+bool		ExtIsCodeImage(LPCWSTR sExt)
+{
+	return (sExt != NULL && sExt[0] == L'.' &&
+		((tolower(sExt[1]) == L'e' && tolower(sExt[2]) == L'x' && tolower(sExt[3]) == L'e') ||
+		(tolower(sExt[1]) == L'd' && tolower(sExt[2]) == L'l' && tolower(sExt[3]) == L'l')));
+}
+
+
+bool		ExtIsShortcut(LPCWSTR sExt)
+{
+	return (sExt != NULL && sExt[0] != L'\0' &&
+		(tolower(sExt[1]) == L'l' && tolower(sExt[2]) == L'n' && tolower(sExt[3]) == L'k'));
+}
+
+
+bool		ExtIsShortcutUrl(LPCWSTR sExt)
+{
+	return (sExt != NULL && sExt[0] != L'\0' &&
+		(tolower(sExt[1]) == L'u' && tolower(sExt[2]) == L'r' && tolower(sExt[3]) == L'l'));
+}
+
+
+bool		ExtIsIconFile(LPCWSTR sExt)
+{
+	return (sExt != NULL && sExt[0] != L'\0' &&
+		(tolower(sExt[1]) == L'i' && tolower(sExt[2]) == L'c' && tolower(sExt[3]) == L'o'));
+}
+
+
 static void AppendANSI(std::wstring& rResult, const char* sStr)
 {
 	int nAnsiLen = (int)strlen(sStr);
@@ -211,4 +241,105 @@ void		EnsureFullPath(std::wstring& rsFile)
 			else sTemp = sNext;
 		}
 	}
+}
+
+
+
+
+bool	ReadTextFromFile(std::wstring& rsResult, LPCWSTR sFile)
+{
+	HANDLE hFile = CreateFileW(sFile, FILE_READ_DATA, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
+
+	if (hFile == NULL || hFile == INVALID_HANDLE_VALUE)
+		return false;
+	
+	bool bResult = false;
+
+	LARGE_INTEGER nSize;
+
+	nSize.LowPart = GetFileSize(hFile, (LPDWORD)&nSize.HighPart);
+
+	if (nSize.HighPart == 0 && nSize.LowPart < 1024*1024) //Check it's not bigger than a meg
+	{
+		rsResult.reserve((unsigned int)nSize.QuadPart);
+
+		CHAR buffer[MAX_PATH];
+
+		DWORD nRead = 0;
+
+
+		while(ReadFile(hFile, buffer, MAX_PATH-1, &nRead, NULL) && nRead > 0)
+		{
+			buffer[nRead] = 0;
+
+			DWORD nWRead = MultiByteToWideChar(CP_UTF8, 0, buffer, (int)nRead, NULL, 0);
+
+			WCHAR* wBuffer = (WCHAR*)_malloca(sizeof(WCHAR)*(nWRead+1));
+
+			nWRead = MultiByteToWideChar(CP_UTF8, 0, buffer, (int)nRead, wBuffer, nWRead);
+
+			wBuffer[nWRead] = 0;
+
+			rsResult += wBuffer;
+			bResult = true;
+
+			_freea(wBuffer);
+		}
+	}
+
+	CloseHandle(hFile);
+
+	return bResult;
+}
+
+
+bool	ReadIntFromFile(int& rnResult, LPCWSTR sFile)
+{
+	HANDLE hFile = CreateFileW(sFile, FILE_READ_DATA, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
+
+	if (hFile == NULL || hFile == INVALID_HANDLE_VALUE)
+		return false;
+
+	CHAR buffer[MAX_PATH];
+
+	DWORD nRead = 0;
+
+	bool bResult = (ReadFile(hFile, buffer, MAX_PATH-1, &nRead, NULL) == TRUE);
+
+	if (bResult)
+	{
+		buffer[nRead] = 0;
+
+		rnResult = atoi(buffer);
+	}
+
+	CloseHandle(hFile);
+
+	return true;
+}
+
+
+bool	ReadDoubleFromFile(double& rnResult, LPCWSTR sFile)
+{
+	HANDLE hFile = CreateFileW(sFile, FILE_READ_DATA, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
+
+	if (hFile == NULL || hFile == INVALID_HANDLE_VALUE)
+		return false;
+
+	CHAR buffer[MAX_PATH];
+
+	DWORD nRead = 0;
+
+	bool bResult = (ReadFile(hFile, buffer, MAX_PATH-1, &nRead, NULL) == TRUE);
+
+	if (bResult)
+	{
+		buffer[nRead] = 0;
+
+		rnResult = atof(buffer);
+	}
+
+	CloseHandle(hFile);
+
+	return true;
 }

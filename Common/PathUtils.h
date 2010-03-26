@@ -41,5 +41,8 @@ inline void			EnsureWin32Path(std::wstring& rsPath)
 
 extern void			EnsureFullPath(std::wstring& rsFile);
 
+extern bool			ReadTextFromFile(std::wstring& rsResult, LPCWSTR sFile);
+extern bool			ReadIntFromFile(int& rnResult, LPCWSTR sFile);
+extern bool			ReadDoubleFromFile(double& rnResult, LPCWSTR sFile);
 
 extern HRESULT		GetWStringPathFromIDL(std::wstring& rResult, LPCITEMIDLIST pIDL);
