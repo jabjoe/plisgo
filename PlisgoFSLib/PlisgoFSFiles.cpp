@@ -315,7 +315,7 @@ bool				PlisgoFSFileList::ForEachFile(PlisgoFSFolder::EachChild& rEachFile) cons
 {
 	boost::shared_lock<boost::shared_mutex> lock(m_Mutex);
 
-	for(FileMap::const_iterator it = m_Files.begin();
+	for(PlisgoFSFileMap::const_iterator it = m_Files.begin();
 		it != m_Files.end(); ++it)
 	{
 		if (!rEachFile.Do(it->first.c_str(), it->second))
@@ -330,7 +330,7 @@ IPtrPlisgoFSFile	PlisgoFSFileList::GetFile(LPCWSTR sName) const
 {
 	boost::shared_lock<boost::shared_mutex> lock(m_Mutex);
 
-	FileMap::const_iterator it = m_Files.find(sName);
+	PlisgoFSFileMap::const_iterator it = m_Files.find(sName);
 	
 	if (it != m_Files.end())
 		return it->second;
@@ -346,7 +346,7 @@ IPtrPlisgoFSFile	PlisgoFSFileList::GetFile(UINT nIndex) const
 	if (nIndex >= m_Files.size())
 		return IPtrPlisgoFSFile();
 
-	FileMap::const_iterator it = m_Files.begin();
+	PlisgoFSFileMap::const_iterator it = m_Files.begin();
 
 	while(nIndex--)
 		++it;
@@ -385,7 +385,34 @@ int		PlisgoFSStorageFolder::CreateChild(IPtrPlisgoFSFile& rChild, LPCWSTR sName,
 
 	return AddChild(sName, rChild);
 }
+/*
+****************************************************************************
+*/
 
+PlisgoFSReadOnlyStorageFolder::PlisgoFSReadOnlyStorageFolder(PlisgoFSFileMap& rFileMap) : m_Files(rFileMap)
+{}
+
+bool				PlisgoFSReadOnlyStorageFolder::ForEachChild(PlisgoFSFolder::EachChild& rEachChild) const
+{
+	for(PlisgoFSFileMap::const_iterator it = m_Files.begin();
+		it != m_Files.end(); ++it)
+	{
+		if (!rEachChild.Do(it->first.c_str(), it->second))
+			return false;
+	}
+
+	return true;
+}
+
+IPtrPlisgoFSFile	PlisgoFSReadOnlyStorageFolder::GetChild(LPCWSTR sName) const
+{
+	PlisgoFSFileMap::const_iterator it = m_Files.find(sName);
+	
+	if (it != m_Files.end())
+		return it->second;
+
+	return IPtrPlisgoFSFile();
+}
 /*
 ****************************************************************************
 */

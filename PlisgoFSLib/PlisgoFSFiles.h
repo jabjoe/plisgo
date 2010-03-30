@@ -187,6 +187,8 @@ struct ihash : std::unary_function<std::wstring, std::size_t>
     }
 };
 
+typedef boost::unordered_map<std::wstring, IPtrPlisgoFSFile, ihash, iequal_to> PlisgoFSFileMap;
+
 class PlisgoFSFileList
 {
 public:
@@ -201,11 +203,8 @@ public:
 
 private:
 	
-	typedef boost::unordered_map<std::wstring, IPtrPlisgoFSFile, ihash, iequal_to> FileMap;
-
 	mutable boost::shared_mutex		m_Mutex;
-	FileMap							m_Files;
-//	std::map<std::wstring, IPtrPlisgoFSFile >	m_files;
+	PlisgoFSFileMap					m_Files;
 };
 
 
@@ -241,6 +240,26 @@ protected:
 	PlisgoFSFileList		m_childList;
 };
 
+
+class PlisgoFSReadOnlyStorageFolder : public PlisgoFSFolder
+{
+public:
+
+	PlisgoFSReadOnlyStorageFolder(PlisgoFSFileMap& rFileMap);
+
+	virtual bool				ForEachChild(PlisgoFSFolder::EachChild& rEachChild) const;
+
+	virtual IPtrPlisgoFSFile	GetChild(LPCWSTR sName) const;
+
+	virtual int					AddChild(LPCWSTR , IPtrPlisgoFSFile )				{ return -ERROR_ACCESS_DENIED; }
+	virtual int					CreateChild(IPtrPlisgoFSFile& , LPCWSTR , DWORD )	{ return -ERROR_ACCESS_DENIED; }
+	virtual int					GetRemoveChildError(LPCWSTR ) const					{ return -ERROR_ACCESS_DENIED; }
+	virtual int					RemoveChild(LPCWSTR )								{ return -ERROR_ACCESS_DENIED; }
+
+private:
+
+	PlisgoFSFileMap		m_Files;
+};
 
 
 class PlisgoFSDataFileReadOnly : public PlisgoFSFile

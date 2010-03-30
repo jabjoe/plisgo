@@ -47,6 +47,7 @@ public:
 	bool						AddMount(LPCWSTR sMount, IPtrPlisgoFSFile Mount);
 	bool						RemoveMount(LPCWSTR sMount);
 	IPtrPlisgoFSFile			GetMount(LPCWSTR sMount);
+	void						GetMounts(std::map<std::wstring,IPtrPlisgoFSFile>& rMounts);
 
 
 	IPtrPlisgoFSFolder			GetRoot() const			{ return m_Root; }

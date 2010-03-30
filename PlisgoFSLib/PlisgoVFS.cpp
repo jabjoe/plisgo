@@ -90,6 +90,18 @@ IPtrPlisgoFSFile	PlisgoVFS::GetMount(LPCWSTR sMount)
 	return result;
 }
 
+	
+void				PlisgoVFS::GetMounts(std::map<std::wstring,IPtrPlisgoFSFile>& rMounts)
+{
+	MountTree::FullKeyMap	mounts;
+
+	m_MountTree.GetFullKeyMap(mounts);
+
+	for(MountTree::FullKeyMap::const_iterator it = mounts.begin(); it != mounts.end(); ++it)
+		rMounts[it->first] = it->second;
+}
+
+
 
 bool				PlisgoVFS::GetCached(const std::wstring& rsPath, IPtrPlisgoFSFile& rFile) const
 {
