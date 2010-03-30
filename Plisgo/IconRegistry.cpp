@@ -275,10 +275,32 @@ static bool WriteIconLocationToInfoFile(HANDLE hFile, const IconLocation& rIconL
 	if (nWritten != nLength*sizeof(WCHAR))
 		return false;
 
-	nLength = (ULONG32)rIconLocation.nIndex;
-	WriteFile(hFile, &nLength, sizeof(ULONG32), &nWritten, NULL);
+	WriteFile(hFile, &rIconLocation.nIndex, sizeof(int), &nWritten, NULL);
 
-	return (nWritten == sizeof(ULONG32));
+	return (nWritten == sizeof(int));
+}
+
+
+static bool	ReadIconLocationToInfoFile(HANDLE hFile, IconLocation& rIconLocation)
+{
+	DWORD nRead = 0;
+	ULONG32 nLength = 0;
+
+	ReadFile(hFile,  &nLength, sizeof(ULONG32), &nRead, NULL);
+
+	if (nRead != sizeof(ULONG32) || nLength == 0)
+		return false;
+
+	rIconLocation.sPath.assign(nLength, L' ');
+
+	ReadFile(hFile, const_cast<WCHAR*>(rIconLocation.sPath.c_str()), nLength*sizeof(WCHAR), &nRead, NULL);
+
+	if (nRead != nLength*sizeof(WCHAR))
+		return false;
+
+	ReadFile(hFile,  &rIconLocation.nIndex, sizeof(int), &nRead, NULL);
+
+	return (nRead == sizeof(int));
 }
 
 
@@ -296,11 +318,11 @@ static bool	WriteInfoFile(LPCWSTR sFile, const IconLocation& rFirst, ULONG64 nFi
 	if (WriteFile(hFile, &nFirstTime, sizeof(ULONG64), &nWritten, NULL) && nWritten == sizeof(ULONG64) &&
 		WriteFile(hFile, &sSecondTime, sizeof(ULONG64), &nWritten, NULL) && nWritten == sizeof(ULONG64))
 	{
-		bResult = true;
 
 		//This bit doesn't matter as much, it's to be used for book keeping
-		if (WriteIconLocationToInfoFile(hFile, rFirst))
-			WriteIconLocationToInfoFile(hFile, rSecond);
+		if (WriteIconLocationToInfoFile(hFile, rFirst) &&
+			WriteIconLocationToInfoFile(hFile, rSecond))		
+			bResult = true;
 	}
 
 	CloseHandle(hFile);
@@ -309,31 +331,69 @@ static bool	WriteInfoFile(LPCWSTR sFile, const IconLocation& rFirst, ULONG64 nFi
 }
 
 
-static bool IsUpToDateInfoFile(const std::wstring& rsTxtFile, ULONG64 nBaseTime, ULONG64 nOverTime)
+static bool GetUsableInfoFile(	std::wstring& rsFile, 
+								const IconLocation& rFirst,	
+								const IconLocation& rSecond,
+								ULONG64 nBaseTime, ULONG64 nOverTime)
 {
-	bool bResult = false;
-
-	HANDLE hFile = CreateFileW(rsTxtFile.c_str(), FILE_READ_DATA, FILE_SHARE_READ|FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL);
-
-	if (hFile != NULL && hFile != INVALID_HANDLE_VALUE)
+	do
 	{
-		OVERLAPPED overlapped = {0};
+		HANDLE hFile = CreateFileW((rsFile + L".info").c_str(), FILE_READ_DATA, FILE_SHARE_READ|FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL);
 
-		ULONG64 nFileBaseTime;
-		ULONG64 nFileOverTime;
+		if (hFile == NULL || hFile == INVALID_HANDLE_VALUE)
+			return false;
 
-		DWORD nRead = 0;
-
-		if (ReadFile(hFile, &nFileBaseTime, sizeof(ULONG64), &nRead, NULL) && nRead == sizeof(ULONG64) &&
-			ReadFile(hFile, &nFileOverTime, sizeof(ULONG64), &nRead, NULL) && nRead == sizeof(ULONG64) )
+		bool bResult = false;
+		bool bFileOk = false;
+			
 		{
-			bResult = (nBaseTime == nFileBaseTime && nOverTime == nFileOverTime);
+			ULONG64 nFileBaseTime;
+			ULONG64 nFileOverTime;
+
+			IconLocation firstInFile;
+			IconLocation secondInFile;
+
+			DWORD nRead = 0;
+
+			if (ReadFile(hFile, &nFileBaseTime, sizeof(ULONG64), &nRead, NULL) && nRead == sizeof(ULONG64) &&
+				ReadFile(hFile, &nFileOverTime, sizeof(ULONG64), &nRead, NULL) && nRead == sizeof(ULONG64) &&
+				ReadIconLocationToInfoFile(hFile, firstInFile) && ReadIconLocationToInfoFile(hFile, secondInFile))
+			{
+				bFileOk = true;
+
+				if (firstInFile.nIndex == rFirst.nIndex &&
+					secondInFile.nIndex == rSecond.nIndex &&
+					_wcsicmp(firstInFile.sPath.c_str(), rFirst.sPath.c_str()) == 0 &&
+					_wcsicmp(secondInFile.sPath.c_str(), rSecond.sPath.c_str()) == 0 )
+				{
+					bResult = (nFileBaseTime == nBaseTime && nOverTime == nFileOverTime);
+				}
+			}
 		}
 
 		CloseHandle(hFile);
-	}
+		
+		if (bResult)
+			return true;
 
-	return bResult;
+		if (!bFileOk)
+			return false;
+
+		//Oh, oh dear collision?
+
+		size_t nPos = rsFile.rfind(L'-');
+
+		if (nPos != -1)
+		{
+			const long nNum = _wtol(&rsFile.c_str()[nPos+1]) + 1;
+
+			rsFile.resize(nPos);
+
+			rsFile += (boost::wformat(L"-%1%") %nNum).str();
+		}
+		else rsFile += L"-1";
+	}
+	while(1);
 }
 
 
@@ -1089,15 +1149,9 @@ bool	RefIconList::MakeOverlaid(	IconLocation&		rDst,
 	GetTempPath(MAX_PATH, sTemp);
 
 	const std::wstring sPlisgoTemp = (boost::wformat(L"%1%plisgo") %sTemp).str();	
-	const std::wstring sFile((boost::wformat(L"%1%\\%2%_%3%_%4%") %sPlisgoTemp %nBaseHash %nOverHash %m_nHeight).str());
+	
+	std::wstring sFile((boost::wformat(L"%1%\\%2%_%3%_%4%") %sPlisgoTemp %nBaseHash %nOverHash %m_nHeight).str());
 
-
-	rDst.nIndex = 0;
-	rDst.sPath = sFile;
-	rDst.sPath += L".ico";
-
-	std::wstring sTxtFile = sFile;
-	sTxtFile+= L".info";
 
 	std::string sLockFile;
 
@@ -1108,18 +1162,30 @@ bool	RefIconList::MakeOverlaid(	IconLocation&		rDst,
 	{
 		boost::interprocess::sharable_lock<boost::interprocess::file_lock> lock(fileLock);
 
-		if (IsUpToDateInfoFile(sTxtFile, nBaseTime, nOverTime))
+		if (GetUsableInfoFile(sFile, rFirst, rSecond, nBaseTime, nOverTime))
+		{
+			rDst.nIndex = 0;
+			rDst.sPath = sFile;
+			rDst.sPath += L".ico";
+
 			if (GetFileAttributes(rDst.sPath.c_str()) != INVALID_FILE_ATTRIBUTES)
 				return true;
+		}
 	}
 
 
 	{
 		boost::interprocess::scoped_lock<boost::interprocess::file_lock> lock(fileLock);
 
-		if (IsUpToDateInfoFile(sTxtFile, nBaseTime, nOverTime))
+		if (GetUsableInfoFile(sFile, rFirst, rSecond, nBaseTime, nOverTime))
+		{
+			rDst.nIndex = 0;
+			rDst.sPath = sFile;
+			rDst.sPath += L".ico";
+
 			if (GetFileAttributes(rDst.sPath.c_str()) != INVALID_FILE_ATTRIBUTES)
 				return true;
+		}
 
 		bool bResult = false;
 
@@ -1127,9 +1193,13 @@ bool	RefIconList::MakeOverlaid(	IconLocation&		rDst,
 			
 		if (hResult != NULL)
 		{
+			rDst.nIndex = 0;
+			rDst.sPath = sFile;
+			rDst.sPath += L".ico";
+
 			if (WriteToIconFile(rDst.sPath.c_str(), hResult))
 			{
-				WriteInfoFile(sTxtFile.c_str(), rFirst, nBaseTime, rSecond, nOverTime);
+				WriteInfoFile((sFile + L".info").c_str(), rFirst, nBaseTime, rSecond, nOverTime);
 
 				bResult = true;
 			}
