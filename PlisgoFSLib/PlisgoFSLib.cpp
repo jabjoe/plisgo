@@ -38,6 +38,26 @@ void			FromWide(std::string& rsDst, const std::wstring& sSrc)
 }
 
 
+void			FromWide(std::string& rsDst, LPCWSTR sSrc)
+{
+	if (sSrc == NULL)
+	{
+		rsDst.clear();
+		return;
+	}
+
+	int nLen = (int)wcslen(sSrc);
+
+	int nSize = WideCharToMultiByte(CP_UTF8, 0, sSrc, nLen, NULL, 0, NULL, NULL);
+	
+	rsDst.assign(nSize+1, ' ');
+
+	nSize = WideCharToMultiByte(CP_UTF8, 0, sSrc, nLen, const_cast<char*>(rsDst.c_str()), (int)rsDst.length(), NULL, NULL);
+
+	rsDst.resize(nSize);
+}
+
+
 void			ToWide(std::wstring& rDst, const std::string& sSrc)
 {
 	int nSize = MultiByteToWideChar(CP_UTF8, 0, sSrc.c_str(), (int)sSrc.length(), NULL, 0);
@@ -45,6 +65,26 @@ void			ToWide(std::wstring& rDst, const std::string& sSrc)
 	rDst.assign(nSize+1, L' ');
 
 	nSize = MultiByteToWideChar(CP_UTF8, 0, sSrc.c_str(), (int)sSrc.length(), const_cast<WCHAR*>(rDst.c_str()), (int)rDst.length());
+
+	rDst.resize(nSize);
+}
+
+
+void			ToWide(std::wstring& rDst, const char* sSrc)
+{
+	if (sSrc == NULL)
+	{
+		rDst.clear();
+		return;
+	}
+
+	int nLen = (int)strlen(sSrc);
+
+	int nSize = MultiByteToWideChar(CP_UTF8, 0, sSrc, nLen, NULL, 0);
+
+	rDst.assign(nSize+1, L' ');
+
+	nSize = MultiByteToWideChar(CP_UTF8, 0, sSrc, nLen, const_cast<WCHAR*>(rDst.c_str()), (int)rDst.length());
 
 	rDst.resize(nSize);
 }

@@ -51,7 +51,10 @@ static const int PLISGO_APIVERSION = 2;
 typedef	WCHAR		FileNameBuffer[MAX_PATH];
 
 extern void			FromWide(std::string& rsDst, const std::wstring& sSrc);
+extern void			FromWide(std::string& rsDst, LPCWSTR sSrc);
+
 extern void			ToWide(std::wstring& rDst, const std::string& sSrc);
+extern void			ToWide(std::wstring& rDst, const char* sSrc);
 
 
 
@@ -101,14 +104,6 @@ inline bool					ParseNoCase(LPCWSTR& rsToParse, LPCWSTR sAgainst)
 	return (*sAgainst == 0);
 }
 
-/*
-inline bool					MatchLower(LPCWSTR sMatch, LPCWSTR sAgainst)
-{
-	LPCWSTR sTemp = sMatch;
-
-	return (ParseLower(sTemp, sAgainst) && sTemp[0] == L'\0');		
-}
-*/
 
 inline LPCWSTR				GetNameFromPath(LPCWSTR sPath)
 {
