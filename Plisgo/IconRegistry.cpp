@@ -891,8 +891,6 @@ bool	RefIconList::GetIconLocation(IconLocation& rIconLocation, const int nIndex)
 
 	GetSystemTimeAsFileTime((FILETIME*)&rCachedIcon.nTime);
 
-	//InterlockedExchange64 can not be used, at least not on this machine.
-
 	return true;
 }
 
