@@ -31,6 +31,6 @@
 #include <boost/algorithm/string/trim.hpp>
 #include <vector>
 
-extern HINSTANCE ghInstance;
+extern HINSTANCE g_hInstance;
 
 #define GETOFFSET(_struct, _member)	((size_t)&((_struct*)NULL)->_member)

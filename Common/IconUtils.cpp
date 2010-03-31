@@ -945,7 +945,7 @@ HICON			GetSpecificIcon( const std::wstring& rsFile, const int nIndex, const UIN
 		else if (ExtIsIconFile(sExt))
 		{
 			//LoadImage will scale, not just find the closed in size
-			//hIcon = (HICON)LoadImage(ghInstance, rsFile.c_str(), IMAGE_ICON, nHeight, nHeight, LR_LOADFROMFILE);
+			//hIcon = (HICON)LoadImage(g_hInstance, rsFile.c_str(), IMAGE_ICON, nHeight, nHeight, LR_LOADFROMFILE);
 			hIcon = FindBestIconFromIco(rsFile.c_str(), nHeight);			
 		}
 		else if (ExtIsShortcut(sExt))
@@ -956,7 +956,7 @@ HICON			GetSpecificIcon( const std::wstring& rsFile, const int nIndex, const UIN
 			if (GetShortcutIconLocation(sTarget, nIndex, rsFile.c_str()))
 				hIcon = GetSpecificIcon(sTarget, nIndex, nHeight);
 			else
-				hIcon = ExtractIcon(ghInstance, rsFile.c_str(), nIndex);
+				hIcon = ExtractIcon(g_hInstance, rsFile.c_str(), nIndex);
 		}
 		else
 		{
@@ -966,7 +966,7 @@ HICON			GetSpecificIcon( const std::wstring& rsFile, const int nIndex, const UIN
 
 	//Last try to find some icon for this!
 	if (hIcon == NULL)
-		hIcon = ExtractIcon(ghInstance, rsFile.c_str(), nIndex);
+		hIcon = ExtractIcon(g_hInstance, rsFile.c_str(), nIndex);
 
 	return hIcon;
 }
@@ -1412,7 +1412,7 @@ HICON			LoadAsIcon(const std::wstring& rsPath, const UINT nAimHeight)
 		(tolower(rsPath[rsPath.length()-2]) == L'm') &&
 		(tolower(rsPath[rsPath.length()-1]) == L'p') )
 	{
-		hBitmap = (HBITMAP)LoadImage(ghInstance, rsPath.c_str(), IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE | LR_CREATEDIBSECTION );
+		hBitmap = (HBITMAP)LoadImage(g_hInstance, rsPath.c_str(), IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE | LR_CREATEDIBSECTION );
 	}
 
 	if (hBitmap == NULL)
