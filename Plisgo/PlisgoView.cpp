@@ -1086,7 +1086,7 @@ LRESULT		 CPlisgoView::OnCreate(	UINT uMsg, WPARAM wParam,
 
     m_hList = CreateWindowEx (	dwListExStyles, WC_LISTVIEW, NULL, dwListStyles,
 										0, 0, 0, 0, m_hWnd, (HMENU) 101, 
-										ghInstance, 0 );
+										g_hInstance, 0 );
 
 	
     if ( NULL == m_hList )

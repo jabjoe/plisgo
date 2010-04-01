@@ -26,7 +26,7 @@
 CPlisgoModule _AtlModule;
 
 
-HINSTANCE ghInstance = NULL;
+HINSTANCE g_hInstance = NULL;
 
 
 
@@ -37,10 +37,10 @@ extern "C" BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpRes
 
 	switch(dwReason)
 	{
-	case DLL_PROCESS_ATTACH: ghInstance = hInstance; break;
+	case DLL_PROCESS_ATTACH: g_hInstance = hInstance; break;
 	case DLL_THREAD_ATTACH: InterlockedIncrement(&nThreadNum); break;
 	case DLL_THREAD_DETACH: InterlockedDecrement(&nThreadNum); break;
-	case DLL_PROCESS_DETACH: ghInstance = NULL;  break;
+	case DLL_PROCESS_DETACH: g_hInstance = NULL;  break;
 	}
 
 	return _AtlModule.DllMain(dwReason, lpReserved); 
