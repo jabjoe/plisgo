@@ -445,8 +445,8 @@ int					PlisgoVFS::Open(	PlisgoFileHandle&	rHandle,
 
 	if (nError != 0)
 	{		
-		if (file.get() == NULL && m_pLog != NULL)
-			m_pLog->NotFoundFile(sPathLowerCase);
+		if (m_pLog != NULL)
+			m_pLog->OpenFileFailed(sPathLowerCase, nError);
 
 		return nError;
 	}
@@ -460,6 +460,9 @@ int					PlisgoVFS::Open(	PlisgoFileHandle&	rHandle,
 	if (pOpenFileData == NULL)
 	{
 		file->Close(&nOpenInstaceData);
+
+		if (m_pLog != NULL)
+			m_pLog->OpenFileFailed(sPathLowerCase, -ERROR_TOO_MANY_OPEN_FILES);
 
 		return -ERROR_TOO_MANY_OPEN_FILES;
 	}

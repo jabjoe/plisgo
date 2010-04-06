@@ -30,7 +30,7 @@
 class PlisgoVFSOpenLog
 {
 public:
-	virtual void NotFoundFile(const std::wstring& rsPath) = 0;
+	virtual void OpenFileFailed(const std::wstring& rsPath, int nError) = 0;
 	virtual void OpenFile(const std::wstring& rsPath) = 0;
 	virtual void CloseFile(const std::wstring& rsPath) = 0;
 };
