@@ -78,7 +78,7 @@ PlisgoFSMenu::PlisgoFSMenu(IPtrFSIconRegistry FSIcons, const std::wstring& rsPat
 			m_bEnabled = true;
 	
 		
-		m_sClickCmd = m_sPath + L"\\click.*";
+		m_sClickCmd = m_sPath + L"\\.click.*";
 
 		WIN32_FIND_DATAW	findData;
 
@@ -107,7 +107,7 @@ PlisgoFSMenu::PlisgoFSMenu(IPtrFSIconRegistry FSIcons, const std::wstring& rsPat
 					m_sClickCmdArgs+= L" ";
 			}
 		}
-		else m_sClickCmd.empty();
+		else m_sClickCmd.clear();
 			
 
 		m_hIcon = NULL;
