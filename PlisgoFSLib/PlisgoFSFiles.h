@@ -245,7 +245,7 @@ class PlisgoFSReadOnlyStorageFolder : public PlisgoFSFolder
 {
 public:
 
-	PlisgoFSReadOnlyStorageFolder(PlisgoFSFileMap& rFileMap);
+	PlisgoFSReadOnlyStorageFolder(const PlisgoFSFileMap& rFileMap);
 
 	virtual bool				ForEachChild(PlisgoFSFolder::EachChild& rEachChild) const;
 

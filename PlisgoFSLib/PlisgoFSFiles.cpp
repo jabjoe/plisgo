@@ -389,7 +389,7 @@ int		PlisgoFSStorageFolder::CreateChild(IPtrPlisgoFSFile& rChild, LPCWSTR sName,
 ****************************************************************************
 */
 
-PlisgoFSReadOnlyStorageFolder::PlisgoFSReadOnlyStorageFolder(PlisgoFSFileMap& rFileMap) : m_Files(rFileMap)
+PlisgoFSReadOnlyStorageFolder::PlisgoFSReadOnlyStorageFolder(const PlisgoFSFileMap& rFileMap) : m_Files(rFileMap)
 {}
 
 bool				PlisgoFSReadOnlyStorageFolder::ForEachChild(PlisgoFSFolder::EachChild& rEachChild) const
