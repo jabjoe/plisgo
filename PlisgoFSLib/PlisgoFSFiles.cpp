@@ -474,7 +474,7 @@ int		PlisgoFSDataFileReadOnly::Read(	LPVOID		pBuffer,
 										LONGLONG	nOffset,
 										ULONGLONG*	)
 {
-	if (m_pData != NULL && nOffset < m_nDataSize)
+	if (m_pData != NULL && nOffset < (LONGLONG)m_nDataSize)
 	{
 		const DWORD	nLength	= (DWORD)(m_nDataSize-nOffset);
 		const DWORD	nCopySize = min(nLength,nNumberOfBytesToRead);
@@ -820,7 +820,7 @@ int				PlisgoFSStringReadOnly::Read(	LPVOID		pBuffer,
 												LONGLONG	nOffset,
 												ULONGLONG*	)
 {
-	if (nOffset < m_sData.length())
+	if (nOffset < (LONGLONG)m_sData.length())
 	{
 		const DWORD	nLength	= (DWORD)(m_sData.length()-nOffset);
 		const DWORD	nCopySize = min(nLength,nNumberOfBytesToRead);
@@ -1035,7 +1035,7 @@ int				PlisgoFSStringFile::Write(LPCVOID		pBuffer,
 
 	LONGLONG nEndPos = nOffset+nNumberOfBytesToWrite;
 
-	if (m_sData.capacity() < nEndPos)
+	if ((LONGLONG)m_sData.capacity() < nEndPos)
 		m_sData.reserve((unsigned int)(nEndPos)); //more then required
 
 	m_sData.resize((unsigned int)nEndPos);
