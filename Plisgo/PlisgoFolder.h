@@ -240,10 +240,11 @@ public:
 		if (nAttr == INVALID_FILE_ATTRIBUTES)
 			return STG_E_FILENOTFOUND;
 
-		*rgfInOut = SFGAO_ISSLOW | SFGAO_STORAGE | SFGAO_FILESYSTEM;
+		*rgfInOut = SFGAO_ISSLOW | SFGAO_STORAGE | SFGAO_FILESYSTEM | 
+			SFGAO_CANRENAME | SFGAO_CANDELETE | SFGAO_CANLINK | SFGAO_CANCOPY | SFGAO_CANMOVE;
 
 		if (nAttr&FILE_ATTRIBUTE_DIRECTORY)
-			*rgfInOut |= SFGAO_FOLDER|SFGAO_HASSUBFOLDER; //Too much work to check every folder for sub folders
+			*rgfInOut |= SFGAO_DROPTARGET|SFGAO_FOLDER|SFGAO_HASSUBFOLDER|SFGAO_BROWSABLE; //Too much work to check every folder for sub folders
 
 		return S_OK;
 	}
