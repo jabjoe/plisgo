@@ -52,9 +52,6 @@
 #include "ProcessesFolder.h"
 
 
-//Uncomment if you wish to compile against the latest Dokan from SVN
-//#define SVN_DOKAN_VERSION
-
 
 inline PlisgoVFS*	GetPlisgoVFS(PDOKAN_FILE_INFO	pDokanFileInfo)
 {
@@ -340,12 +337,10 @@ main(ULONG argc, PCHAR argv[])
 											PlisgoExampleDeleteDirectory,
 											PlisgoExampleMoveFile,
 											PlisgoExampleSetEndOfFile,
-#ifdef SVN_DOKAN_VERSION
 											NULL, 
-#endif//SVN_DOKAN_VERSION
 											PlisgoExampleLockFile,
 											PlisgoExampleUnlockFile,
-										NULL, // GetDiskFreeSpace
+											NULL, // GetDiskFreeSpace
 											PlisgoExampleGetVolumeInformation,
 											PlisgoExampleUnmount };
 
@@ -355,6 +350,7 @@ main(ULONG argc, PCHAR argv[])
 
 	dokanOptions.DriveLetter = L'X';
 	dokanOptions.GlobalContext = (ULONG64)vfs.get();
+	dokanOptions.Options = DOKAN_OPTION_REMOVABLE;
 
 	int status = DokanMain(&dokanOptions, &dokanOperations);
 

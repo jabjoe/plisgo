@@ -49,7 +49,7 @@ public:
 
 	virtual bool			IsValid() const				{ return false; } //Force it not to use cached
 
-	virtual DWORD			GetAttributes() const		{ return FILE_ATTRIBUTE_READONLY; }
+	virtual DWORD			GetAttributes() const		{ return FILE_ATTRIBUTE_READONLY|FILE_ATTRIBUTE_OFFLINE; }
 
 	const PROCESSENTRY32&	GetProcessEntry32() const	{ return m_PE;}
 
