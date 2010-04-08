@@ -1601,7 +1601,11 @@ int					PlisgoFSRealFolder::RemoveChild(LPCWSTR sName)
 	DWORD nAttr = GetFileAttributesW(sRealPath.c_str());
 
 	if (nAttr == INVALID_FILE_ATTRIBUTES)
-		return 0; //Already gone
+	{
+		int nError = GetLastError();
+
+		return -nError;
+	}
 	
 	BOOL bSuccess;
 
@@ -1628,13 +1632,19 @@ int					PlisgoFSRealFolder::Repath(	LPCWSTR sOldName, LPCWSTR sNewName,
 	if (pNewParent2 == NULL && pNewParent != NULL)
 		return PlisgoFSFolder::Repath(sOldName, sNewName, bReplaceExisting, pNewParent);
 
-	//Ooooo we can do a proper move!
-
 	std::wstring sOldPath = m_sRealPath;
-	std::wstring sNewPath = (pNewParent2 != NULL)?pNewParent2->GetRealPath():m_sRealPath;
 
 	sOldPath += L"\\";
 	sOldPath += sOldName;
+
+	PlisgoFSRealFolderTarget* pNewParent3 = dynamic_cast<PlisgoFSRealFolderTarget*>(pNewParent);
+
+	if (pNewParent3 != NULL)
+		return pNewParent3->RepathTo(sOldPath, sNewName, bReplaceExisting);
+
+	//Ooooo we can do a proper move!
+
+	std::wstring sNewPath = (pNewParent2 != NULL)?pNewParent2->GetRealPath():m_sRealPath;
 
 	sNewPath += L"\\";
 	sNewPath += sNewName;

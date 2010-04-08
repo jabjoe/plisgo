@@ -582,6 +582,18 @@ private:
 };
 
 
+//This class exists so a descendant class of PlisgoFSRealFolder can take ownership and have code called.
+class PlisgoFSRealFolderTarget : public PlisgoFSRealFolder
+{
+public:
+
+	PlisgoFSRealFolderTarget(const std::wstring& rsRealFolder) : PlisgoFSRealFolder(rsRealFolder)
+	{}
+
+	virtual int RepathTo(const std::wstring& rsFullSrc, LPCWSTR sNewName, bool bReplaceExisting) = 0;
+};
+
+
 
 class PlisgoFSEncapsulatedFile : public PlisgoFSFile
 {
