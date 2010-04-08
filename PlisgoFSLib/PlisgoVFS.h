@@ -146,8 +146,6 @@ private:
 	boost::object_pool<OpenFileData>		m_OpenFilePool;
 	volatile LONG							m_OpenFileNum;
 
-	ULONG64									m_nCacheEntryMaxLife;
-
 	struct Cached
 	{
 		IPtrPlisgoFSFile	file;

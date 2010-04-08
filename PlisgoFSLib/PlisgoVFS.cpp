@@ -28,7 +28,6 @@ PlisgoVFS::PlisgoVFS(IPtrPlisgoFSFolder root, PlisgoVFSOpenLog* pLog)
 	assert(root.get() != NULL);
 	m_Root = root;
 	m_OpenFileNum = 0;
-	m_nCacheEntryMaxLife = 10000000 * 30; //NTSECOND * 30
 	m_pLog = pLog;
 }
 
@@ -116,18 +115,24 @@ bool				PlisgoVFS::GetCached(const std::wstring& rsPath, IPtrPlisgoFSFile& rFile
 
 	rFile = rCached.file;
 
-	ULONG64	nNow;
+	assert(rFile.get() != NULL); //We don't do duds
 
-	GetSystemTimeAsFileTime((FILETIME*)&nNow);
-
-	if ((rCached.nTime < nNow &&  nNow-rCached.nTime > m_nCacheEntryMaxLife) ||		
-		(rFile.get() != NULL && !rFile->IsValid()))
+	if (!rFile->IsValid())
 	{
 		boost::upgrade_to_unique_lock<boost::shared_mutex> writeLock(readLock);
 
 		const_cast<PlisgoVFS*>(this)->m_CacheEntryMap.erase(it);
 
 		return false;
+	}
+	else
+	{
+		//This might be worth returning to. Aging entries so we can flush them out.
+/*
+		ULONG64	nNow;
+
+		GetSystemTimeAsFileTime((FILETIME*)&nNow);
+*/
 	}
 	
 	return true;
