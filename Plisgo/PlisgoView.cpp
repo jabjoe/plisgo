@@ -900,12 +900,15 @@ STDMETHODIMP CPlisgoView::TranslateAccelerator(LPMSG pMsg)
 				
 				std::wstring sFiles;
 
+				std::vector<bool> isFolder(selection.size());
+
 				for(WStringList::iterator it = selection.begin(); it != selection.end(); ++it)
 				{
 					EnsureWin32Path(*it);
 
 					if (GetFileAttributes(it->c_str()) & FILE_ATTRIBUTE_DIRECTORY)
 					{
+						isFolder[it-selection.begin()] = true;
 						//Remove anything under the folder
 						sFiles += *it + L"\\*";
 						sFiles += L'\0';
@@ -926,10 +929,15 @@ STDMETHODIMP CPlisgoView::TranslateAccelerator(LPMSG pMsg)
 
 				for(WStringList::iterator it = selection.begin(); it != selection.end(); ++it)
 				{
-					if (GetFileAttributes(it->c_str()) & FILE_ATTRIBUTE_DIRECTORY)
-						SHChangeNotify(SHCNE_RMDIR, SHCNF_PATHW|SHCNF_FLUSH, it->c_str(), NULL);
-					else
-						SHChangeNotify(SHCNE_DELETE, SHCNF_PATHW|SHCNF_FLUSH, it->c_str(), NULL);
+					const DWORD nAttr = GetFileAttributes(it->c_str());
+
+					if (nAttr == INVALID_FILE_ATTRIBUTES)
+					{
+						if (isFolder[it-selection.begin()])
+							SHChangeNotify(SHCNE_RMDIR, SHCNF_PATHW|SHCNF_FLUSH, it->c_str(), NULL);
+						else
+							SHChangeNotify(SHCNE_DELETE, SHCNF_PATHW|SHCNF_FLUSH, it->c_str(), NULL);
+					}
 				}
 
 				return hr;
