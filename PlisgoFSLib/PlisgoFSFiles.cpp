@@ -1387,7 +1387,7 @@ int				PlisgoFSRealFolder::SetFileTimes(const FILETIME* pCreation,
 												ULONGLONG*		pInstanceData)
 {
 	HANDLE hHandle = CreateFileW(	m_sRealPath.c_str(),
-									GENERIC_READ, FILE_SHARE_READ|FILE_SHARE_WRITE,
+									GENERIC_WRITE, FILE_SHARE_READ|FILE_SHARE_WRITE,
 									NULL, OPEN_EXISTING,
 									FILE_FLAG_BACKUP_SEMANTICS, NULL); 
 
