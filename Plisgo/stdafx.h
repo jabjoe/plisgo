@@ -200,5 +200,24 @@ extern void			PrintInterfaceName(REFIID riid);
 #define LRESULTTOHRESULT(_lr) ((HRESULT)(0x80000000 | ((DWORD)_lr >> 1)))
 
 
+inline void			ToWide(std::wstring& rDst, const char* sSrc)
+{
+	if (sSrc == NULL)
+	{
+		rDst.clear();
+		return;
+	}
+
+	int nLen = (int)strlen(sSrc);
+
+	int nSize = MultiByteToWideChar(CP_UTF8, 0, sSrc, nLen, NULL, 0);
+
+	rDst.assign(nSize+1, L' ');
+
+	nSize = MultiByteToWideChar(CP_UTF8, 0, sSrc, nLen, const_cast<WCHAR*>(rDst.c_str()), (int)rDst.length());
+
+	rDst.resize(nSize);
+}
+
 
 #define TOPOWEROFTWO(_x) ((_x%2)?_x+1:_x)

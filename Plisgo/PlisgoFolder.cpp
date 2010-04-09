@@ -354,6 +354,62 @@ HRESULT			CPlisgoFolder::GetItemName(PCUITEMID_CHILD pIDL, WCHAR* sBuffer, size_
 }
 
 
+HRESULT			CPlisgoFolder::GetPathOf(std::wstring& rsResult, LPCITEMIDLIST pIDL)
+{
+	if (pIDL == NULL)
+		return E_INVALIDARG;
+
+	STRRET name;
+
+	HRESULT hr = const_cast<CPlisgoFolder*>(this)->GetDisplayNameOf(pIDL, SHGDN_FORPARSING, &name);
+
+	if (FAILED(hr))
+		return hr;
+
+	if (name.uType == STRRET_WSTR)
+	{
+		rsResult = name.pOleStr;
+		CoTaskMemFree(name.pOleStr);
+	}
+	else if (name.uType == STRRET_CSTR)
+	{
+		ToWide(rsResult, name.cStr);
+	}
+	else if (name.uType == STRRET_OFFSET)
+	{
+		ToWide(rsResult, (LPCSTR)((LPBYTE)pIDL) + name.uOffset);
+	}
+
+	return S_OK;
+}
+
+
+HRESULT			CPlisgoFolder::GetAttributesOf(LPCITEMIDLIST pIDL, LPDWORD rgfInOut)
+{
+	if (rgfInOut == NULL)
+		return E_INVALIDARG;
+
+	std::wstring sPath;
+
+	HRESULT hr = GetPathOf(sPath, pIDL);
+
+	if (FAILED(hr))
+		return hr;
+
+	const DWORD nAttr = GetFileAttributes(sPath.c_str());
+
+	if (nAttr == INVALID_FILE_ATTRIBUTES)
+		return STG_E_FILENOTFOUND;
+
+	*rgfInOut = SFGAO_ISSLOW | SFGAO_STORAGE | SFGAO_FILESYSTEM | SFGAO_HASPROPSHEET |
+		SFGAO_CANRENAME | SFGAO_CANDELETE | SFGAO_CANLINK | SFGAO_CANCOPY | SFGAO_CANMOVE;
+
+	if (nAttr&FILE_ATTRIBUTE_DIRECTORY)
+		*rgfInOut |= SFGAO_DROPTARGET|SFGAO_FILESYSANCESTOR|SFGAO_FOLDER|SFGAO_HASSUBFOLDER|SFGAO_BROWSABLE; //Too much work to check every folder for sub folders
+
+	return S_OK;
+}
+
 // IShellIcon
 HRESULT			CPlisgoFolder::GetIconOf( LPCITEMIDLIST pIDL, UINT nFlags, LPINT lpIconIndex)
 {

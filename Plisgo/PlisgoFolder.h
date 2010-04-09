@@ -203,51 +203,9 @@ public:
 	// IShellIcon
 	STDMETHOD(GetIconOf)( LPCITEMIDLIST pIDL, UINT nFlags, LPINT lpIconIndex);
 
-	HRESULT	GetPathOf(std::wstring& rsResult, LPCITEMIDLIST pIDL)
-	{
-		if (pIDL == NULL)
-			return E_INVALIDARG;
-
-		WCHAR sName[MAX_PATH];
-
-		HRESULT nResult = GetItemName(pIDL, sName, MAX_PATH);
-
-		if (FAILED(nResult))
-			return nResult;
-
-		rsResult = m_sPath;
-		rsResult += L"\\";
-		rsResult += sName;
-
-		return S_OK;
-	}
-
+	HRESULT	GetPathOf(std::wstring& rsResult, LPCITEMIDLIST pIDL);
 	
-    HRESULT GetAttributesOf(LPCITEMIDLIST pIDL, LPDWORD rgfInOut)
-	{
-		if (rgfInOut == NULL)
-			return E_INVALIDARG;
-
-		std::wstring sPath;
-
-		HRESULT hr = GetPathOf(sPath, pIDL);
-
-		if (FAILED(hr))
-			return hr;
-
-		const DWORD nAttr = GetFileAttributes(sPath.c_str());
-
-		if (nAttr == INVALID_FILE_ATTRIBUTES)
-			return STG_E_FILENOTFOUND;
-
-		*rgfInOut = SFGAO_ISSLOW | SFGAO_STORAGE | SFGAO_FILESYSTEM | SFGAO_HASPROPSHEET |
-			SFGAO_CANRENAME | SFGAO_CANDELETE | SFGAO_CANLINK | SFGAO_CANCOPY | SFGAO_CANMOVE;
-
-		if (nAttr&FILE_ATTRIBUTE_DIRECTORY)
-			*rgfInOut |= SFGAO_DROPTARGET|SFGAO_FILESYSANCESTOR|SFGAO_FOLDER|SFGAO_HASSUBFOLDER|SFGAO_BROWSABLE; //Too much work to check every folder for sub folders
-
-		return S_OK;
-	}
+    HRESULT GetAttributesOf(LPCITEMIDLIST pIDL, LPDWORD rgfInOut);
 
 
 
