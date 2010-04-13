@@ -77,37 +77,37 @@ PlisgoFSMenu::PlisgoFSMenu(IPtrFSIconRegistry FSIcons, const std::wstring& rsPat
 		else
 			m_bEnabled = true;
 	
-		
-		m_sClickCmd = m_sPath + L"\\.click.*";
 
 		WIN32_FIND_DATAW	findData;
 
-		HANDLE hFind = FindFirstFileW(m_sClickCmd.c_str(), &findData);
+		HANDLE hFind = FindFirstFileW((m_sPath + L"\\.click.*").c_str(), &findData);
 
 		if (hFind != NULL && hFind != INVALID_HANDLE_VALUE)
 		{
-			m_sClickCmd = m_sPath + L"\\" + findData.cFileName;
-
 			FindClose(hFind);
 
-			m_sClickCmdArgs.empty();
-
-			const size_t nBase = rsPath.rfind(L".plisgo");
-
-			std::wstring sBase = rsPath.substr(0, nBase-1);
-
-			for(WStringList::const_iterator it = rSelection.begin(); it != rSelection.end(); ++it)
+			if (wcsrchr(findData.cFileName, L'.') != findData.cFileName)
 			{
-				m_sClickCmdArgs += L"\"";
-				m_sClickCmdArgs += sBase;
-				m_sClickCmdArgs += *it;
-				m_sClickCmdArgs += L"\"";
+				m_sClickCmd = m_sPath + L"\\" + findData.cFileName;
 
-				if (it != rSelection.end()-1)
-					m_sClickCmdArgs+= L" ";
+				m_sClickCmdArgs.empty();
+
+				const size_t nBase = rsPath.rfind(L".plisgo");
+
+				std::wstring sBase = rsPath.substr(0, nBase-1);
+
+				for(WStringList::const_iterator it = rSelection.begin(); it != rSelection.end(); ++it)
+				{
+					m_sClickCmdArgs += L"\"";
+					m_sClickCmdArgs += sBase;
+					m_sClickCmdArgs += *it;
+					m_sClickCmdArgs += L"\"";
+
+					if (it != rSelection.end()-1)
+						m_sClickCmdArgs+= L" ";
+				}
 			}
 		}
-		else m_sClickCmd.clear();
 			
 
 		m_hIcon = NULL;
