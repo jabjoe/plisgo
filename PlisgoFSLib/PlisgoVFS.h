@@ -111,6 +111,9 @@ public:
 
 	int							GetHandleInfo(PlisgoFileHandle&	rHandle, LPBY_HANDLE_FILE_INFORMATION pInfo);
 
+	void						CloseAllOpenFiles(); //When the drive dies rather then closes, this lets you clean up.
+	void						ClearCache()	{ return RestartCache(); } //Samething, the mounts are always in cache
+
 
 protected:
 	
@@ -135,6 +138,8 @@ private:
 		std::wstring		sPath;
 		IPtrPlisgoFSFile	File;
 		ULONG64				nData;
+		OpenFileData*		pNext;
+		OpenFileData*		pPrev;
 	};
 
 	OpenFileData*				GetOpenFileData(PlisgoFileHandle&	rHandle) const;
@@ -145,6 +150,7 @@ private:
 	mutable boost::shared_mutex				m_OpenFilePoolMutex;
 	boost::object_pool<OpenFileData>		m_OpenFilePool;
 	volatile LONG							m_OpenFileNum;
+	OpenFileData*							m_pLatestOpen;
 
 	struct Cached
 	{

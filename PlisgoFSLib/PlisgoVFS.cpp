@@ -29,6 +29,7 @@ PlisgoVFS::PlisgoVFS(IPtrPlisgoFSFolder root, PlisgoVFSOpenLog* pLog)
 	m_Root = root;
 	m_OpenFileNum = 0;
 	m_pLog = pLog;
+	m_pLatestOpen = NULL;
 }
 
 
@@ -479,6 +480,17 @@ int					PlisgoVFS::Open(	PlisgoFileHandle&	rHandle,
 	pOpenFileData->sPath = sPathLowerCase;
 	pOpenFileData->nData = nOpenInstaceData;
 
+	pOpenFileData->pPrev = NULL;
+
+	if (m_pLatestOpen != NULL)
+	{
+		pOpenFileData->pNext = m_pLatestOpen;
+		m_pLatestOpen->pPrev = pOpenFileData;
+	}
+	else pOpenFileData->pNext = NULL;
+
+	m_pLatestOpen = pOpenFileData;
+
 	if (m_pLog != NULL)
 		m_pLog->OpenFile(sPathLowerCase);
 
@@ -601,10 +613,7 @@ int					PlisgoVFS::Close(PlisgoFileHandle&	rHandle, bool bDeleteOnClose)
 
 	int nError = pOpenFileData->File->Close(&pOpenFileData->nData);
 
-	if (nError != 0)
-		return nError;
-
-	if (bDeleteOnClose)
+	if (nError == 0 && bDeleteOnClose)
 	{
 		const std::wstring& rsPath = pOpenFileData->sPath;
 
@@ -634,7 +643,6 @@ int					PlisgoVFS::Close(PlisgoFileHandle&	rHandle, bool bDeleteOnClose)
 				if (pOpenFileData->File->GetAsFolder() != NULL)
 					RestartCache();
 			}
-			else return nError;
 		}	
 	}
 
@@ -643,11 +651,27 @@ int					PlisgoVFS::Close(PlisgoFileHandle&	rHandle, bool bDeleteOnClose)
 	if (m_pLog != NULL)
 		m_pLog->CloseFile(pOpenFileData->sPath);
 
+	if (m_pLatestOpen == pOpenFileData)
+	{
+		m_pLatestOpen = pOpenFileData->pNext;
+
+		if (m_pLatestOpen != NULL)
+			m_pLatestOpen->pPrev = NULL;
+	}
+	else
+	{
+		if (pOpenFileData->pNext != NULL)
+			pOpenFileData->pNext->pPrev = pOpenFileData->pPrev;
+
+		if (pOpenFileData->pPrev != NULL)
+			pOpenFileData->pPrev->pNext = pOpenFileData->pNext;
+	}
+
 	m_OpenFilePool.destroy(pOpenFileData);
 
 	InterlockedDecrement(&m_OpenFileNum);
 
-	return 0;
+	return nError;
 }
 
 
@@ -715,6 +739,32 @@ int					PlisgoVFS::GetHandleInfo(PlisgoFileHandle&	rHandle, LPBY_HANDLE_FILE_INF
 		return -ERROR_INVALID_HANDLE;
 
 	return pOpenFileData->File->GetHandleInfo(pInfo, &pOpenFileData->nData);
+}
+
+	
+void				PlisgoVFS::CloseAllOpenFiles()
+{
+	boost::unique_lock<boost::shared_mutex>	lock(m_OpenFilePoolMutex);
+
+	OpenFileData* pCurrent = m_pLatestOpen;
+
+	while(pCurrent != NULL)
+	{
+		OpenFileData* pNext = pCurrent->pNext;
+
+		pCurrent->File->Close(&pCurrent->nData);
+
+		if (m_pLog != NULL)
+			m_pLog->CloseFile(pCurrent->sPath);
+
+		m_OpenFilePool.destroy(pCurrent);
+
+		InterlockedDecrement(&m_OpenFileNum);
+
+		pCurrent = pNext;
+	}
+
+	m_pLatestOpen = NULL;
 }
 
 
