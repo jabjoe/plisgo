@@ -956,6 +956,9 @@ int				PlisgoFSStringFile::Open(	DWORD		nDesiredAccess,
 	{
 		boost::upgrade_to_unique_lock<boost::shared_mutex> rwLock(lock);
 
+		if (m_bReadOnly) //Unlikely but possible it has changed
+			return -ERROR_ACCESS_DENIED;
+
 		if (m_bWriteOpen)
 			return -ERROR_ACCESS_DENIED;
 
