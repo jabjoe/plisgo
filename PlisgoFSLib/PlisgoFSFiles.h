@@ -34,7 +34,7 @@ public:
 
 	virtual bool				IsValid() const				{ return true; }
 
-	virtual DWORD				GetAttributes() const		{ return FILE_ATTRIBUTE_HIDDEN|FILE_ATTRIBUTE_READONLY; }
+	virtual DWORD				GetAttributes() const		{ return FILE_ATTRIBUTE_READONLY; }
 
 	virtual bool				GetFileTimes(FILETIME& rCreation, FILETIME& rLastAccess, FILETIME& rLastWrite) const
 	{
@@ -128,7 +128,7 @@ typedef boost::shared_ptr<PlisgoFSFile>	IPtrPlisgoFSFile;
 class PlisgoFSFolder : public PlisgoFSFile
 {
 public:
-	virtual DWORD				GetAttributes() const						{ return FILE_ATTRIBUTE_DIRECTORY|FILE_ATTRIBUTE_HIDDEN|FILE_ATTRIBUTE_READONLY; }
+	virtual DWORD				GetAttributes() const						{ return FILE_ATTRIBUTE_DIRECTORY|FILE_ATTRIBUTE_READONLY; }
 	virtual LONGLONG			GetSize() const								{ return 0; }
 
 	class EachChild
@@ -320,7 +320,7 @@ public:
 
 	bool					SetVolatile(bool bVolatile)						{ m_bVolatile = bVolatile; }
 
-	virtual DWORD			GetAttributes() const							{ return FILE_ATTRIBUTE_HIDDEN|((m_bReadOnly)?FILE_ATTRIBUTE_READONLY:0); }
+	virtual DWORD			GetAttributes() const							{ return ((m_bReadOnly)?FILE_ATTRIBUTE_READONLY:0); }
 	virtual LONGLONG		GetSize() const									{ return m_nDataUsedSize; }
 	const BYTE*				GetData() const									{ return m_pData; }
 
@@ -385,7 +385,7 @@ public:
 	virtual void		GetWideString(std::wstring& rResult)			{ ToWide(rResult, m_sData); }
 	virtual void		GetString(std::string& rsResult)				{ rsResult = m_sData; }
 
-	virtual DWORD		GetAttributes() const							{ return FILE_ATTRIBUTE_HIDDEN|FILE_ATTRIBUTE_READONLY; }
+	virtual DWORD		GetAttributes() const							{ return FILE_ATTRIBUTE_READONLY; }
 	virtual LONGLONG	GetSize() const									{ return m_sData.size(); }
 
 	virtual int			Open(	DWORD		nDesiredAccess,
@@ -411,6 +411,17 @@ protected:
 };
 
 
+class PlisgoFSStringHiddenReadOnly : public PlisgoFSStringReadOnly
+{
+public:
+	PlisgoFSStringHiddenReadOnly() {}
+	PlisgoFSStringHiddenReadOnly(const std::wstring& sData) : PlisgoFSStringReadOnly(sData) {}
+	PlisgoFSStringHiddenReadOnly(const std::string& sData) : PlisgoFSStringReadOnly(sData) {}
+
+	virtual DWORD		GetAttributes() const	{ return FILE_ATTRIBUTE_HIDDEN|FILE_ATTRIBUTE_READONLY; }
+};
+
+
 class PlisgoFSStringFile : public PlisgoFSStringReadOnly
 {
 public:
@@ -427,7 +438,7 @@ public:
 	virtual void		GetWideString(std::wstring& rResult);
 	virtual void		GetString(std::string& rsResult);
 
-	virtual DWORD		GetAttributes() const							{ return FILE_ATTRIBUTE_HIDDEN|((m_bReadOnly)?FILE_ATTRIBUTE_READONLY:0); }
+	virtual DWORD		GetAttributes() const							{ return ((m_bReadOnly)?FILE_ATTRIBUTE_READONLY:0); }
 	virtual LONGLONG	GetSize() const;
 
 	virtual int			Open(	DWORD		nDesiredAccess,
@@ -667,7 +678,7 @@ inline IPtrPlisgoFSFile	GetPlisgoDesktopIniFile()
 {
 	std::string sData = "[.ShellClassInfo]\r\nCLSID={ADA19F85-EEB6-46F2-B8B2-2BD977934A79}\r\n";
 
-	return IPtrPlisgoFSFile(new PlisgoFSStringReadOnly(sData));
+	return IPtrPlisgoFSFile(new PlisgoFSStringHiddenReadOnly(sData));
 }
 
 

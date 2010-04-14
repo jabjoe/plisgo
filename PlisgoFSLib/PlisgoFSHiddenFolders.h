@@ -181,6 +181,8 @@ public:
 	IPtrPlisgoVFS				GetVFS() const				{ return m_VFS.lock(); }
 	const std::wstring&			GetPath() const				{ return m_sPath; }
 
+	virtual DWORD				GetAttributes() const		{ return FILE_ATTRIBUTE_DIRECTORY|FILE_ATTRIBUTE_HIDDEN; }
+
 protected:
 
 	IPtrPlisgoFSFile			FindMenu(int nMenu);
