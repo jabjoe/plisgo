@@ -47,7 +47,7 @@ public:
 	virtual bool GetCustomIcon(IPtrPlisgoFSFile& rFile, IconLocation& rResult) const;
 	virtual bool GetThumbnail(IPtrPlisgoFSFile& rFile, std::wstring& rsExt, IPtrPlisgoFSFile& rThumbnailFile) const;
 
-	virtual IPtrRootPlisgoFSFolder	CreatePlisgoFolder(const std::wstring& rsPath, IPtrPlisgoVFS& rVFS);
+	virtual IPtrRootPlisgoFSFolder	CreatePlisgoFolder(IPtrPlisgoVFS& rVFS, const std::wstring& rsPath, bool bDoMounts);
 
 private:
 

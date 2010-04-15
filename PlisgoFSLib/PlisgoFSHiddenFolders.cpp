@@ -31,12 +31,23 @@
 
 
 //Create a plisgo folder set up with this IShellInfoFetcher
-IPtrRootPlisgoFSFolder	IShellInfoFetcher::CreatePlisgoFolder(const std::wstring& rsPath, IPtrPlisgoVFS& rVFS)
+IPtrRootPlisgoFSFolder	IShellInfoFetcher::CreatePlisgoFolder(IPtrPlisgoVFS& rVFS, const std::wstring& rsPath, bool bDoMounts )
 {
 	assert(rVFS.get() != NULL);
 
 	IPtrRootPlisgoFSFolder plisgoFS(new RootPlisgoFSFolder(rsPath, GetFFSName(), rVFS, shared_from_this()));
 
+	assert(plisgoFS.get() != NULL);
+
+	if (bDoMounts)
+		DoMounts(plisgoFS, rVFS, rsPath);
+
+	return plisgoFS;
+}
+
+
+void	IShellInfoFetcher::DoMounts(IPtrRootPlisgoFSFolder plisgoFS, IPtrPlisgoVFS& rVFS, const std::wstring& rsPath)
+{
 	assert(plisgoFS.get() != NULL);
 
 	std::wstring sMount = rsPath;
@@ -50,7 +61,7 @@ IPtrRootPlisgoFSFolder	IShellInfoFetcher::CreatePlisgoFolder(const std::wstring&
 	if (parent.get() == NULL)
 	{
 		//Er wtf, you gave me a invalid path!
-		return IPtrRootPlisgoFSFolder();
+		return;
 	}
 
 	PlisgoFSFolder* pFolder = parent->GetAsFolder();
@@ -59,10 +70,10 @@ IPtrRootPlisgoFSFolder	IShellInfoFetcher::CreatePlisgoFolder(const std::wstring&
 
 	if (mount.get() == NULL)
 	{
-		pFolder->CreateChild(mount, L".plisgofs", 0);
+		pFolder->CreateChild(mount, L".plisgofs", FILE_ATTRIBUTE_HIDDEN|FILE_ATTRIBUTE_READONLY);
 
 		if (mount.get() == NULL)
-			return IPtrRootPlisgoFSFolder(); //Er wtf, it isn't there, and you won't let me put it there?
+			return; //Er wtf, it isn't there, and you won't let me put it there?
 	}
 
 
@@ -72,19 +83,17 @@ IPtrRootPlisgoFSFolder	IShellInfoFetcher::CreatePlisgoFolder(const std::wstring&
 
 	if (mount.get() == NULL)
 	{
-		pFolder->CreateChild(mount, L"Desktop.ini", 0);
+		pFolder->CreateChild(mount, L"Desktop.ini", FILE_ATTRIBUTE_HIDDEN|FILE_ATTRIBUTE_READONLY);
 
 		if (mount.get() == NULL)
 		{
 			rVFS->RemoveMount(sMount.c_str());
 
-			return IPtrRootPlisgoFSFolder(); //Er wtf, it isn't there, and you won't let me put it there?
+			return; //Er wtf, it isn't there, and you won't let me put it there?
 		}
 	}
 
 	rVFS->AddMount((rsPath + L"\\Desktop.ini").c_str() , GetPlisgoDesktopIniFile());
-
-	return plisgoFS;
 }
 
 /*

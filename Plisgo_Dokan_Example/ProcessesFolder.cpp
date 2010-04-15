@@ -304,9 +304,9 @@ ProcessesFolderShellInterface::ProcessesFolderShellInterface()
 
 
 
-IPtrRootPlisgoFSFolder ProcessesFolderShellInterface::CreatePlisgoFolder(const std::wstring& rsPath, IPtrPlisgoVFS& rVFS)
+IPtrRootPlisgoFSFolder ProcessesFolderShellInterface::CreatePlisgoFolder(IPtrPlisgoVFS& rVFS, const std::wstring& rsPath, bool bDoMounts)
 {
-	IPtrRootPlisgoFSFolder plisgoRoot = IShellInfoFetcher::CreatePlisgoFolder(rsPath, rVFS);
+	IPtrRootPlisgoFSFolder plisgoRoot = IShellInfoFetcher::CreatePlisgoFolder(rVFS, rsPath, bDoMounts);
 
 	assert(plisgoRoot.get() != NULL);
 

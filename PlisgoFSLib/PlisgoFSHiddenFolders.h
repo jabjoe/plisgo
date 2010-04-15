@@ -70,7 +70,9 @@ public:
 	virtual bool GetThumbnail(IPtrPlisgoFSFile& rFile, std::wstring& rsExt, IPtrPlisgoFSFile& rThumbnailFile) const = 0;
 
 	//Create a plisgo folder set up with this IShellInfoFetcher
-	virtual IPtrRootPlisgoFSFolder	CreatePlisgoFolder(const std::wstring& rsPath, IPtrPlisgoVFS& rVFS);
+	virtual IPtrRootPlisgoFSFolder	CreatePlisgoFolder(IPtrPlisgoVFS& rVFS, const std::wstring& rsPath, bool bDoMounts = true);
+
+	static void	DoMounts(IPtrRootPlisgoFSFolder folder, IPtrPlisgoVFS& rVFS, const std::wstring& rsPath);
 };
 
 

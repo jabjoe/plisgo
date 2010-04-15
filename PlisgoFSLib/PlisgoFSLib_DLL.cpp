@@ -451,7 +451,7 @@ int		PlisgoFolderCreate(PlisgoFiles* pPlisgoFiles, PlisgoFolder** ppPlisgoFolder
 	(*ppPlisgoFolder)->ShellInfoFetcher.reset(pIShellInfoFetcher);
 	(*ppPlisgoFolder)->sMount = sFolder;
 
-	IPtrRootPlisgoFSFolder Plisgo = pIShellInfoFetcher->CreatePlisgoFolder(sFolder, pPlisgoFiles->VFS);
+	IPtrRootPlisgoFSFolder Plisgo = pIShellInfoFetcher->CreatePlisgoFolder(pPlisgoFiles->VFS, sFolder);
 
 	if (Plisgo.get() == NULL || pIShellInfoFetcher == NULL)
 	{

@@ -317,7 +317,7 @@ main(ULONG argc, PCHAR argv[])
 
 	IPtrPlisgoVFS vfs = boost::make_shared<PlisgoVFS>(root);
 
-	shellInfo->CreatePlisgoFolder(L"\\Processes", vfs);
+	shellInfo->CreatePlisgoFolder(vfs, L"\\Processes");
 
 
 	DOKAN_OPERATIONS	dokanOperations = {	PlisgoExampleCreateFile,
