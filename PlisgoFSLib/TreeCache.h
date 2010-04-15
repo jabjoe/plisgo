@@ -35,7 +35,7 @@ public:
 
 	void SetData(const std::wstring& rsFullKey, TData& rData);
 
-	void RemoveAndPrune(const std::wstring& rsFullKey, bool bRemoveAndChildren = false); //Remove key value, then remove any entries in branch that have no value
+	void RemoveAndPrune(const std::wstring& rsFullKey, bool bRemoveAnyChildren = false); //Remove key value, then remove any entries in branch that have no value
 	void RemoveBranch(const std::wstring& rsFullKey);
 
 	void MoveBranch(const std::wstring& rsOldFullKey, const std::wstring& rsNewFullKey);
@@ -278,7 +278,7 @@ inline bool TreeCache<TData>::GetTreeParent(const std::wstring& rsFullKey, TreeN
 
 
 template<typename TData>
-inline void TreeCache<TData>::RemoveAndPrune(const std::wstring& rsFullKey, bool bRemoveAndChildren)
+inline void TreeCache<TData>::RemoveAndPrune(const std::wstring& rsFullKey, bool bRemoveAnyChildren)
 {
 	boost::unique_lock<boost::shared_mutex> lock(m_Mutex);
 
@@ -287,7 +287,7 @@ inline void TreeCache<TData>::RemoveAndPrune(const std::wstring& rsFullKey, bool
 	if (!GetTreeNode(rsFullKey, false, (const TreeNode*&)pTreeNode))
 		return;
 
-	if (!bRemoveAndChildren && pTreeNode->Children.size() != 0)
+	if (!bRemoveAnyChildren && pTreeNode->Children.size() != 0)
 	{
 		pTreeNode->bSet = false;
 		pTreeNode->Data = TData();
