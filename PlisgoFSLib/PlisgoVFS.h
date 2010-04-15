@@ -112,8 +112,7 @@ public:
 	int							GetHandleInfo(PlisgoFileHandle&	rHandle, LPBY_HANDLE_FILE_INFORMATION pInfo);
 
 	void						CloseAllOpenFiles(); //When the drive dies rather then closes, this lets you clean up.
-	void						ClearCache()	{ return RestartCache(); } //Samething, the mounts are always in cache
-
+	void						ClearCache();
 
 protected:
 	

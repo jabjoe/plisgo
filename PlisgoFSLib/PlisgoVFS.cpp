@@ -782,6 +782,14 @@ void				PlisgoVFS::AddToCache(const std::wstring& rsLowerPath, IPtrPlisgoFSFile 
 	}
 }
 
+	
+void				PlisgoVFS::ClearCache()
+{
+	boost::unique_lock<boost::shared_mutex> writeLock(m_CacheEntryMutex);
+
+	return RestartCache();
+}
+
 
 void				PlisgoVFS::RestartCache()
 {
