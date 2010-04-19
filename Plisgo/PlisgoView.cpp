@@ -890,6 +890,9 @@ STDMETHODIMP CPlisgoView::TranslateAccelerator(LPMSG pMsg)
 
 				GetSelection(selection);
 
+				if (selection.size() == 0)
+					return S_FALSE;
+
 				SHFILEOPSTRUCT shellOp = {0};
 
 				shellOp.hwnd = m_hWnd;
@@ -897,6 +900,8 @@ STDMETHODIMP CPlisgoView::TranslateAccelerator(LPMSG pMsg)
 
 				if (!GetAsyncKeyState(VK_LSHIFT) && !GetAsyncKeyState(VK_RSHIFT))
 					shellOp.fFlags = FOF_ALLOWUNDO;
+				else
+					shellOp.fFlags = FOF_WANTNUKEWARNING;
 				
 				std::wstring sFiles;
 
@@ -938,6 +943,7 @@ STDMETHODIMP CPlisgoView::TranslateAccelerator(LPMSG pMsg)
 						else
 							SHChangeNotify(SHCNE_DELETE, SHCNF_PATHW|SHCNF_FLUSH, it->c_str(), NULL);
 					}
+					else hr = S_FALSE; //Still there..... (WHY DID SHFileOperation RETURN 0!?)
 				}
 
 				return hr;
