@@ -1593,7 +1593,7 @@ int					PlisgoFSRealFolder::GetRemoveChildError(LPCWSTR sName) const
 	if (nAttr&FILE_ATTRIBUTE_DIRECTORY)
 		return GetDeleteFolderError(sRealPath);
 	else
-		return 0;
+		return (nAttr&FILE_ATTRIBUTE_READONLY)?-ERROR_ACCESS_DENIED:0;
 }
 
 
