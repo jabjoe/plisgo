@@ -1285,7 +1285,7 @@ void		 CPlisgoView::AddItem(LPITEMIDLIST pIDL)
 }
 
 
-bool		CPlisgoView::DeleteItem(LPITEMIDLIST pIDL)
+bool		 CPlisgoView::DeleteItem(LPITEMIDLIST pIDL)
 {
 	int nItem = ListViewGetItemFromIDL(m_hList, pIDL);
 
@@ -1428,6 +1428,22 @@ LRESULT		 CPlisgoView::OnCustomViewShellMessage(UINT uMsg, WPARAM wParam, LPARAM
 			case SHCNE_CREATE:
 			case SHCNE_MKDIR:
 				{
+					/*
+						Ok, this is a bug work round.
+						The IDL of pChildIDL contains file info that is wrong.
+						So we recreate the IDL which corrects this.
+					*/
+
+					WCHAR sName[MAX_PATH];
+
+					if (m_pContainingFolder->GetItemName(pChildIDL, sName, MAX_PATH) == S_OK)
+					{
+						PUIDLIST_RELATIVE pNewChildIDL = NULL;
+
+						if (m_pContainingFolder->ParseDisplayName(NULL, NULL, sName, NULL, &pNewChildIDL, NULL) == S_OK)
+							pChildIDL = pNewChildIDL;
+					}
+
 					if (ListViewGetItemFromIDL(m_hList, pChildIDL) == -1)
 						AddItem(pChildIDL);
 
