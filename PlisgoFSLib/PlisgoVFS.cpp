@@ -428,7 +428,7 @@ int					PlisgoVFS::Open(	PlisgoFileHandle&	rHandle,
 
 				if (pFolder != NULL)
 				{
-					nError = pFolder->CreateChild(file, GetNameFromPath(sPath), nFlagsAndAttributes);
+					nError = pFolder->CreateChild(file, GetNameFromPath(sPath), nFlagsAndAttributes&~FILE_ATTRIBUTE_READONLY);
 
 					if (file.get() != NULL)
 					{
