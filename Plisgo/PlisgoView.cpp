@@ -400,7 +400,7 @@ static void CommonControlsInit()
 
 CPlisgoView::CPlisgoView() : m_nUIState(SVUIA_DEACTIVATE), m_nSortedColumn(0), 
                        m_bForwardSort(true), m_hWndParent(NULL),
-                       m_pContainingFolder(NULL), m_hMenu(NULL),
+                       m_pContainingFolder(NULL), m_hMenu(NULL), m_hList(NULL),
 					   m_nShellNotificationID(0), m_pAsynLoader(NULL)
 
 {
@@ -715,7 +715,8 @@ STDMETHODIMP CPlisgoView::Refresh()
 	int nHorzScrollPos = ::GetScrollPos(m_hList, SB_HORZ);
 	int nVertScrollPos = ::GetScrollPos(m_hList, SB_VERT);
 
-	m_pAsynLoader->ClearJobs();
+	if (m_pAsynLoader != NULL)
+		m_pAsynLoader->ClearJobs();
 
 	ListView_DeleteAllItems(m_hList);
     FillList();
@@ -1731,12 +1732,12 @@ void		 CPlisgoView::DoDrop(HDROP hDrop, DWORD nDropEffect)
 		SHFILEOPSTRUCT shellOp = {0};
 
 		shellOp.hwnd = m_hWnd;
-		shellOp.wFunc = GetKeyState(VK_SHIFT)?FO_MOVE:FO_COPY;
+		shellOp.wFunc = GetAsyncKeyState(VK_SHIFT)?FO_MOVE:FO_COPY;
 		shellOp.fFlags = FOF_ALLOWUNDO;
 
-		if (nDropEffect == DROPEFFECT_MOVE)
+		if (nDropEffect & DROPEFFECT_MOVE)
 			shellOp.wFunc = FO_MOVE;
-		else if (nDropEffect == DROPEFFECT_COPY)
+		else if (nDropEffect & DROPEFFECT_COPY)
 			shellOp.wFunc = FO_COPY;
 
 		for(UINT n = 0; n < nFiles; ++n)
