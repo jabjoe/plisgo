@@ -74,7 +74,12 @@ int __stdcall	PlisgoExampleCreateFile(LPCWSTR					sFileName,
 int __stdcall	PlisgoExampleCreateDirectory(	LPCWSTR					sFileName,
 												PDOKAN_FILE_INFO		pDokanFileInfo)
 {
-	return GetPlisgoVFS(pDokanFileInfo)->CreateFolder(sFileName);
+	return PlisgoExampleCreateFile(	sFileName,
+									GENERIC_READ|GENERIC_WRITE,
+									FILE_SHARE_READ|FILE_SHARE_WRITE,
+									CREATE_NEW,
+									FILE_FLAG_BACKUP_SEMANTICS|FILE_ATTRIBUTE_DIRECTORY,
+									pDokanFileInfo);
 }
 
 

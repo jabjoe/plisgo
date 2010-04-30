@@ -148,7 +148,7 @@ public:
 
 	virtual int					AddChild(LPCWSTR sName, IPtrPlisgoFSFile file)	{ return -ERROR_ACCESS_DENIED; }
 
-	virtual int					CreateChild(IPtrPlisgoFSFile& rChild, LPCWSTR sName, DWORD nAttr)	{ return -ERROR_ACCESS_DENIED; }
+	virtual int					CreateChild(IPtrPlisgoFSFile& rChild, LPCWSTR sName, DWORD nAttr, ULONGLONG* pInstanceData)	{ return -ERROR_ACCESS_DENIED; }
 
 	virtual int					Repath(LPCWSTR sOldName, LPCWSTR sNewName, bool bReplaceExisting, PlisgoFSFolder* pNewParent);
 
@@ -231,7 +231,7 @@ public:
 		return 0;
 	}
 
-	virtual int					CreateChild(IPtrPlisgoFSFile& rChild, LPCWSTR sName, DWORD nAttr);
+	virtual int					CreateChild(IPtrPlisgoFSFile& rChild, LPCWSTR sName, DWORD nAttr, ULONGLONG* pInstanceData);
 
 	virtual int					GetRemoveChildError(LPCWSTR sName) const		{ return 0; }
 	virtual int					RemoveChild(LPCWSTR sName)						{ m_childList.RemoveFile(sName); return 0; }
@@ -251,10 +251,10 @@ public:
 
 	virtual IPtrPlisgoFSFile	GetChild(LPCWSTR sName) const;
 
-	virtual int					AddChild(LPCWSTR , IPtrPlisgoFSFile )				{ return -ERROR_ACCESS_DENIED; }
-	virtual int					CreateChild(IPtrPlisgoFSFile& , LPCWSTR , DWORD )	{ return -ERROR_ACCESS_DENIED; }
-	virtual int					GetRemoveChildError(LPCWSTR ) const					{ return -ERROR_ACCESS_DENIED; }
-	virtual int					RemoveChild(LPCWSTR )								{ return -ERROR_ACCESS_DENIED; }
+	virtual int					AddChild(LPCWSTR , IPtrPlisgoFSFile )							{ return -ERROR_ACCESS_DENIED; }
+	virtual int					CreateChild(IPtrPlisgoFSFile& , LPCWSTR , DWORD, ULONGLONG*)	{ return -ERROR_ACCESS_DENIED; }
+	virtual int					GetRemoveChildError(LPCWSTR ) const								{ return -ERROR_ACCESS_DENIED; }
+	virtual int					RemoveChild(LPCWSTR )											{ return -ERROR_ACCESS_DENIED; }
 
 private:
 
@@ -574,7 +574,7 @@ public:
 	virtual IPtrPlisgoFSFile	GetChild(LPCWSTR sName) const;
 
 	virtual int					AddChild(LPCWSTR sName, IPtrPlisgoFSFile file);
-	virtual int					CreateChild(IPtrPlisgoFSFile& rChild, LPCWSTR sName, DWORD nAttr);
+	virtual int					CreateChild(IPtrPlisgoFSFile& rChild, LPCWSTR sName, DWORD nAttr, ULONGLONG* pInstanceData);
 
 	virtual int					Repath(LPCWSTR sOldName, LPCWSTR sNewName, bool bReplaceExisting, PlisgoFSFolder* pNewParent);
 

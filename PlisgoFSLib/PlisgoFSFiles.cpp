@@ -136,7 +136,7 @@ private:
 
 
 
-static int				CopyPlisgoFile(IPtrPlisgoFSFile& rSrcFile, IPtrPlisgoFSFile& rDstFile)
+static int				CopyPlisgoFile(IPtrPlisgoFSFile& rSrcFile, IPtrPlisgoFSFile& rDstFile, ULONGLONG* pnDstInstanceData)
 {
 	if (rSrcFile->GetAttributes()&FILE_ATTRIBUTE_DIRECTORY)
 	{
@@ -164,18 +164,6 @@ static int				CopyPlisgoFile(IPtrPlisgoFSFile& rSrcFile, IPtrPlisgoFSFile& rDstF
 		if (nError != 0)
 			return nError;
 
-		ULONG64 nDstChildData = 0;
-
-		nError = rDstFile->Open(GENERIC_WRITE, 0, OPEN_EXISTING, 0, &nDstChildData);
-
-		if (nError != 0)
-		{
-			rSrcFile->Close(&nSrcChildData);
-
-			return nError;
-		}
-
-
 		char sBuffer[1024*4]; //Copy in 4K blocks.
 
 		LONGLONG nPos = 0;
@@ -191,7 +179,7 @@ static int				CopyPlisgoFile(IPtrPlisgoFSFile& rSrcFile, IPtrPlisgoFSFile& rDstF
 
 			DWORD nWritten;
 
-			nError = rDstFile->Write(sBuffer, nRead, &nWritten, nPos, &nDstChildData);
+			nError = rDstFile->Write(sBuffer, nRead, &nWritten, nPos, pnDstInstanceData);
 
 			if (nWritten != nRead)
 			{
@@ -208,13 +196,8 @@ static int				CopyPlisgoFile(IPtrPlisgoFSFile& rSrcFile, IPtrPlisgoFSFile& rDstF
 		if (nError == ERROR_HANDLE_EOF)
 			nError = 0;
 
-		rDstFile->SetEndOfFile(nPos, &nDstChildData);
+		rDstFile->SetEndOfFile(nPos, pnDstInstanceData);
 		rSrcFile->Close(&nSrcChildData);
-
-		//Restore any readonly attribute
-		rDstFile->SetAttributes(rDstFile->GetAttributes()|(rSrcFile->GetAttributes()&FILE_ATTRIBUTE_READONLY), &nDstChildData);
-
-		rDstFile->Close(&nDstChildData);
 
 		return nError;
 	}
@@ -226,13 +209,16 @@ bool FolderCopier::Do(LPCWSTR sName, IPtrPlisgoFSFile file)
 {
 	IPtrPlisgoFSFile dstFile;
 
-	//Create with same attributes, bar readonly because we are going to write to the file
-	m_nError = m_pDstFolder->CreateChild(dstFile, sName, file->GetAttributes()&~FILE_ATTRIBUTE_READONLY);
+	ULONGLONG nInstanceData = 0;
+
+	m_nError = m_pDstFolder->CreateChild(dstFile, sName, file->GetAttributes(), &nInstanceData);
 
 	if (m_nError != 0)
 		return false;
 
-	m_nError = CopyPlisgoFile(file, dstFile);
+	m_nError = CopyPlisgoFile(file, dstFile, &nInstanceData);
+
+	dstFile->Close(&nInstanceData);
 
 	if (m_nError != 0)
 		return false;
@@ -373,15 +359,29 @@ void				PlisgoFSFileList::Clear()
 /*
 ****************************************************************************
 */
-int		PlisgoFSStorageFolder::CreateChild(IPtrPlisgoFSFile& rChild, LPCWSTR sName, DWORD nAttr)
+int		PlisgoFSStorageFolder::CreateChild(IPtrPlisgoFSFile& rChild, LPCWSTR sName, DWORD nAttr, ULONGLONG* pInstanceData)
 {
 	if (sName == NULL)
 		return -ERROR_INVALID_NAME;
 
 	if (nAttr & FILE_ATTRIBUTE_DIRECTORY)
+	{
 		rChild.reset(new PlisgoFSStorageFolder);
+	}
 	else
-		rChild.reset(new PlisgoFSDataFile);
+	{
+		PlisgoFSDataFile* pChild = new PlisgoFSDataFile;
+
+		rChild.reset(pChild);
+
+		int nError = pChild->Open(GENERIC_ALL, FILE_SHARE_READ|FILE_SHARE_WRITE, OPEN_EXISTING, nAttr, pInstanceData);
+
+		if (nError != 0)
+			return nError;
+
+		if (nAttr&FILE_ATTRIBUTE_READONLY)
+			pChild->SetReadOnly(true);
+	}
 
 	return AddChild(sName, rChild);
 }
@@ -1497,7 +1497,7 @@ int					PlisgoFSRealFolder::AddChild(LPCWSTR sName, IPtrPlisgoFSFile file)
 }
 
 
-int					PlisgoFSRealFolder::CreateChild(IPtrPlisgoFSFile& rChild, LPCWSTR sName, DWORD nAttr)
+int					PlisgoFSRealFolder::CreateChild(IPtrPlisgoFSFile& rChild, LPCWSTR sName, DWORD nAttr, ULONGLONG* pInstanceData)
 {
 	std::wstring sPath = m_sRealPath;
 	sPath += L"\\";
@@ -1533,7 +1533,7 @@ int					PlisgoFSRealFolder::CreateChild(IPtrPlisgoFSFile& rChild, LPCWSTR sName,
 		if (hHandle == NULL || hHandle == INVALID_HANDLE_VALUE)
 			return -(int)GetLastError();
 
-		CloseHandle(hHandle);
+		*pInstanceData = (ULONGLONG)hHandle;
 
 		rChild.reset(new PlisgoFSRealFile(sPath));
 	}

@@ -207,43 +207,6 @@ IPtrPlisgoFSFile	PlisgoVFS::TracePath(LPCWSTR sPath, IPtrPlisgoFSFile* pParent) 
 }
 
 
-int					PlisgoVFS::CreateFolder(LPCWSTR sPath)
-{
-	if (sPath == NULL)
-		return -ERROR_BAD_PATHNAME;
-
-	LPCWSTR sName = GetNameFromPath(sPath);
-
-	std::wstring sPathLowerCase = sPath;
-
-	MakePathHashSafe(sPathLowerCase);
-
-	size_t nSlash = sPathLowerCase.rfind(L"\\");
-
-	if (nSlash == -1)
-		nSlash = 0;
-
-	IPtrPlisgoFSFile parent = TracePath(sPathLowerCase.substr(0, nSlash) );
-
-	if (parent.get() == NULL)
-		return -ERROR_BAD_PATHNAME;
-
-	PlisgoFSFolder* pFolder = parent->GetAsFolder();
-
-	if (pFolder == NULL)
-		return -ERROR_BAD_PATHNAME;
-
-	IPtrPlisgoFSFile child;
-
-	int nError = pFolder->CreateChild(child, sName, FILE_ATTRIBUTE_DIRECTORY);
-
-	if (child.get() != NULL)
-		AddToCache(sPathLowerCase, child);
-
-	return nError;
-}
-
-
 class MountSensitiveEachChild : public PlisgoFSFolder::EachChild 
 {
 public:
@@ -428,18 +391,14 @@ int					PlisgoVFS::Open(	PlisgoFileHandle&	rHandle,
 
 				if (pFolder != NULL)
 				{
-					nError = pFolder->CreateChild(file, GetNameFromPath(sPath), nFlagsAndAttributes&~FILE_ATTRIBUTE_READONLY);
+					nError = pFolder->CreateChild(file, GetNameFromPath(sPath), nFlagsAndAttributes, &nOpenInstaceData);
 
-					if (file.get() != NULL)
-					{
-						AddToCache(sPathLowerCase, file);
+					if (nError != 0)
+						return nError;
 
-						nError = file->Open(nDesiredAccess, nShareMode, OPEN_EXISTING, nFlagsAndAttributes, &nOpenInstaceData);
-					}
-					else
-					{
-						assert(nError != 0);
-					}
+					assert(file.get() != NULL);
+
+					AddToCache(sPathLowerCase, file);
 				}
 				else nError = -ERROR_PATH_NOT_FOUND; //wtf, silly user
 			}

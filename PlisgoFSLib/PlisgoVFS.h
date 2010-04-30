@@ -58,7 +58,6 @@ public:
 	typedef ULONG64	PlisgoFileHandle;
 
 
-	int							CreateFolder(LPCWSTR sPath);
 	int							Repath(LPCWSTR sOldPath, LPCWSTR sNewPath, bool bReplaceExisting = false);
 
 	int							ForEachChild(PlisgoFileHandle&	rHandle, PlisgoFSFolder::EachChild& rCB) const;
