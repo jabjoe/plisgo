@@ -280,6 +280,9 @@ inline bool TreeCache<TData>::GetTreeParent(const std::wstring& rsFullKey, TreeN
 template<typename TData>
 inline void TreeCache<TData>::RemoveAndPrune(const std::wstring& rsFullKey, bool bRemoveAnyChildren)
 {
+	if (rsFullKey.length() < 2)
+		return; //Must be "" or "/" i.e. root. NO you can't remove the root.
+
 	boost::unique_lock<boost::shared_mutex> lock(m_Mutex);
 
 	TreeNode* pTreeNode;
