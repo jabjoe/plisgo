@@ -979,7 +979,7 @@ int				PlisgoFSStringFile::SetEndOfFile(LONGLONG nEndPos, ULONGLONG* pInstanceDa
 {
 	assert(pInstanceData != NULL);
 
-	assert(*pInstanceData == GENERIC_WRITE);
+	assert(*pInstanceData & GENERIC_WRITE);
 
 	boost::unique_lock<boost::shared_mutex> lock(m_Mutex);
 
@@ -993,7 +993,7 @@ int				PlisgoFSStringFile::Close(ULONGLONG* pInstanceData)
 {
 	assert(pInstanceData != NULL);
 
-	if (*pInstanceData == GENERIC_WRITE)
+	if (*pInstanceData & GENERIC_WRITE)
 	{
 		boost::unique_lock<boost::shared_mutex> lock(m_Mutex);
 

@@ -71,12 +71,6 @@ public:
 	ClickFile(	boost::shared_ptr<SelectionFile>	selectionFile,
 				IPtrFileEvent						onClickEvent);
 
-	virtual int		Open(	DWORD		nDesiredAccess,
-							DWORD		nShareMode,
-							DWORD		nCreationDisposition,
-							DWORD		nFlagsAndAttributes,
-							ULONGLONG*	pInstanceData);
-
 	virtual int		Write(	LPCVOID		pBuffer,
 							DWORD		nNumberOfBytesToWrite,
 							LPDWORD		pnNumberOfBytesWritten,
@@ -89,8 +83,6 @@ public:
 
 private:
 	IPtrFileEvent						m_OnClickEvent;
-	bool								m_bClicked;
-	bool								m_bDoneClick;
 	boost::shared_ptr<SelectionFile>	m_selectionFile;
 };
 
@@ -225,25 +217,6 @@ ClickFile::ClickFile(	boost::shared_ptr<SelectionFile>	selectionFile,
 						: m_OnClickEvent(onClickEvent), PlisgoFSStringFile("0")
 {
 	m_selectionFile = selectionFile;
-	m_bClicked = false;
-	m_bDoneClick = false;
-}
-
-
-int		ClickFile::Open(	DWORD		nDesiredAccess,
-							DWORD		nShareMode,
-							DWORD		nCreationDisposition,
-							DWORD		nFlagsAndAttributes,
-							ULONGLONG*	pInstanceData)
-{
-	m_bClicked = false;
-	m_bDoneClick = false;
-
-	return PlisgoFSStringFile::Open(	nDesiredAccess, 
-								nShareMode,
-								nCreationDisposition,
-								nFlagsAndAttributes,
-								pInstanceData);
 }
 
 
@@ -264,7 +237,7 @@ int		ClickFile::Write(	LPCVOID		pBuffer,
 
 		GetString(sText);
 
-		m_bClicked = (atoi(sText.c_str()))?true:false;
+		*pInstanceData |= (atoi(sText.c_str()))?SYNCHRONIZE:0;
 	}
 
 	return nResult;
@@ -275,10 +248,12 @@ int		ClickFile::FlushBuffers(ULONGLONG* pInstanceData)
 {
 	assert(pInstanceData != NULL);
 
-	if (m_bClicked && *pInstanceData == GENERIC_WRITE && m_OnClickEvent.get() != NULL)
-		m_selectionFile->CallPerPath(*m_OnClickEvent);
+	bool bClick = (*pInstanceData & SYNCHRONIZE)?true:false;
 
-	m_bDoneClick = true;
+	*pInstanceData &=~SYNCHRONIZE; //Remove 'click' flag
+
+	if (bClick && m_OnClickEvent.get() != NULL)
+		m_selectionFile->CallPerPath(*m_OnClickEvent);
 
 	return PlisgoFSStringFile::FlushBuffers(pInstanceData);
 }
@@ -286,7 +261,7 @@ int		ClickFile::FlushBuffers(ULONGLONG* pInstanceData)
 
 int		ClickFile::Close(ULONGLONG* pInstanceData)
 {
-	if (m_bClicked && !m_bDoneClick)
+	if (*pInstanceData & SYNCHRONIZE)
 		FlushBuffers(pInstanceData);
 
 	return PlisgoFSStringFile::Close(pInstanceData);
