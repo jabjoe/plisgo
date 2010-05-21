@@ -482,12 +482,10 @@ int		PlisgoFSDataFileReadOnly::Read(	LPVOID		pBuffer,
 		memcpy_s(pBuffer, nNumberOfBytesToRead, &m_pData[nOffset], nCopySize);
 
 		*pnNumberOfBytesRead = nCopySize;
-
-		return 0;
 	}
 	else *pnNumberOfBytesRead = 0;
 
-	return -ERROR_HANDLE_EOF;
+	return 0;
 }
 
 /*
@@ -695,12 +693,10 @@ int		PlisgoFSDataFile::Read(	LPVOID		pBuffer,
 		memcpy_s(pBuffer, nNumberOfBytesToRead, &m_pData[nOffset], nCopySize);
 
 		*pnNumberOfBytesRead = nCopySize;
-
-		return 0;
 	}
 	else *pnNumberOfBytesRead = 0;
 
-	return -ERROR_HANDLE_EOF;
+	return 0;
 }
 
 
@@ -828,12 +824,10 @@ int				PlisgoFSStringReadOnly::Read(	LPVOID		pBuffer,
 		memcpy_s(pBuffer, nNumberOfBytesToRead, &m_sData.c_str()[nOffset], nCopySize);
 
 		*pnNumberOfBytesRead = nCopySize;
-
-		return 0;
 	}
 	else *pnNumberOfBytesRead = 0;
 
-	return -ERROR_HANDLE_EOF;
+	return 0;
 }
 
 
