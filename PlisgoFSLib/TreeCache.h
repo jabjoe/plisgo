@@ -31,18 +31,18 @@ public:
 	typedef boost::unordered_map<std::wstring, TData>	FullKeyMap;
 	typedef std::map<std::wstring, TData>				SubKeyMap;
 
-	bool GetData(const std::wstring& rsFullKey, TData& rData, bool bReturnNearest = false) const;
+	bool GetData(std::wstring sFullKey, TData& rData, bool bReturnNearest = false) const;
 
-	void SetData(const std::wstring& rsFullKey, TData& rData);
+	void SetData(std::wstring sFullKey, TData& rData);
 
-	void RemoveAndPrune(const std::wstring& rsFullKey, bool bRemoveAnyChildren = false); //Remove key value, then remove any entries in branch that have no value
-	void RemoveBranch(const std::wstring& rsFullKey);
+	void RemoveAndPrune(std::wstring sFullKey, bool bRemoveAnyChildren = false); //Remove key value, then remove any entries in branch that have no value
+	void RemoveBranch(std::wstring sFullKey);
 
-	void MoveBranch(const std::wstring& rsOldFullKey, const std::wstring& rsNewFullKey);
+	void MoveBranch(std::wstring sOldFullKey, std::wstring sNewFullKey);
 
 	void GetFullKeyMap(FullKeyMap& rsFullKeyMap) const;
 
-	bool GetChildMap(const std::wstring& rsFullKey, SubKeyMap& rSubKeyMap, bool bIncludeEmpty = false) const;
+	bool GetChildMap(std::wstring sFullKey, SubKeyMap& rSubKeyMap, bool bIncludeEmpty = false) const;
 
 private:
 	struct TreeNode;
@@ -81,14 +81,19 @@ private:
 };
 
 
+
+
+
 template<typename TData>
-inline bool TreeCache<TData>::GetData(const std::wstring& rsFullKey, TData& rData, bool bReturnNearest) const
+inline bool TreeCache<TData>::GetData(std::wstring sFullKey, TData& rData, bool bReturnNearest) const
 {
+	MakePathHashSafe(sFullKey);
+
 	boost::shared_lock<boost::shared_mutex> readLock(m_Mutex);
 
 	const TreeNode* pTreeNode = NULL;
 
-	if (!GetTreeNode(rsFullKey, bReturnNearest, pTreeNode))
+	if (!GetTreeNode(sFullKey, bReturnNearest, pTreeNode))
 		return false;
 	
 	rData = pTreeNode->Data;
@@ -98,13 +103,15 @@ inline bool TreeCache<TData>::GetData(const std::wstring& rsFullKey, TData& rDat
 
 
 template<typename TData>
-inline void TreeCache<TData>::SetData(const std::wstring& rsFullKey, TData& rData)
+inline void TreeCache<TData>::SetData(std::wstring sFullKey, TData& rData)
 {
+	MakePathHashSafe(sFullKey);
+
 	boost::unique_lock<boost::shared_mutex> lock(m_Mutex);
 
 	TreeNode* pTreeNode = NULL;
 
-	GetCreateTreeNode(rsFullKey, pTreeNode);
+	GetCreateTreeNode(sFullKey, pTreeNode);
 
 	assert(pTreeNode != NULL); //There is no fail!
 	
@@ -234,13 +241,15 @@ inline void TreeCache<TData>::GetFullKeyMap(FullKeyMap& rsFullKeyMap) const
 
 
 template<typename TData>
-inline bool TreeCache<TData>::GetChildMap(const std::wstring& rKey, SubKeyMap& rSubKeyMap, bool bIncludeEmpty) const
+inline bool TreeCache<TData>::GetChildMap(std::wstring sKey, SubKeyMap& rSubKeyMap, bool bIncludeEmpty) const
 {
+	MakePathHashSafe(sKey);
+
 	boost::shared_lock<boost::shared_mutex> readLock(m_Mutex);
 
 	const TreeNode* pTreeNode;
 
-	if (!GetTreeNode(rKey, false, pTreeNode))
+	if (!GetTreeNode(sKey, false, pTreeNode))
 		return false;
 	
 	for(ChildTreeNodes::const_iterator it = pTreeNode->Children.begin(); it != pTreeNode->Children.end(); ++it)
@@ -278,16 +287,18 @@ inline bool TreeCache<TData>::GetTreeParent(const std::wstring& rsFullKey, TreeN
 
 
 template<typename TData>
-inline void TreeCache<TData>::RemoveAndPrune(const std::wstring& rsFullKey, bool bRemoveAnyChildren)
+inline void TreeCache<TData>::RemoveAndPrune(std::wstring sFullKey, bool bRemoveAnyChildren)
 {
-	if (rsFullKey.length() < 2)
+	if (sFullKey.length() < 2)
 		return; //Must be "" or "/" i.e. root. NO you can't remove the root.
+
+	MakePathHashSafe(sFullKey);
 
 	boost::unique_lock<boost::shared_mutex> lock(m_Mutex);
 
 	TreeNode* pTreeNode;
 
-	if (!GetTreeNode(rsFullKey, false, (const TreeNode*&)pTreeNode))
+	if (!GetTreeNode(sFullKey, false, (const TreeNode*&)pTreeNode))
 		return;
 
 	if (!bRemoveAnyChildren && pTreeNode->Children.size() != 0)
@@ -298,25 +309,24 @@ inline void TreeCache<TData>::RemoveAndPrune(const std::wstring& rsFullKey, bool
 		return;
 	}
 
-	std::wstring sCurrent = rsFullKey;
 	std::wstring sName;
 
 	do
 	{
-		RemoveTreeNodeFromCache(sCurrent, pTreeNode, true);
+		RemoveTreeNodeFromCache(sFullKey, pTreeNode, true);
 
-		const size_t nSlash = sCurrent.rfind(L'\\');
+		const size_t nSlash = sFullKey.rfind(L'\\');
 
 		if (nSlash != -1)
 		{
-			sName = sCurrent.substr(nSlash+1);
-			sCurrent.resize(nSlash);
+			sName = sFullKey.substr(nSlash+1);
+			sFullKey.resize(nSlash);
 
-			GetTreeNode(sCurrent, false, (const TreeNode*&)pTreeNode);
+			GetTreeNode(sFullKey, false, (const TreeNode*&)pTreeNode);
 		}
 		else 
 		{
-			sName = sCurrent;
+			sName = sFullKey;
 			pTreeNode = &m_Root;
 		}
 
@@ -332,28 +342,33 @@ inline void TreeCache<TData>::RemoveAndPrune(const std::wstring& rsFullKey, bool
 
 
 template<typename TData>
-inline void TreeCache<TData>::RemoveBranch(const std::wstring& rsFullKey)
+inline void TreeCache<TData>::RemoveBranch(std::wstring sFullKey)
 {
+	MakePathHashSafe(sFullKey);
+
 	boost::unique_lock<boost::shared_mutex> lock(m_Mutex);
 
 	TreeNode* pTreeNode = NULL;
 	TreeNode* pParentTreeNode = NULL;
 	std::wstring sName;
 
-	if (!GetTreeParent(rsFullKey, pParentTreeNode, pTreeNode, sName))
+	if (!GetTreeParent(sFullKey, pParentTreeNode, pTreeNode, sName))
 		return;//This path wasn't in the tree anyway
 
 	assert(pTreeNode != NULL && pParentTreeNode != NULL);
 
-	RemoveTreeNodeFromCache(rsFullKey, pTreeNode, true);
+	RemoveTreeNodeFromCache(sFullKey, pTreeNode, true);
 	pParentTreeNode->Children.erase(sName);
 }
 
 
 
 template<typename TData>
-inline void TreeCache<TData>::MoveBranch(const std::wstring& rsOldFullKey, const std::wstring& rsNewFullKey)
+inline void TreeCache<TData>::MoveBranch(std::wstring sOldFullKey, std::wstring sNewFullKey)
 {
+	MakePathHashSafe(sOldFullKey);
+	MakePathHashSafe(sNewFullKey);
+
 	boost::unique_lock<boost::shared_mutex> lock(m_Mutex);
 
 	TreeNode* pOldParentTreeNode;
@@ -361,7 +376,7 @@ inline void TreeCache<TData>::MoveBranch(const std::wstring& rsOldFullKey, const
 
 	std::wstring sOldName;
 
-	if (!GetTreeParent(rsOldFullKey, pOldTreeNode, pOldParentTreeNode, sOldName))
+	if (!GetTreeParent(sOldFullKey, pOldTreeNode, pOldParentTreeNode, sOldName))
 		return; //This path wasn't in the tree anyway
 
 	assert(pOldParentTreeNode != NULL);
@@ -370,18 +385,18 @@ inline void TreeCache<TData>::MoveBranch(const std::wstring& rsOldFullKey, const
 	//Add into new position
 	TreeNode* pNewTreeNode = NULL;
 
-	GetCreateTreeNode(rsNewFullKey, pNewTreeNode);
+	GetCreateTreeNode(sNewFullKey, pNewTreeNode);
 
 	assert(pNewTreeNode != NULL);
 
 	pNewTreeNode->Data		= pOldTreeNode->Data;
 	pNewTreeNode->Children	= pOldTreeNode->Children;
 
-	AddTreeToFullKeyCache(rsNewFullKey, pNewTreeNode);
+	AddTreeToFullKeyCache(sNewFullKey, pNewTreeNode);
 
 	//Remove from old position
 
-	RemoveTreeNodeFromCache(rsOldFullKey, pOldTreeNode, false);
+	RemoveTreeNodeFromCache(sOldFullKey, pOldTreeNode, false);
 	m_TreeNodePool.destroy(pOldTreeNode);
 	pOldParentTreeNode->Children.erase(sOldName);
 }
