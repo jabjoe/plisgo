@@ -54,6 +54,7 @@ private:
 
 	bool GetNextKey(const std::wstring& rsKey, size_t& rnPos, std::wstring& rsSubKey) const;
 
+	void RemoveChildren(const std::wstring& rsFullKey, TreeNode *pTreeNode, bool bDestroy);
 	void RemoveTreeNodeFromCache(const std::wstring& rsFullKey, TreeNode *pTreeNode, bool bDestroy);
 
 	void AddTreeToFullKeyCache(const std::wstring& rsFullKey, TreeNode *pTreeNode);
@@ -263,6 +264,9 @@ inline bool TreeCache<TData>::GetChildMap(std::wstring sKey, SubKeyMap& rSubKeyM
 template<typename TData>
 inline bool TreeCache<TData>::GetTreeParent(const std::wstring& rsFullKey, TreeNode*& rpParentTreeNode, TreeNode*& rpTreeNode, std::wstring& rsName)
 {
+	if (rsFullKey.length() == 0)
+		return false; //The root has no parent.
+
 	if (!GetTreeNode(rsFullKey, false, (const TreeNode*&)rpTreeNode))
 		return false;//This path wasn't in the tree anyway
 
@@ -289,9 +293,6 @@ inline bool TreeCache<TData>::GetTreeParent(const std::wstring& rsFullKey, TreeN
 template<typename TData>
 inline void TreeCache<TData>::RemoveAndPrune(std::wstring sFullKey, bool bRemoveAnyChildren)
 {
-	if (sFullKey.length() < 2)
-		return; //Must be "" or "/" i.e. root. NO you can't remove the root.
-
 	MakePathHashSafe(sFullKey);
 
 	boost::unique_lock<boost::shared_mutex> lock(m_Mutex);
@@ -301,19 +302,22 @@ inline void TreeCache<TData>::RemoveAndPrune(std::wstring sFullKey, bool bRemove
 	if (!GetTreeNode(sFullKey, false, (const TreeNode*&)pTreeNode))
 		return;
 
-	if (!bRemoveAnyChildren && pTreeNode->Children.size() != 0)
-	{
-		pTreeNode->bSet = false;
-		pTreeNode->Data = TData();
+	//Ensure at least set to empty.
+	pTreeNode->bSet = false;
+	pTreeNode->Data = TData();
 
+	if ((!bRemoveAnyChildren && pTreeNode->Children.size() != 0) || pTreeNode == &m_Root)
 		return;
-	}
+
+	//So there aren't any children, or we are to remove them if there are any.
 
 	std::wstring sName;
 
 	do
 	{
-		RemoveTreeNodeFromCache(sFullKey, pTreeNode, true);
+		RemoveTreeNodeFromCache(sFullKey, pTreeNode, true); //Removes entry and all it's children
+
+		//Now remove from parent, and keep pruning unset nodes down the tree to the root.
 
 		const size_t nSlash = sFullKey.rfind(L'\\');
 
@@ -326,6 +330,9 @@ inline void TreeCache<TData>::RemoveAndPrune(std::wstring sFullKey, bool bRemove
 		}
 		else 
 		{
+			if (sFullKey.length() == 0)
+				return; //Done
+
 			sName = sFullKey;
 			pTreeNode = &m_Root;
 		}
@@ -348,17 +355,21 @@ inline void TreeCache<TData>::RemoveBranch(std::wstring sFullKey)
 
 	boost::unique_lock<boost::shared_mutex> lock(m_Mutex);
 
-	TreeNode* pTreeNode = NULL;
-	TreeNode* pParentTreeNode = NULL;
-	std::wstring sName;
+	if (sFullKey.length() > 0)
+	{
+		TreeNode* pTreeNode = NULL;
+		TreeNode* pParentTreeNode = NULL;
+		std::wstring sName;
 
-	if (!GetTreeParent(sFullKey, pParentTreeNode, pTreeNode, sName))
-		return;//This path wasn't in the tree anyway
+		if (!GetTreeParent(sFullKey, pParentTreeNode, pTreeNode, sName))
+			return;//This path wasn't in the tree anyway
 
-	assert(pTreeNode != NULL && pParentTreeNode != NULL);
+		assert(pTreeNode != NULL && pParentTreeNode != NULL);
 
-	RemoveTreeNodeFromCache(sFullKey, pTreeNode, true);
-	pParentTreeNode->Children.erase(sName);
+		RemoveTreeNodeFromCache(sFullKey, pTreeNode, true);
+		pParentTreeNode->Children.erase(sName);
+	}
+	else RemoveChildren(sFullKey, &m_Root, true);
 }
 
 
@@ -403,12 +414,19 @@ inline void TreeCache<TData>::MoveBranch(std::wstring sOldFullKey, std::wstring 
 
 
 template<typename TData>
+inline void TreeCache<TData>::RemoveChildren(const std::wstring& rsFullKey, TreeNode *pTreeNode, bool bDestroy)
+{
+	for(ChildTreeNodes::const_iterator it = pTreeNode->Children.begin(); it != pTreeNode->Children.end(); ++it)
+		RemoveTreeNodeFromCache(rsFullKey + L"\\" += it->first, it->second, bDestroy);
+}
+
+
+template<typename TData>
 inline void TreeCache<TData>::RemoveTreeNodeFromCache(const std::wstring& rsFullKey, TreeNode *pTreeNode, bool bDestroy)
 {
 	m_FullKeyNodeMap.erase(rsFullKey);
 
-	for(ChildTreeNodes::const_iterator it = pTreeNode->Children.begin(); it != pTreeNode->Children.end(); ++it)
-		RemoveTreeNodeFromCache(rsFullKey + L"\\" += it->first, it->second, bDestroy);
+	RemoveChildren(rsFullKey, pTreeNode, bDestroy);
 
 	if (bDestroy)
 		m_TreeNodePool.destroy(pTreeNode);
