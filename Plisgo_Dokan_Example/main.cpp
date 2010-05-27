@@ -226,7 +226,12 @@ int __stdcall	PlisgoExampleMoveFile(	LPCWSTR				sSrcFileName,
 										BOOL				bReplaceIfExisting,
 										PDOKAN_FILE_INFO	pDokanFileInfo)
 {
-	return GetPlisgoVFS(pDokanFileInfo)->Repath(sSrcFileName, sDstFileName, (bReplaceIfExisting == TRUE));
+	PlisgoVFS* pVFS = GetPlisgoVFS(pDokanFileInfo);
+
+	//Ensure it's closed before moving/renaming
+	pVFS->Close((PlisgoVFS::PlisgoFileHandle&)pDokanFileInfo->Context);
+
+	return pVFS->Repath(sSrcFileName, sDstFileName, (bReplaceIfExisting == TRUE));
 }
 
 

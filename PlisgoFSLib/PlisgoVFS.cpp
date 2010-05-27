@@ -565,6 +565,9 @@ int					PlisgoVFS::SetEndOfFile(PlisgoFileHandle&	rHandle, LONGLONG nEndPos)
 
 int					PlisgoVFS::Close(PlisgoFileHandle&	rHandle, bool bDeleteOnClose)
 {
+	if (rHandle == 0)
+		return 0; //Already closed
+
 	OpenFileData* pOpenFileData = GetOpenFileData(rHandle);
 
 	if (pOpenFileData == NULL)
@@ -629,6 +632,8 @@ int					PlisgoVFS::Close(PlisgoFileHandle&	rHandle, bool bDeleteOnClose)
 	m_OpenFilePool.destroy(pOpenFileData);
 
 	InterlockedDecrement(&m_OpenFileNum);
+	
+	rHandle = 0;
 
 	return nError;
 }
