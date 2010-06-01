@@ -2305,12 +2305,16 @@ LRESULT		 CPlisgoView::OnUpdateItem(UINT uMsg, WPARAM wParam, LPARAM lParam, BOO
 
 	if (pItem != NULL || wParam >= sizeof(LVITEM))
 	{
-		if (pItem->mask & LVIF_IMAGE && m_IconList.get() != NULL)
-			m_IconList->GetIconLocation(m_IconSources[pItem->iItem], pItem->iImage);
+		if (pItem->iItem <= m_IconSources.size() )
+		{
+			if (pItem->mask & LVIF_IMAGE && m_IconList.get() != NULL)
+				m_IconList->GetIconLocation(m_IconSources[pItem->iItem], pItem->iImage);
 
-		ListView_SetItem(m_hList, pItem);
+			ListView_SetItem(m_hList, pItem);
 
-		ListView_RedrawItems(m_hList, pItem->iItem, pItem->iItem);
+			ListView_RedrawItems(m_hList, pItem->iItem, pItem->iItem);
+		}
+		//else I'm guess it's been delayed and is late
 
 		free((void*)pItem);
 	}
