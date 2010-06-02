@@ -136,6 +136,8 @@ private:
 		std::wstring		sPath;
 		IPtrPlisgoFSFile	File;
 		ULONG64				nData;
+		bool				bDeleteOnClose;
+
 		OpenFileData*		pNext;
 		OpenFileData*		pPrev;
 	};
@@ -145,10 +147,11 @@ private:
 
 	IPtrPlisgoFSFolder						m_Root;
 
-	mutable boost::shared_mutex				m_OpenFilePoolMutex;
-	boost::object_pool<OpenFileData>		m_OpenFilePool;
-	volatile LONG							m_OpenFileNum;
-	OpenFileData*							m_pLatestOpen;
+	mutable boost::shared_mutex					m_OpenFilePoolMutex;
+	boost::object_pool<OpenFileData>			m_OpenFilePool;
+	volatile LONG								m_OpenFileNum;
+	OpenFileData*								m_pLatestOpen;
+	mutable boost::unordered_map<std::wstring, bool>	m_PendingDeletes;
 
 	struct Cached
 	{

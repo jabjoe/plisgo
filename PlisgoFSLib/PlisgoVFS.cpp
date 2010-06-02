@@ -122,7 +122,8 @@ bool				PlisgoVFS::GetCached(const std::wstring& rsPath, IPtrPlisgoFSFile& rFile
 	{
 		boost::upgrade_to_unique_lock<boost::shared_mutex> writeLock(readLock);
 
-		const_cast<PlisgoVFS*>(this)->m_CacheEntryMap.erase(it);
+		//Use key instead of iterator in case been cleared already between read/write lock transition.
+		const_cast<PlisgoVFS*>(this)->m_CacheEntryMap.erase(rsPath);
 
 		return false;
 	}
@@ -375,6 +376,13 @@ int					PlisgoVFS::Open(	PlisgoFileHandle&	rHandle,
 	int nError = 0;
 	ULONG64 nOpenInstaceData = 0;
 
+	{
+		boost::shared_lock<boost::shared_mutex> lock(m_OpenFilePoolMutex);
+
+		if (m_PendingDeletes.find(sPathLowerCase) != m_PendingDeletes.end())
+			return -ERROR_DELETE_PENDING;
+	}
+
 	if (file.get() == NULL)
 	{
 		if (nCreationDisposition != OPEN_EXISTING && nCreationDisposition != TRUNCATE_EXISTING)
@@ -438,6 +446,13 @@ int					PlisgoVFS::Open(	PlisgoFileHandle&	rHandle,
 
 	pOpenFileData->sPath = sPathLowerCase;
 	pOpenFileData->nData = nOpenInstaceData;
+	
+	if (nFlagsAndAttributes&FILE_FLAG_DELETE_ON_CLOSE)
+	{
+		pOpenFileData->bDeleteOnClose = true;
+		m_PendingDeletes[sPathLowerCase] = true;
+	}
+	else pOpenFileData->bDeleteOnClose = false;
 
 	pOpenFileData->pPrev = NULL;
 
@@ -575,10 +590,10 @@ int					PlisgoVFS::Close(PlisgoFileHandle&	rHandle, bool bDeleteOnClose)
 
 	int nError = pOpenFileData->File->Close(&pOpenFileData->nData);
 
+	const std::wstring& rsPath = pOpenFileData->sPath;
+
 	if (nError == 0 && bDeleteOnClose)
 	{
-		const std::wstring& rsPath = pOpenFileData->sPath;
-
 		size_t nSlash = rsPath.rfind(L'\\');
 
 		nSlash = (nSlash == -1)?0:nSlash;
@@ -629,6 +644,9 @@ int					PlisgoVFS::Close(PlisgoFileHandle&	rHandle, bool bDeleteOnClose)
 			pOpenFileData->pPrev->pNext = pOpenFileData->pNext;
 	}
 
+	if (pOpenFileData->bDeleteOnClose)
+		m_PendingDeletes.erase(rsPath);
+
 	m_OpenFilePool.destroy(pOpenFileData);
 
 	InterlockedDecrement(&m_OpenFileNum);
@@ -660,12 +678,22 @@ int					PlisgoVFS::GetDeleteError(PlisgoFileHandle&	rHandle) const
 
 	assert(pFolder != NULL);
 
+	boost::unique_lock<boost::shared_mutex>	lock(m_OpenFilePoolMutex);
+
 	int nError = pFolder->GetRemoveChildError(GetNameFromPath(pOpenFileData->sPath));
 
 	if (nError != 0)
 		return nError;
 
-	return pOpenFileData->File->GetDeleteError(&pOpenFileData->nData);
+	nError = pOpenFileData->File->GetDeleteError(&pOpenFileData->nData);
+
+	if (nError != 0)
+		return nError;
+
+	pOpenFileData->bDeleteOnClose = true;
+	m_PendingDeletes[pOpenFileData->sPath] = true;
+
+	return 0;
 }
 
 
