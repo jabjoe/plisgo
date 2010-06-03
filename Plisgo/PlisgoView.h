@@ -86,13 +86,19 @@ BEGIN_MSG_MAP(CPlisgoView)
     MESSAGE_HANDLER(WM_CREATE, OnCreate)
     MESSAGE_HANDLER(WM_SIZE, OnSize)
     MESSAGE_HANDLER(WM_SETFOCUS, OnSetFocus)
+    MESSAGE_HANDLER(WM_KILLFOCUS, OnKillFocus)
     MESSAGE_HANDLER(WM_CONTEXTMENU, OnContextMenu)
 
     NOTIFY_CODE_HANDLER(LVN_DELETEITEM, OnListDeleteitem)
     NOTIFY_CODE_HANDLER(HDN_ITEMCLICK, OnHeaderItemclick)
     NOTIFY_CODE_HANDLER(NM_SETFOCUS, OnListSetfocus)
+    NOTIFY_CODE_HANDLER(NM_KILLFOCUS, OnListKillfocus)
+    NOTIFY_CODE_HANDLER(NM_DBLCLK, OnDefaultCommand)
+    NOTIFY_CODE_HANDLER(NM_RETURN, OnDefaultCommand)
+	
 	NOTIFY_CODE_HANDLER(LVN_GETDISPINFO, OnGetDispInfo)
 	NOTIFY_CODE_HANDLER(LVN_ENDLABELEDIT, OnLabelEdit)
+	NOTIFY_CODE_HANDLER(LVN_ITEMCHANGED, OnItemChanged)
 	NOTIFY_CODE_HANDLER(LVN_ITEMACTIVATE, OnItemActivated)
 
     MESSAGE_HANDLER(WM_PLISGOVIEWSHELLMESSAGE, OnCustomViewShellMessage)
@@ -159,6 +165,7 @@ public:
     LRESULT OnCreate(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& rbHandled);
     LRESULT OnSize(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& rbHandled);
     LRESULT OnSetFocus(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& rbHandled);
+    LRESULT OnKillFocus(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& rbHandled);
     LRESULT OnContextMenu(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& rbHandled);
     LRESULT OnInitMenuPopup(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& rbHandled);
     LRESULT OnMenuSelect(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& rbHandled);
@@ -168,9 +175,12 @@ public:
     LRESULT OnListDeleteitem(int nCtrl, LPNMHDR pNmh, BOOL& rbHandled);
     LRESULT OnHeaderItemclick(int nCtrl, LPNMHDR pNmh, BOOL& rbHandled);
     LRESULT OnListSetfocus(int nCtrl, LPNMHDR pNmh, BOOL& rbHandled);
+    LRESULT OnListKillfocus(int nCtrl, LPNMHDR pNmh, BOOL& rbHandled);
 	LRESULT OnGetDispInfo(int nCtrl, LPNMHDR pNmh, BOOL& rbHandled);
 	LRESULT OnLabelEdit(int nCtrl, LPNMHDR pNmh, BOOL& rbHandled);
+	LRESULT OnItemChanged(int nCtrl, LPNMHDR pNmh, BOOL& rbHandled);
 	LRESULT OnItemActivated(int nCtrl, LPNMHDR pNmh, BOOL& rbHandled);
+	LRESULT	OnDefaultCommand(int nCtrl, LPNMHDR pNmh, BOOL& rbHandled);
 
 	//Drag-and-drop
 	LRESULT OnBeginDrag(int nCtrl, LPNMHDR pNmh, BOOL &rbHandled);
@@ -292,6 +302,7 @@ protected:
 
 	CComPtr<IContextMenu2>					m_IMenu2;
 	CComPtr<IContextMenu3>					m_IMenu3;
+	CComPtr<ICommDlgBrowser>				m_CommDlgBrowser;
 
 	ULONG									m_nShellNotificationID;
 

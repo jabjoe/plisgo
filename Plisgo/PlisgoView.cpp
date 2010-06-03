@@ -578,6 +578,8 @@ STDMETHODIMP CPlisgoView::CreateViewWindow(	LPSHELLVIEW			pPrevView,
 													SHCNE_UPDATEITEM | SHCNE_UPDATEDIR | SHCNE_MKDIR | SHCNE_RMDIR |
 													SHCNE_RENAMEFOLDER | SHCNE_RMDIR, WM_PLISGOVIEWSHELLMESSAGE, 1, &entry);
 
+	m_ShellBrowser->QueryInterface(IID_ICommDlgBrowser, (void**)&m_CommDlgBrowser);
+
     return S_OK;
 }
 
@@ -881,6 +883,9 @@ STDMETHODIMP CPlisgoView::TranslateAccelerator(LPMSG pMsg)
 				if (nItem != -1)
 				{
 					ListView_EditLabel(m_hList, nItem);
+
+					if (m_CommDlgBrowser.p != NULL)
+						m_CommDlgBrowser->OnStateChange(this, CDBOSC_RENAME);
 
 					return S_OK;
 				}
@@ -1252,7 +1257,7 @@ LRESULT		 CPlisgoView::OnCreate(	UINT uMsg, WPARAM wParam,
 
 
 LRESULT		 CPlisgoView::OnSize(	UINT uMsg, WPARAM wParam, 
-								LPARAM lParam, BOOL& rbHandled )
+									LPARAM lParam, BOOL& rbHandled )
 {
 	if (::IsWindow(m_hList))
 		::MoveWindow( m_hList, 0, 0, LOWORD(lParam), HIWORD(lParam), TRUE );
@@ -1262,12 +1267,25 @@ LRESULT		 CPlisgoView::OnSize(	UINT uMsg, WPARAM wParam,
 
 
 LRESULT		 CPlisgoView::OnSetFocus(	UINT uMsg, WPARAM wParam,
-									LPARAM lParam, BOOL& rbHandled )
+										LPARAM lParam, BOOL& rbHandled )
 {
 	::SetFocus(m_hList);
 
+	if (m_CommDlgBrowser.p != NULL)
+		m_CommDlgBrowser->OnStateChange(this, CDBOSC_SETFOCUS);
+
     return 0;
 }
+
+LRESULT		 CPlisgoView::OnKillFocus(	UINT uMsg, WPARAM wParam,
+										LPARAM lParam, BOOL& rbHandled )
+{
+	if (m_CommDlgBrowser.p != NULL)
+		m_CommDlgBrowser->OnStateChange(this, CDBOSC_KILLFOCUS);
+
+    return 0;
+}
+
 
 
 void		 CPlisgoView::AddItem(LPITEMIDLIST pIDL)
@@ -1320,11 +1338,14 @@ void		 CPlisgoView::FillList()
 
 	m_IconSources.clear();
 
-    while ( pEnum->Next(1, &pidl, &nFetched) == S_OK )
+	while ( pEnum->Next(1, &pidl, &nFetched) == S_OK )
 	{
-        ATLASSERT(1 == nFetched);
+		ATLASSERT(1 == nFetched);
 
 		AddItem(ILFindLastID(pidl));
+
+		if (m_CommDlgBrowser.p != NULL)
+			m_CommDlgBrowser->IncludeObject(this, pidl);
 	}
 
 	m_nSortedColumn = 0;
@@ -1517,6 +1538,20 @@ LRESULT		 CPlisgoView::OnListSetfocus ( int nCtrl, LPNMHDR pNmh, BOOL& bHandled 
 
 	HandleActivate ( SVUIA_ACTIVATE_FOCUS );
 
+	if (m_CommDlgBrowser.p != NULL)
+		m_CommDlgBrowser->OnStateChange(this, CDBOSC_SETFOCUS);
+
+	return 0;
+}
+
+
+LRESULT		 CPlisgoView::OnListKillfocus ( int nCtrl, LPNMHDR pNmh, BOOL& bHandled )
+{
+	HandleActivate ( SVUIA_ACTIVATE_NOFOCUS );
+
+	if (m_CommDlgBrowser.p != NULL)
+		m_CommDlgBrowser->OnStateChange(this, CDBOSC_KILLFOCUS);
+
 	return 0;
 }
 
@@ -1552,6 +1587,15 @@ LRESULT		 CPlisgoView::OnListDeleteitem ( int nCtrl, LPNMHDR pNMH, BOOL& rbHandl
 }
 
 
+LRESULT		 CPlisgoView::OnItemChanged ( int nCtrl, LPNMHDR pNMH, BOOL& rbHandled )
+{
+	if (m_CommDlgBrowser.p != NULL)
+		m_CommDlgBrowser->OnStateChange(this, CDBOSC_SELCHANGE);
+
+	return 0;
+}
+
+
 LRESULT		 CPlisgoView::OnItemActivated ( int nCtrl, LPNMHDR pNMH, BOOL& rbHandled )
 {
 	NMITEMACTIVATE* pNMLA = (NMITEMACTIVATE*)pNMH;
@@ -1568,6 +1612,9 @@ LRESULT		 CPlisgoView::OnItemActivated ( int nCtrl, LPNMHDR pNMH, BOOL& rbHandle
 	if (FAILED(hr))
 		return HRESULTTOLRESULT(hr);
 
+	if (m_CommDlgBrowser.p != NULL)
+		m_CommDlgBrowser->OnStateChange(this, CDBOSC_SELCHANGE);
+
 	if (nAttr&(SFGAO_FOLDER|SFGAO_HASSUBFOLDER))
 	{
 		LPITEMIDLIST pFullIDL = ILCombine(m_pContainingFolder->GetIDList(), pIDL);
@@ -1581,16 +1628,9 @@ LRESULT		 CPlisgoView::OnItemActivated ( int nCtrl, LPNMHDR pNMH, BOOL& rbHandle
 	}
 	else
 	{
-		CComPtr<ICommDlgBrowser> pCommDlgBrowser;
-		 
-		hr = m_ShellBrowser->QueryInterface(IID_ICommDlgBrowser, (void**)&pCommDlgBrowser);
-
-		if (SUCCEEDED(hr)) //If it's a dialog view, clicking on a file/folder is signal to close
+		if (m_CommDlgBrowser.p != NULL) //If it's a dialog view, clicking on a file/folder is signal to close
 		{
-			HWND hWnd = NULL;
-
-			if (SUCCEEDED(m_ShellBrowser->GetWindow(&hWnd)))
-				::PostMessage(hWnd, WM_COMMAND, IDOK, 0L);
+			m_CommDlgBrowser->OnDefaultCommand(this);
 		}
 		else
 		{
@@ -1612,7 +1652,13 @@ LRESULT		 CPlisgoView::OnItemActivated ( int nCtrl, LPNMHDR pNMH, BOOL& rbHandle
 }
 
 
+LRESULT			CPlisgoView::OnDefaultCommand(int nCtrl, LPNMHDR pNmh, BOOL& rbHandled)
+{
+	if (m_CommDlgBrowser.p != NULL)
+		m_CommDlgBrowser->OnDefaultCommand(this);
 
+	return 0;
+}
 
 
 void		 CPlisgoView::RefreshItemImages()
@@ -1976,7 +2022,13 @@ LRESULT		 CPlisgoView::DoContextMenu(IContextMenu* pIMenu, HMENU hMenu, int x, i
 				if (wcscmp(sBuffer,L"cut") == 0)
 					MarkSelectedAsCut(m_hList);
 			}
-			else ListView_EditLabel(m_hList, ListView_GetNextItem(m_hList, -1, LVIS_SELECTED));
+			else
+			{
+				ListView_EditLabel(m_hList, ListView_GetNextItem(m_hList, -1, LVIS_SELECTED));
+
+				if (m_CommDlgBrowser.p != NULL)
+					m_CommDlgBrowser->OnStateChange(this, CDBOSC_RENAME);
+			}
 		}
 		else rClickEvents[nMenuSelection-nCustomIDOffset].Do();
 	}
@@ -1987,6 +2039,14 @@ LRESULT		 CPlisgoView::DoContextMenu(IContextMenu* pIMenu, HMENU hMenu, int x, i
 
 LRESULT		 CPlisgoView::OnContextMenu(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& rbHandled)
 {
+	CComPtr<ICommDlgBrowser2> pCommDlgBrowser2;
+
+	if (m_CommDlgBrowser.p != NULL)
+		m_CommDlgBrowser->QueryInterface(IID_ICommDlgBrowser2, (void**)&pCommDlgBrowser2);
+
+	if (pCommDlgBrowser2.p != NULL)
+		pCommDlgBrowser2->Notify(this, CDB2N_CONTEXTMENU_START);
+
 	int   nSelItem = ListView_GetNextItem(m_hList,  -1, LVIS_SELECTED );
 	int   x = GET_X_LPARAM(lParam), y = GET_Y_LPARAM(lParam);
 
@@ -2073,6 +2133,9 @@ LRESULT		 CPlisgoView::OnContextMenu(UINT uMsg, WPARAM wParam, LPARAM lParam, BO
 
 		pIMenu->Release();
 	}
+
+	if (pCommDlgBrowser2.p != NULL)
+		pCommDlgBrowser2->Notify(this, CDB2N_CONTEXTMENU_DONE);
 
 	DestroyMenu(hMenu);
 
