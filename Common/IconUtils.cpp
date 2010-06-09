@@ -652,8 +652,6 @@ static HICON	LoadIcon(HMODULE hModule, DWORD nIconID)
         FreeResource(hGlobal);
 	}
 	
-	FreeResource(hRsrc);
-
 	return hResult;
 }
 

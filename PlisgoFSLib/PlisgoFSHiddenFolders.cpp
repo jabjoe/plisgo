@@ -541,7 +541,7 @@ bool				RootPlisgoFSFolder::AddIcons(HINSTANCE hExeHandle, int nListIndex, LPCWS
 
 	if (hRes != NULL)
 	{
-		DWORD nSize = SizeofResource(NULL, hRes);
+		DWORD nSize = SizeofResource(hExeHandle, hRes);
 
 		HGLOBAL hReallyStaticMem = LoadResource(hExeHandle, hRes);
 
@@ -598,6 +598,8 @@ bool				RootPlisgoFSFolder::AddIcons(HINSTANCE hExeHandle, int nListIndex, LPCWS
 				::GlobalUnlock(hGlobal);
 				::GlobalFree(hGlobal);
 			}
+
+			FreeResource(hReallyStaticMem);
 		}
 	}
 
