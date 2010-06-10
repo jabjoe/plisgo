@@ -321,8 +321,12 @@ void __cdecl AsyncClickPacketCB( AsyncClickPacket* pPacket )
 		if (GetFileAttributes(it->c_str()) & FILE_ATTRIBUTE_DIRECTORY)
 		{
 			//It's worse case, but it acturally works
-			SHChangeNotify(SHCNE_RMDIR, SHCNF_PATHW, it->c_str(), NULL);
-			SHChangeNotify(SHCNE_MKDIR, SHCNF_PATHW|SHCNF_FLUSH, it->c_str(), NULL);
+
+			if (it->length() > 3) //But don't do this nastiness with drives.
+			{
+				SHChangeNotify(SHCNE_RMDIR, SHCNF_PATHW, it->c_str(), NULL);
+				SHChangeNotify(SHCNE_MKDIR, SHCNF_PATHW|SHCNF_FLUSH, it->c_str(), NULL);
+			}
 		}
 		else SHChangeNotify(SHCNE_UPDATEITEM, SHCNF_PATHW|SHCNF_FLUSH, it->c_str(), NULL);
 	}
