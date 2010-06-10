@@ -2224,6 +2224,9 @@ LRESULT		 CPlisgoView::OnLabelEdit(int nCtrl, LPNMHDR pNmh, BOOL& bHandled)
 {
 	NMLVDISPINFO* pNmv = CONTAINING_RECORD(pNmh, NMLVDISPINFO, hdr);
 
+	if (pNmv->item.pszText == NULL)
+		return S_OK;
+
 	pNmv->item.mask = LVIF_PARAM;
 
 	if (ListView_GetItem(m_hList, &pNmv->item))
@@ -2368,7 +2371,7 @@ LRESULT		 CPlisgoView::OnUpdateItem(UINT uMsg, WPARAM wParam, LPARAM lParam, BOO
 
 	if (pItem != NULL || wParam >= sizeof(LVITEM))
 	{
-		if (pItem->iItem <= m_IconSources.size() )
+		if (pItem->iItem < (int)m_IconSources.size() )
 		{
 			if (pItem->mask & LVIF_IMAGE && m_IconList.get() != NULL)
 				m_IconList->GetIconLocation(m_IconSources[pItem->iItem], pItem->iImage);
