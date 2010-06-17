@@ -405,6 +405,7 @@ CPlisgoView::CPlisgoView() : m_nUIState(SVUIA_DEACTIVATE), m_nSortedColumn(0),
 
 {
 	CommonControlsInit();
+	m_bViewInit = 0;
 }
 
 
@@ -561,12 +562,28 @@ STDMETHODIMP CPlisgoView::CreateViewWindow(	LPSHELLVIEW			pPrevView,
     m_ShellBrowser = psb;
     m_FolderSettings = *pfs;
 
-    m_ShellBrowser->GetWindow( &m_hWndParent );
+	m_ShellBrowser->GetWindow( &m_hWndParent );
 
-    if ( NULL == Create ( m_hWndParent, *prcView ) )
+    if ( NULL == Create ( m_hWndParent, *prcView, L"PlisgoWindow", WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | WS_TABSTOP ) )
        return E_FAIL;
 
+	SetDlgCtrlID(1121); //Ensure it's the same ID as the original.
+
     *phWnd = m_hWnd;
+
+	if (m_CommDlgBrowser.p != NULL)
+		m_CommDlgBrowser.Release();
+
+	m_ShellBrowser->QueryInterface(IID_ICommDlgBrowser, (void**)&m_CommDlgBrowser);
+
+	if (LOBYTE(LOWORD(GetVersion())) > 5/*Vista*/ && m_CommDlgBrowser.p != NULL)
+	{
+		HWND hPrev = ::GetDlgItem(m_hWndParent, 1120); //Place holder controller in open dialog template
+
+		if (hPrev != NULL && hPrev != INVALID_HANDLE_VALUE)
+			::SetWindowPos(m_hWnd, hPrev, 0, 0, 0, 0, SWP_NOMOVE|SWP_NOSIZE|SWP_SHOWWINDOW);
+	}
+
 
 	SHChangeNotifyEntry entry;
 
@@ -578,7 +595,6 @@ STDMETHODIMP CPlisgoView::CreateViewWindow(	LPSHELLVIEW			pPrevView,
 													SHCNE_UPDATEITEM | SHCNE_UPDATEDIR | SHCNE_MKDIR | SHCNE_RMDIR |
 													SHCNE_RENAMEFOLDER | SHCNE_RMDIR, WM_PLISGOVIEWSHELLMESSAGE, 1, &entry);
 
-	m_ShellBrowser->QueryInterface(IID_ICommDlgBrowser, (void**)&m_CommDlgBrowser);
 
     return S_OK;
 }
@@ -1104,13 +1120,16 @@ LRESULT		 CPlisgoView::OnCreate(	UINT uMsg, WPARAM wParam,
 									LVS_EDITLABELS | LVS_SHOWSELALWAYS | LVS_SHAREIMAGELISTS | LVS_AUTOARRANGE;
 	DWORD dwListExStyles		=	WS_EX_CLIENTEDGE;
 
-    m_hList = CreateWindowEx (	dwListExStyles, WC_LISTVIEW, NULL, dwListStyles,
+	m_bViewInit = 0;
+
+	m_hList = ::CreateWindowEx (	dwListExStyles, WC_LISTVIEW, L"FolderView", dwListStyles,
 										0, 0, 0, 0, m_hWnd, (HMENU) 101, 
 										g_hInstance, 0 );
-
 	
     if ( NULL == m_hList )
         return HRESULTTOLRESULT(HRESULT_FROM_WIN32(GetLastError()));
+
+	::SetWindowLong(m_hList, GWL_ID, 1);
 
 	ListView_SetExtendedListViewStyle(m_hList, LVS_EX_HEADERDRAGDROP );
 
@@ -1133,17 +1152,6 @@ LRESULT		 CPlisgoView::OnCreate(	UINT uMsg, WPARAM wParam,
 
 
 	m_nColumnIDMap.clear();
-
-	MenuClickPacket::PlisgoViewMenuItemClickCB ViewTypeCD = &CPlisgoView::OnDetailsViewMenuItemClick;
-
-    switch ( m_FolderSettings.ViewMode )
-    {
-	    case FVM_ICON:
-		case FVM_TILE:		ViewTypeCD = &CPlisgoView::OnLargeViewMenuItemClick; break;
-
-        case FVM_THUMBSTRIP:
-		case FVM_THUMBNAIL:	ViewTypeCD = &CPlisgoView::OnThumbnailsViewMenuItemClick; break;
-    }
 
 
 	WCHAR   szTemp[MAX_PATH];
@@ -1248,10 +1256,6 @@ LRESULT		 CPlisgoView::OnCreate(	UINT uMsg, WPARAM wParam,
 
 	lvColumn.mask = LVCF_FMT;
 
-	if (ViewTypeCD != NULL)
-		(this->*ViewTypeCD)();
-	
-
     return 0;
 }
 
@@ -1338,14 +1342,30 @@ void		 CPlisgoView::FillList()
 
 	m_IconSources.clear();
 
+	std::list<LPITEMIDLIST> pids;
+
 	while ( pEnum->Next(1, &pidl, &nFetched) == S_OK )
 	{
 		ATLASSERT(1 == nFetched);
 
-		AddItem(ILFindLastID(pidl));
+		if (m_CommDlgBrowser.p == NULL || m_CommDlgBrowser->IncludeObject(this, pidl) == S_OK)
+			pids.push_back(ILClone(ILFindLastID(pidl)));
+	}
 
-		if (m_CommDlgBrowser.p != NULL)
-			m_CommDlgBrowser->IncludeObject(this, pidl);
+	m_IconSources.resize(pids.size());
+	ListView_SetItemCount(m_hList, pids.size());
+	LVITEM lvi = {0};
+
+	lvi.mask	= LVIF_TEXT | LVIF_IMAGE | LVIF_PARAM;
+	lvi.iImage	= I_IMAGECALLBACK;
+	lvi.pszText	= LPSTR_TEXTCALLBACKW;
+	lvi.iItem	= 0;
+
+	for(std::list<LPITEMIDLIST>::const_iterator it = pids.begin(); it != pids.end(); ++lvi.iItem, ++it )
+	{
+		lvi.lParam	= (LPARAM)*it; //THIS MUST BE FREED
+
+		ListView_InsertItem(m_hList, &lvi);
 	}
 
 	m_nSortedColumn = 0;
@@ -1652,7 +1672,7 @@ LRESULT		 CPlisgoView::OnItemActivated ( int nCtrl, LPNMHDR pNMH, BOOL& rbHandle
 }
 
 
-LRESULT			CPlisgoView::OnDefaultCommand(int nCtrl, LPNMHDR pNmh, BOOL& rbHandled)
+LRESULT		 CPlisgoView::OnDefaultCommand(int nCtrl, LPNMHDR pNmh, BOOL& rbHandled)
 {
 	if (m_CommDlgBrowser.p != NULL)
 		m_CommDlgBrowser->OnDefaultCommand(this);
@@ -1663,41 +1683,61 @@ LRESULT			CPlisgoView::OnDefaultCommand(int nCtrl, LPNMHDR pNmh, BOOL& rbHandled
 
 void		 CPlisgoView::RefreshItemImages()
 {
-	const int nItemNum = ListView_GetItemCount(m_hList);
-
-	for(int n = 0; n < nItemNum; ++n)
+	if (InterlockedIncrement(&m_bViewInit) == 1)
 	{
-		LVITEM item = {0};
+		MenuClickPacket::PlisgoViewMenuItemClickCB ViewTypeCD = &CPlisgoView::OnDetailsViewMenuItemClick;
 
-		item.mask = LVIF_IMAGE;
-
-		if (ListView_GetItem(m_hList, &item))
+		switch ( m_FolderSettings.ViewMode )
 		{
-			if (item.iImage != I_IMAGECALLBACK)
+			case FVM_ICON:
+			case FVM_TILE:		ViewTypeCD = &CPlisgoView::OnLargeViewMenuItemClick; break;
+
+			case FVM_THUMBSTRIP:
+			case FVM_THUMBNAIL:	ViewTypeCD = &CPlisgoView::OnThumbnailsViewMenuItemClick; break;
+		}
+
+		if (ViewTypeCD != NULL)
+			(this->*ViewTypeCD)();
+	}
+	else
+	{
+		const int nItemNum = ListView_GetItemCount(m_hList);
+
+		for(int n = 0; n < nItemNum; ++n)
+		{
+			LVITEM item = {0};
+
+			item.mask = LVIF_IMAGE;
+
+			if (ListView_GetItem(m_hList, &item))
 			{
-				IconLocation Location;
-
-				if (m_IconList->GetIconLocation(Location, item.iImage))
+				if (item.iImage != I_IMAGECALLBACK)
 				{
-					const IconLocation& rLoaded = m_IconSources[item.iItem];
+					IconLocation Location;
 
-					if (rLoaded.nIndex != Location.nIndex ||
-						rLoaded.sPath != Location.sPath )
+					if (m_IconList->GetIconLocation(Location, item.iImage))
+					{
+						const IconLocation& rLoaded = m_IconSources[item.iItem];
+
+						if (rLoaded.nIndex != Location.nIndex ||
+							rLoaded.sPath != Location.sPath )
+						{
+							item.iImage = I_IMAGECALLBACK;
+							ListView_SetItem(m_hList, &item);
+						}
+					}
+					else
 					{
 						item.iImage = I_IMAGECALLBACK;
 						ListView_SetItem(m_hList, &item);
 					}
 				}
-				else
-				{
-					item.iImage = I_IMAGECALLBACK;
-					ListView_SetItem(m_hList, &item);
-				}
 			}
 		}
-	}
 
-	m_IconList->RemoveOlderThan(NTMINUTE*2);
+		if (m_IconList.get() != NULL)
+			m_IconList->RemoveOlderThan(NTMINUTE*2);
+	}
 }
 
 

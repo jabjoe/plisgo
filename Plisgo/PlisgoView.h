@@ -194,6 +194,8 @@ public:
 	
 
 protected:
+	static LRESULT CALLBACK ListWndProcedure(HWND hWnd, UINT nMsg, WPARAM wParam, LPARAM lParam);
+
 	class MenuClickPacket
 	{
 	public:
@@ -307,6 +309,8 @@ protected:
 	ULONG									m_nShellNotificationID;
 
 	IPtrRefIconList							m_IconList;
+
+	volatile LONG							m_bViewInit;
 
 	CPlisgoFolder*							m_pContainingFolder;
 	IPtrPlisgoFSRoot						m_PlisgoFSFolder;

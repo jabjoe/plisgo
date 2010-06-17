@@ -407,7 +407,7 @@ HRESULT			CPlisgoFolder::GetAttributesOf(LPCITEMIDLIST pIDL, LPDWORD rgfInOut)
 	if (nAttr&FILE_ATTRIBUTE_READONLY)
 		*rgfInOut |= SFGAO_READONLY;
 
-	if (nAttr&FILE_ATTRIBUTE_OFFLINE)
+	//if (nAttr&FILE_ATTRIBUTE_OFFLINE) //It's probably virtual if used with plisgo, which means slow
 		*rgfInOut |= SFGAO_ISSLOW;
 
 	if (nAttr&FILE_ATTRIBUTE_DIRECTORY)
