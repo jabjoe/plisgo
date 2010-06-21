@@ -198,12 +198,22 @@ int __stdcall	PlisgoExampleSetFileAttributes(	LPCWSTR				sFileName,
 }
 
 
+
+#define MAKENULL_IF_ZERO(_t)	(_t = (_t != NULL && (*(ULONGLONG*)_t) == 0)?NULL:_t)
+
 int __stdcall	PlisgoExampleSetFileTime(	LPCWSTR				sFileName,
 											CONST FILETIME*		pCreationTime,
 											CONST FILETIME*		pLastAccessTime,
 											CONST FILETIME*		pLastWriteTime,
 											PDOKAN_FILE_INFO	pDokanFileInfo)
 {
+	MAKENULL_IF_ZERO(pCreationTime);
+	MAKENULL_IF_ZERO(pLastAccessTime);
+	MAKENULL_IF_ZERO(pLastWriteTime);
+
+	if (pCreationTime == NULL && pLastAccessTime == NULL && pLastWriteTime == NULL)
+		return 0;
+
 	return GetPlisgoVFS(pDokanFileInfo)->SetFileTimes((PlisgoVFS::PlisgoFileHandle&)pDokanFileInfo->Context, pCreationTime, pLastAccessTime, pLastWriteTime);
 }
 
