@@ -145,12 +145,12 @@ private:
 	OpenFileData*				GetOpenFileData(PlisgoFileHandle&	rHandle) const;
 
 
-	IPtrPlisgoFSFolder						m_Root;
+	IPtrPlisgoFSFolder									m_Root;
 
-	mutable boost::shared_mutex					m_OpenFilePoolMutex;
-	boost::object_pool<OpenFileData>			m_OpenFilePool;
-	volatile LONG								m_OpenFileNum;
-	OpenFileData*								m_pLatestOpen;
+	mutable boost::shared_mutex							m_OpenFilePoolMutex;
+	boost::object_pool<OpenFileData>					m_OpenFilePool;
+	volatile LONG										m_OpenFileNum;
+	OpenFileData*										m_pLatestOpen;
 	mutable boost::unordered_map<std::wstring, bool>	m_PendingDeletes;
 
 	struct Cached
@@ -163,13 +163,13 @@ private:
 	typedef boost::fast_pool_allocator< CacheEntryPair >																			CacheEntryPairPool;
 	typedef boost::unordered_map<std::wstring, Cached, boost::hash<std::wstring>, std::equal_to<std::wstring>, CacheEntryPairPool >	CacheEntryMap;
 
-	mutable boost::shared_mutex				m_CacheEntryMutex;
-	CacheEntryMap							m_CacheEntryMap;
+	mutable boost::shared_mutex							m_CacheEntryMutex;
+	CacheEntryMap										m_CacheEntryMap;
 
-	typedef TreeCache<IPtrPlisgoFSFile>		MountTree;
+	typedef TreeCache<IPtrPlisgoFSFile>					MountTree;
 
-	MountTree								m_MountTree;
-	PlisgoVFSOpenLog*						m_pLog;
+	MountTree											m_MountTree;
+	PlisgoVFSOpenLog*									m_pLog;
 };
 
 typedef boost::shared_ptr<PlisgoVFS>	IPtrPlisgoVFS;
