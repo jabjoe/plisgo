@@ -353,13 +353,20 @@ void	CPlisgoView::AsynLoader::DoWork()
 
 DWORD WINAPI CPlisgoView::AsynLoader::ThreadProcCB(LPVOID lpParameter)
 {
-	CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
+	static IUnknown* pExplorer = NULL;
+
+	SHGetInstanceExplorer(&pExplorer);
+
+	CoInitializeEx(NULL, COINIT_MULTITHREADED);
 
 	AsynLoader* pAsynLoader = (AsynLoader*)lpParameter;
 
 	pAsynLoader->DoWork();
 
 	CoUninitialize();
+
+	if (pExplorer != NULL)
+		pExplorer->Release();
 
 	return 0;
 }
@@ -615,7 +622,8 @@ STDMETHODIMP CPlisgoView::DestroyViewWindow()
 
 	SHChangeNotifyDeregister(m_nShellNotificationID);
 
-    DestroyWindow();
+	if (m_hWnd != NULL)
+	    DestroyWindow();
 
     return S_OK;
 }

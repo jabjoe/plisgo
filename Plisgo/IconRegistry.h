@@ -168,7 +168,7 @@ public:
 
 private:
 
-	typedef std::tr1::unordered_map<std::wstring, boost::shared_ptr<FSIconRegistry> >	FSIconRegistries;
+	typedef std::tr1::unordered_map<std::wstring, IPtrFSIconRegistry >	FSIconRegistries;
 
 	FSIconRegistries								m_FSIconRegistries;
 	std::vector<boost::weak_ptr<RefIconList> >		m_IconLists;

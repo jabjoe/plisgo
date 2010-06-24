@@ -34,6 +34,10 @@ static HANDLE	ghCleaningThread = NULL;
 
 static DWORD WINAPI ClearningThreadCB(LPVOID)
 {
+	static IUnknown* pExplorer = NULL;
+
+	SHGetInstanceExplorer(&pExplorer);
+
 	PlisgoFSFolderReg::GetSingleton()->RunRootCacheClean();
 
 	//Spin until got lock
@@ -45,6 +49,9 @@ static DWORD WINAPI ClearningThreadCB(LPVOID)
 	InterlockedExchange(&gnCleaningThreadCheck, 0); //Release lock
 
 	CloseHandle(hHandle);
+
+	if (pExplorer != NULL)
+		pExplorer->Release();
 
 	return 0;
 }

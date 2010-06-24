@@ -150,6 +150,10 @@ STDMETHODIMP CPlisgoFolder::CreateViewObject(HWND hWnd, REFIID rIID, void** ppRe
 	if (ppResult == NULL)
 		return E_INVALIDARG;
 
+	if (rIID == IID_HACK_IShellView3)
+		return E_NOINTERFACE;
+
+
 	*ppResult = NULL;
 
 	if (rIID == IID_IPlisgoView	||

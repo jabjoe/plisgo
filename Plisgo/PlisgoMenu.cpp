@@ -31,6 +31,127 @@ int gShellIDList = RegisterClipboardFormat(CFSTR_SHELLIDLIST);
 #define HIDA_GetPIDLFolder(pida) (LPCITEMIDLIST)(((LPBYTE)pida)+(pida)->aoffset[0])
 #define HIDA_GetPIDLItem(pida, i) (LPCITEMIDLIST)(((LPBYTE)pida)+(pida)->aoffset[i+1])
 
+#define EXPLORER_FLAGS	PROCESS_QUERY_INFORMATION|PROCESS_VM_OPERATION|PROCESS_VM_READ|PROCESS_VM_WRITE
+#define	ALIGNED_SIZE(_)			((_%16)?(_+16-(_%16)):_)
+#define ALIGNED_ITEM_SIZE		(ALIGNED_SIZE(sizeof(TVITEM)))
+
+
+class ExplorerTreeItemMemory
+{
+public:
+
+	ExplorerTreeItemMemory()
+	{
+		m_hExplorer = NULL;
+		m_pExplorer = NULL;
+	}
+
+	~ExplorerTreeItemMemory()
+	{
+		VirtualFreeEx(m_hExplorer, m_pExplorer, 0, MEM_RELEASE);
+		m_pExplorer = NULL;
+		CloseHandle(m_hExplorer);
+		m_hExplorer = NULL;
+	}
+
+
+	BOOL	GetItem(HWND hWnd, TVITEM& rItem)
+	{
+		boost::upgrade_lock<boost::shared_mutex> lock(m_Mutex);
+
+		bool bIsExplorer = GetExternalExplorerHandle(lock);
+
+		if (m_hExplorer == NULL)
+			return FALSE;
+
+		if (!bIsExplorer)
+			return TreeView_GetItem(hWnd, &rItem); //It is Explorer
+
+		WCHAR* sOwn = rItem.pszText;
+
+		void* pExplorerMemoryText = (void*)((uintptr_t)m_pExplorer + ALIGNED_ITEM_SIZE);
+
+		rItem.pszText = (LPWSTR)pExplorerMemoryText;
+
+		WriteProcessMemory(m_hExplorer, m_pExplorer, &rItem, sizeof(TVITEM), NULL);
+
+		rItem.pszText = sOwn;
+
+		BOOL bResult = TreeView_GetItem(hWnd, m_pExplorer);
+
+		ReadProcessMemory(m_hExplorer, pExplorerMemoryText, sOwn, MAX_PATH, 0);
+
+		return bResult;
+	}
+
+protected:
+
+
+	bool	GetExternalExplorerHandle(boost::upgrade_lock<boost::shared_mutex>& rLock)
+	{
+		if (IsValid())
+			return (m_hExplorer != GetCurrentProcess());
+
+		boost::upgrade_to_unique_lock<boost::shared_mutex> lock(rLock);
+
+		if (IsValid())
+			return (m_hExplorer != GetCurrentProcess());
+
+		if (m_hExplorer != NULL)
+		{
+			VirtualFreeEx(m_hExplorer, m_pExplorer, 0, MEM_RELEASE);
+			m_pExplorer = NULL;
+			CloseHandle(m_hExplorer);
+			m_hExplorer = NULL;
+		}
+
+		HWND hExplorer = FindWindowEx(GetDesktopWindow(), NULL, L"Shell_TrayWnd", NULL);
+
+		if (hExplorer == NULL)
+			return false;
+		
+		DWORD nNewExplorer = 0;
+
+		GetWindowThreadProcessId(hExplorer, &nNewExplorer);
+
+		if (nNewExplorer == GetCurrentProcessId())
+		{
+			m_hExplorer = GetCurrentProcess();
+
+			return false;
+		}
+		else
+		{
+			m_hExplorer = OpenProcess(EXPLORER_FLAGS, FALSE, nNewExplorer);
+
+			m_pExplorer = VirtualAllocEx(	m_hExplorer,
+											0, 
+											ALIGNED_ITEM_SIZE+sizeof(WCHAR)*MAX_PATH,
+											MEM_COMMIT,
+											PAGE_READWRITE);
+
+			return true;
+		}
+	}
+
+
+	bool	IsValid()
+	{
+		DWORD nExitCode = 0;
+
+		return (m_hExplorer != NULL && ( m_hExplorer == GetCurrentProcess() ||
+				(GetExitCodeProcess(m_hExplorer, &nExitCode) && nExitCode == STILL_ACTIVE)));
+	}
+
+private:
+	boost::shared_mutex		m_Mutex;
+
+	HANDLE					m_hExplorer;
+	void*					m_pExplorer;
+};
+
+
+static ExplorerTreeItemMemory	g_ExplorerTreeItemMemory;
 
 
 /*
@@ -40,14 +161,14 @@ int gShellIDList = RegisterClipboardFormat(CFSTR_SHELLIDLIST);
 
 static BOOL			GetTreeItemName(HWND hWnd, HTREEITEM hItem, WCHAR* sBuffer, int nBufferSize)
 {
-	TVITEMEX item = {0};
+	TVITEM item = {0};
 
 	item.mask		= TVIF_HANDLE|TVIF_TEXT;
 	item.pszText	= sBuffer;
 	item.cchTextMax	= nBufferSize;
 	item.hItem		= hItem;
 
-	return TreeView_GetItem(hWnd, &item);
+	return g_ExplorerTreeItemMemory.GetItem(hWnd, item);
 }
 
 
@@ -104,36 +225,25 @@ static HTREEITEM	FollowRelativePath(std::wstring::const_iterator itPath, HWND hW
 
 
 
-static HTREEITEM	FindDrive(HTREEITEM hParent, WCHAR sDrive[], HWND hWnd, int nDepth)
+static HTREEITEM	FindDrive(HTREEITEM hParent, WCHAR sDrive[], HWND hWnd, int nDepth, WCHAR sBuffer[MAX_PATH])
 {
 	if (nDepth > 3) //Don't go crazy, no point going all the way down!
 		return NULL;
 
-	TVITEM item = {0};
+	const UINT nState = TreeView_GetItemState(hWnd, hParent, TVIF_STATE);
 
-	item.mask = TVIF_CHILDREN|TVIF_HANDLE;
-	item.hItem = hParent;
-
-
-	if (!TreeView_GetItem(hWnd, &item))
+	if (!(nState & TVIS_EXPANDED || nState & TVIS_EXPANDPARTIAL))
 		return NULL;
-
-	if (item.cChildren == I_CHILDRENCALLBACK)
-		return NULL;
-
 
 	HTREEITEM hChild = TreeView_GetChild(hWnd, hParent);
 
-	WCHAR sBuffer[MAX_PATH];
-
 	while(hChild != NULL)
 	{
-		GetTreeItemName(hWnd, hChild, sBuffer, MAX_PATH);
-
-		if (wcsstr(sBuffer, sDrive) != NULL)
+		if (GetTreeItemName(hWnd, hChild, sBuffer, MAX_PATH) &&
+			wcsstr(sBuffer, sDrive) != NULL)
 			return hChild;
 
-		HTREEITEM hResult = FindDrive(hChild, sDrive, hWnd, nDepth+1);
+		HTREEITEM hResult = FindDrive(hChild, sDrive, hWnd, nDepth+1, sBuffer);
 
 		if (hResult != NULL)
 			return hResult;
@@ -151,9 +261,11 @@ static HTREEITEM	FindDrive(WCHAR nDrive, HWND hWnd)
 
 	WCHAR sDrive[] = {L'(',toupper(nDrive),L':',L')',L'\0'};
 
+	WCHAR sBuffer[MAX_PATH];
+
 	while(hRoot != NULL)
 	{
-		HTREEITEM hResult = FindDrive(hRoot, sDrive, hWnd, 0);
+		HTREEITEM hResult = FindDrive(hRoot, sDrive, hWnd, 0, sBuffer);
 
 		if (hResult != NULL)
 			return hResult;
@@ -165,14 +277,55 @@ static HTREEITEM	FindDrive(WCHAR nDrive, HWND hWnd)
 }
 
 
-struct TreeSelectionPacket
+typedef std::tr1::unordered_map<std::wstring, bool>	PathDoneMap;
+
+struct FolderUpdatePacket
 {
-	std::map<HWND, std::wstring>	SelectionMap;
-	std::wstring					sBase;
+	WStringList&	rFolders;
+	std::wstring&	rsBase;
+	PathDoneMap		foldersDone;
 };
 
 
-BOOL CALLBACK	StoreSelectionCB(HWND hWnd, LPARAM lParam)
+static void DirtyChildren(HWND hWnd, HTREEITEM hFolder, std::wstring& rsFolderPath, WCHAR sNameBuffer[MAX_PATH], PathDoneMap& rPathDoneMap)
+{
+	const UINT nState = TreeView_GetItemState(hWnd, hFolder, TVIF_STATE);
+
+	if (!(nState & TVIS_EXPANDED || nState & TVIS_EXPANDPARTIAL))
+		return;
+
+	HTREEITEM hSubFolder = TreeView_GetChild(hWnd, hFolder);
+
+	while (hSubFolder != NULL)
+	{
+		if (GetTreeItemName(hWnd, hSubFolder, sNameBuffer, MAX_PATH))
+		{
+			FillLowerCopy(sNameBuffer, MAX_PATH, sNameBuffer);
+
+			const size_t nLength = rsFolderPath.size();
+
+			rsFolderPath += L'\\';
+			rsFolderPath += sNameBuffer;
+
+			if (rPathDoneMap.find(rsFolderPath) == rPathDoneMap.end())
+			{
+				SHChangeNotify(SHCNE_UPDATEDIR, SHCNF_PATHW, rsFolderPath.c_str(), NULL);
+				SHChangeNotify(SHCNE_UPDATEITEM, SHCNF_PATHW, rsFolderPath.c_str(), NULL);
+
+				rPathDoneMap[rsFolderPath] = true;
+			}
+
+			DirtyChildren(hWnd, hSubFolder, rsFolderPath, sNameBuffer, rPathDoneMap);
+
+			rsFolderPath.resize(nLength);
+		}
+
+		hSubFolder = TreeView_GetNextSibling(hWnd, hSubFolder);
+	}
+}
+
+
+BOOL CALLBACK	FolderUpdateCB(HWND hWnd, LPARAM lParam)
 {
 	WCHAR sBuffer[MAX_PATH] = {0};
 
@@ -180,95 +333,32 @@ BOOL CALLBACK	StoreSelectionCB(HWND hWnd, LPARAM lParam)
 
 	if (wcscmp(L"SysTreeView32", sBuffer) == 0)
 	{
+		FolderUpdatePacket* pPacket			= (FolderUpdatePacket*)lParam;
+		WStringList&		rFolders		= pPacket->rFolders;
+		PathDoneMap&		rPathDoneMap	= pPacket->foldersDone;
+
 		HTREEITEM hRoot = TreeView_GetRoot(hWnd);
 
 		if (hRoot == NULL)
-			return FALSE;
-
-		TreeSelectionPacket* pPacket = (TreeSelectionPacket*)lParam;
-
-		HTREEITEM hDrive = FindDrive(pPacket->sBase[0], hWnd);
+			return TRUE;
+		
+		HTREEITEM hDrive = FindDrive(pPacket->rsBase[0], hWnd);
 
 		if (hDrive == NULL)
-			return FALSE;
+			return TRUE;
 
-		HTREEITEM hSelection = TreeView_GetSelection(hWnd);
-
-		if (hSelection == NULL)
-			return FALSE;
-
-		std::wstring sSelection;
-
-		while(hSelection != NULL && hSelection != hDrive)
+		for(WStringList::iterator it = rFolders.begin(); it != rFolders.end(); ++it)
 		{
-			WCHAR sBuffer[MAX_PATH];
+			HTREEITEM hFolder = FollowRelativePath(it->begin()+3, hWnd, hDrive);
 
-			GetTreeItemName(hWnd, hSelection, sBuffer, MAX_PATH);
-
-			wcscat_s(sBuffer, MAX_PATH, L"\\");
-
-			sSelection.insert(0, sBuffer);
-
-			hSelection = TreeView_GetParent(hWnd, hSelection);
+			if (hFolder != NULL)
+				DirtyChildren(hWnd, hFolder, *it, sBuffer, rPathDoneMap);
 		}
-
-		if (hSelection == hDrive)
-		{
-			WCHAR sDrive[] = L" :\\";
-
-			sDrive[0] = pPacket->sBase[0];
-
-			sSelection.insert(0, sDrive);
-			sSelection.resize(sSelection.length()-1); //Remove trailing slash
-
-			pPacket->SelectionMap[hWnd] = sSelection;
-		}
-
-		return FALSE;
 	}
 
 	return TRUE;
 }
 
-
-BOOL CALLBACK	RestoreSelectionCB(HWND hWnd, LPARAM lParam)
-{
-	WCHAR sBuffer[MAX_PATH] = {0};
-
-	::GetClassName(hWnd, sBuffer, MAX_PATH);
-
-	if (wcscmp(L"SysTreeView32", sBuffer) == 0)
-	{
-		TreeSelectionPacket* pPacket = (TreeSelectionPacket*)lParam;
-
-		std::map<HWND, std::wstring>::const_iterator it = pPacket->SelectionMap.find(hWnd);
-
-		if (it == pPacket->SelectionMap.end())
-			return FALSE;
-
-		HTREEITEM hRoot = TreeView_GetRoot(hWnd);
-
-		if (hRoot == NULL)
-			return FALSE;
-
-		HTREEITEM hDrive = FindDrive(pPacket->sBase[0], hWnd);
-
-		if (hDrive == NULL)
-			return FALSE;
-
-		HTREEITEM hFolder = hDrive;
-
-		if (it->second.length() > 3)
-			hFolder = FollowRelativePath(it->second.begin()+3, hWnd, hDrive);
-
-		if (hFolder != NULL)
-			TreeView_SelectItem(hWnd, hFolder);
-
-		return FALSE;
-	}
-
-	return TRUE;
-}
 
 
 
@@ -292,8 +382,6 @@ void __cdecl AsyncClickPacketCB( AsyncClickPacket* pPacket )
 	delete pPacket;
 	pPacket = NULL;
 
-	WStringList folders;
-
 	CComPtr<IShellFolder> pShellDesktop = NULL;
 
 	if (!SUCCEEDED(SHGetDesktopFolder(&pShellDesktop)))
@@ -301,18 +389,7 @@ void __cdecl AsyncClickPacketCB( AsyncClickPacket* pPacket )
 
 	boost::trim_right_if(sBasePath, boost::is_any_of(L"\\"));
 
-	TreeSelectionPacket packet;
-
-	packet.sBase = sBasePath;
-
-	HWND hExplorer = FindWindowEx(GetDesktopWindow(), NULL, L"ExploreWClass", NULL);
-
-	while(hExplorer != NULL)
-	{
-		EnumChildWindows(hExplorer, StoreSelectionCB, (LPARAM)&packet);
-
-		hExplorer = FindWindowEx(GetDesktopWindow(), hExplorer, L"ExploreWClass", NULL);
-	}
+	WStringList folders;
 
 	for(WStringList::iterator it = selection.begin(); it != selection.end(); ++it)
 	{
@@ -320,15 +397,18 @@ void __cdecl AsyncClickPacketCB( AsyncClickPacket* pPacket )
 
 		if (GetFileAttributes(it->c_str()) & FILE_ATTRIBUTE_DIRECTORY)
 		{
-			//It's worse case, but it acturally works
+			SHChangeNotify(SHCNE_UPDATEDIR, SHCNF_PATHW, it->c_str(), NULL);
+			SHChangeNotify(SHCNE_UPDATEITEM, SHCNF_PATHW, it->c_str(), NULL);
 
-			if (it->length() > 3) //But don't do this nastiness with drives.
-			{
-				SHChangeNotify(SHCNE_RMDIR, SHCNF_PATHW, it->c_str(), NULL);
-				SHChangeNotify(SHCNE_MKDIR, SHCNF_PATHW|SHCNF_FLUSH, it->c_str(), NULL);
-			}
+			const size_t nIndex = folders.size();
+
+			folders.push_back(*it);
+
+			std::wstring& rsEntry = folders[nIndex];
+
+			std::transform(rsEntry.begin(), rsEntry.end(), rsEntry.begin(), tolower);
 		}
-		else SHChangeNotify(SHCNE_UPDATEITEM, SHCNF_PATHW|SHCNF_FLUSH, it->c_str(), NULL);
+		else SHChangeNotify(SHCNE_UPDATEITEM, SHCNF_PATHW, it->c_str(), NULL);
 	}
 
 	assert(selection.size());
@@ -337,16 +417,30 @@ void __cdecl AsyncClickPacketCB( AsyncClickPacket* pPacket )
 
 	assert(nSlash != -1);
 
-	SHChangeNotify(SHCNE_UPDATEDIR, SHCNF_PATHW|SHCNF_FLUSH, selection[0].substr(0, nSlash).c_str(), NULL);
-
-	hExplorer = FindWindowEx(GetDesktopWindow(), NULL, L"ExploreWClass", NULL);
-
-	while(hExplorer != NULL)
+	if (folders.size())
 	{
-		EnumChildWindows(hExplorer, RestoreSelectionCB, (LPARAM)&packet);
+		FolderUpdatePacket packet = {folders, sBasePath};
 
-		hExplorer = FindWindowEx(GetDesktopWindow(), hExplorer, L"ExploreWClass", NULL);
+		HWND hExplorer = FindWindowEx(GetDesktopWindow(), NULL, L"ExploreWClass", NULL);
+
+		while(hExplorer != NULL)
+		{
+			EnumChildWindows(hExplorer, FolderUpdateCB, (LPARAM)&packet);
+
+			hExplorer = FindWindowEx(GetDesktopWindow(), hExplorer, L"ExploreWClass", NULL);
+		}
+
+		hExplorer = FindWindowEx(GetDesktopWindow(), NULL, L"CabinetWClass", NULL);
+
+		while(hExplorer != NULL)
+		{
+			EnumChildWindows(hExplorer, FolderUpdateCB, (LPARAM)&packet);
+
+			hExplorer = FindWindowEx(GetDesktopWindow(), hExplorer, L"CabinetWClass", NULL);
+		}
 	}
+
+	SHChangeNotify(SHCNE_UPDATEDIR, SHCNF_PATHW|SHCNF_FLUSH, selection[0].substr(0, nSlash).c_str(), NULL);
 }
 
 

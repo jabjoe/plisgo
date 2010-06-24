@@ -180,6 +180,10 @@ static HANDLE ghPlisgoTempFileCleanUpThread = NULL;
 
 static DWORD WINAPI CleanUpOldPlisgoTempFilesCB( LPVOID  )
 {
+	static IUnknown* pExplorer = NULL;
+
+	SHGetInstanceExplorer(&pExplorer);
+
 	char sTemp[MAX_PATH];
 
 	GetTempPathA(MAX_PATH, sTemp);
@@ -232,6 +236,9 @@ static DWORD WINAPI CleanUpOldPlisgoTempFilesCB( LPVOID  )
 	InterlockedExchange(&gPlisgoTempFileCleanUpThreadCheck, 0); //Release lock
 
 	CloseHandle(hHandle);
+
+	if (pExplorer != NULL)
+		pExplorer->Release();
 
 	return 0;
 }
