@@ -182,7 +182,7 @@ bool	SelectionFile::CallPerPath(FileEvent& rEvent)
 		IPtrPlisgoFSFile file = vfs->TracePath(sPath.c_str());
 		
 		if (file.get() != NULL)
-			bResult |= rEvent.Do(file);
+			bResult |= rEvent.Do(file, sPath);
 
 		*const_cast<WCHAR*>(sNextSeperator) = temp;
 
@@ -203,10 +203,10 @@ bool	SelectionFile::CallPerPath(FileEvent& rEvent)
 		IPtrPlisgoFSFile file = vfs->TracePath(sPath.c_str());
 		
 		if (file.get() != NULL)
-			bResult |= rEvent.Do(file);
+			bResult |= rEvent.Do(file, sPath);
 	}
 
-	bResult |= rEvent.Do(IPtrPlisgoFSFile()); //Inform event object list is complete.
+	bResult |= rEvent.Do(IPtrPlisgoFSFile(), rsBase); //Inform event object list is complete.
 	
 	return bResult;
 }

@@ -687,7 +687,12 @@ class FileEvent
 {
 public:
 	virtual ~FileEvent() {}
-	virtual bool Do(IPtrPlisgoFSFile& rFile) = 0;
+
+	//This dual method system is so if your don't need the path, you don't have it. This saves changes
+	//existing code whilest still allowing new code that want the path to have it.
+	virtual bool Do(IPtrPlisgoFSFile& rFile, const std::wstring& rsPath)	{ return Do(rFile); }
+	virtual bool Do(IPtrPlisgoFSFile& rFile)								{ return true; }
+
 };
 
 typedef boost::shared_ptr<FileEvent>	IPtrFileEvent;
