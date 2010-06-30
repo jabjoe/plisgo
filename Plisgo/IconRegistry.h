@@ -72,6 +72,9 @@ protected:
 
 private:
 
+	bool					GetInstancePath(std::wstring& rsResult, boost::upgrade_lock<boost::shared_mutex>& rLock) const;
+	bool					LoadImageList_Locked(UINT nList);
+
 	struct ImageListVersion
 	{
 		std::wstring	sExt;

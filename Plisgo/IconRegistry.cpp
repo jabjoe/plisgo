@@ -444,12 +444,24 @@ FSIconRegistry::FSIconRegistry( LPCWSTR				sFSName,
 		sPath += L'\\';
 
 	AddInstancePath(sPath);
+}
 
-	std::wstring sTemp(sPath + L".icons_*_*.*");
 
+FSIconRegistry::~FSIconRegistry()
+{
+
+}
+
+
+bool	FSIconRegistry::LoadImageList_Locked(UINT nList)
+{
+	std::wstring sTemp = (boost::wformat(L"%1%.icons_%2%_*.*") %m_Paths[0] %nList).str();
+	
 	WIN32_FIND_DATA findData;
 
 	HANDLE hFind = FindFirstFileW(sTemp.c_str(), &findData);
+
+	bool bResult = false;
 
 	if (hFind != NULL && hFind != INVALID_HANDLE_VALUE)
 	{
@@ -459,11 +471,6 @@ FSIconRegistry::FSIconRegistry( LPCWSTR				sFSName,
 		{
 			if (isdigit(findData.cFileName[7]) == 0)
 				continue;			
-
-			const size_t nIndex = _wtoi(&findData.cFileName[7]);//len(".icons_")
-
-			if (nIndex == -1)
-				continue;
 
 			WCHAR* sHeight = wcsrchr(findData.cFileName,L'_');
 
@@ -477,10 +484,10 @@ FSIconRegistry::FSIconRegistry( LPCWSTR				sFSName,
 
 			UINT nHeight = _wtoi(sHeight);
 		
-			while(nIndex >= m_ImageLists.size() )
+			while(nList >= m_ImageLists.size() )
 				m_ImageLists.push_back(VersionedImageList());
 		
-			VersionedImageList& rVersionedImageList = m_ImageLists[nIndex];
+			VersionedImageList& rVersionedImageList = m_ImageLists[nList];
 
 			const size_t nVersionIndex = rVersionedImageList.size();
 
@@ -490,59 +497,95 @@ FSIconRegistry::FSIconRegistry( LPCWSTR				sFSName,
 
 			rEntry.sExt		= wcsrchr(findData.cFileName, L'.');
 			rEntry.nHeight	= nHeight;
+
+			bResult = true;
 		}
 		while(FindNextFileW(hFind, &findData) != 0);
 
 		FindClose(hFind);
 	}
-}
 
-
-FSIconRegistry::~FSIconRegistry()
-{
-
+	return bResult;
 }
 
 
 bool	FSIconRegistry::GetBestImageList(std::wstring& rsImageListFile, UINT nList, UINT nHeight) const
 {
-	if (nList >= m_ImageLists.size())
-		return false;
-
-	const VersionedImageList& rVersionedList = m_ImageLists[nList];
-
-	if (rVersionedList.size() == 0)
-		return false;
-
-	std::wstring sInstancePath;
-
-	if (!GetInstancePath(sInstancePath))
-		return false;
-
-	VersionedImageList::const_iterator it		= rVersionedList.begin();
-	VersionedImageList::const_iterator bestIt	= it;
-
-	if (it == rVersionedList.end())
-		return false;
-	
-	while(it != rVersionedList.end())
+Beginning:
 	{
-		if (it->nHeight == nHeight)
+		boost::upgrade_lock<boost::shared_mutex> lock(m_Mutex);
+
+		if (nList >= m_ImageLists.size())
 		{
-			bestIt = it;
-			break;
+			boost::upgrade_to_unique_lock<boost::shared_mutex> lockRW(lock);
+
+			if (nList >= m_ImageLists.size())
+			{
+				if (!const_cast<FSIconRegistry*>(this)->LoadImageList_Locked(nList))
+					return false;
+			}
 		}
-		else if ( it->nHeight > bestIt->nHeight && it->nHeight <= nHeight)
+
+		if (m_ImageLists[nList].size() == 0)
 		{
-			bestIt = it;
+			boost::upgrade_to_unique_lock<boost::shared_mutex> lockRW(lock);
+
+			if (m_ImageLists[nList].size() == 0)
+			{
+				if (!const_cast<FSIconRegistry*>(this)->LoadImageList_Locked(nList))
+					return false;
+			}
 		}
 
-		it++;
-	}	
+		const VersionedImageList& rVersionedList = m_ImageLists[nList];
 
-	rsImageListFile = (boost::wformat(L"%1%.icons_%2%_%3%%4%") %sInstancePath %nList %bestIt->nHeight %bestIt->sExt).str();
+		std::wstring sInstancePath;
 
-	return true;
+		if (!GetInstancePath(sInstancePath, lock))
+			return false;
+
+		VersionedImageList::const_iterator it		= rVersionedList.begin();
+		VersionedImageList::const_iterator bestIt	= it;
+
+		if (it == rVersionedList.end())
+			return false;
+		
+		while(it != rVersionedList.end())
+		{
+			if (it->nHeight == nHeight)
+			{
+				bestIt = it;
+				break;
+			}
+			else if ( it->nHeight > bestIt->nHeight && it->nHeight <= nHeight)
+			{
+				bestIt = it;
+			}
+
+			it++;
+		}	
+
+		rsImageListFile = (boost::wformat(L"%1%.icons_%2%_%3%%4%") %sInstancePath %nList %bestIt->nHeight %bestIt->sExt).str();
+
+		if (GetFileAttributes(rsImageListFile.c_str()) == INVALID_FILE_ATTRIBUTES)
+		{
+			//Oh dear......
+			const ImageListVersion*	pAddress	= &(*bestIt);
+			intptr_t				nIndex		= bestIt-rVersionedList.begin();
+
+			boost::upgrade_to_unique_lock<boost::shared_mutex> lockRW(lock);
+		
+			if (GetFileAttributes(rsImageListFile.c_str()) == INVALID_FILE_ATTRIBUTES)
+			{
+				if (&(*(rVersionedList.begin()+nIndex)) == pAddress)
+					const_cast<VersionedImageList&>(rVersionedList).erase(bestIt);
+				
+				goto Beginning;
+			}
+		}
+
+		return true;
+	}
 }
 
 
@@ -594,17 +637,15 @@ void	FSIconRegistry::RemoveInstancePath(std::wstring sRootPath)
 }
 
 
-bool	FSIconRegistry::GetInstancePath(std::wstring& rsResult) const
+bool	FSIconRegistry::GetInstancePath(std::wstring& rsResult, boost::upgrade_lock<boost::shared_mutex>& rLock) const
 {
-	boost::upgrade_lock<boost::shared_mutex> lock(m_Mutex);
-
 	for(WStringList::const_iterator it = m_Paths.begin(); it != m_Paths.end();)
 	{
 		//Trim dead paths
 		if (GetFileAttributes((*it).c_str()) == INVALID_FILE_ATTRIBUTES)
 		{
 			{
-				boost::upgrade_to_unique_lock<boost::shared_mutex> rwLock(lock);
+				boost::upgrade_to_unique_lock<boost::shared_mutex> rwLock(rLock);
 
 				for(WStringList::const_iterator it2 = m_Paths.begin(); it2 != m_Paths.end();)
 					if (GetFileAttributes((*it2).c_str()) == INVALID_FILE_ATTRIBUTES)
@@ -623,6 +664,13 @@ bool	FSIconRegistry::GetInstancePath(std::wstring& rsResult) const
 	}
 
 	return false;
+}
+
+bool	FSIconRegistry::GetInstancePath(std::wstring& rsResult) const
+{
+	boost::upgrade_lock<boost::shared_mutex> lock(m_Mutex);
+
+	return GetInstancePath(rsResult, lock);
 }
 
 
@@ -1345,13 +1393,7 @@ IPtrRefIconList		IconRegistry::GetRefIconList(ULONG nHeight) const
 			IPtrRefIconList iconList = it->lock();
 
 			if (iconList.get() == NULL)
-			{
-				size_t nIndex = it - m_IconLists.begin();
-
-				const_cast<IconRegistry*>(this)->m_IconLists.erase(it);
-
-				it = m_IconLists.begin() + nIndex;
-			}
+				it = const_cast<IconRegistry*>(this)->m_IconLists.erase(it);
 			else if (iconList->GetHeight() == nHeight)
 				return iconList;
 			else ++it;

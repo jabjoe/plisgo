@@ -1352,11 +1352,21 @@ void		 CPlisgoView::FillList()
 
 	std::list<LPITEMIDLIST> pids;
 
+	DWORD nFlags = 0;
+
+#if (NTDDI_VERSION < NTDDI_LONGHORN)
+#define CDB2GVF_NOINCLUDEITEM       0x00000010
+#endif
+
+	const bool bFilter = m_CommDlgBrowser.p != NULL && m_CommDlgBrowser->GetViewFlags(&nFlags) == S_OK &&
+							nFlags != CDB2GVF_NOINCLUDEITEM && nFlags != CDB2GVF_SHOWALLFILES;
+
+
 	while ( pEnum->Next(1, &pidl, &nFetched) == S_OK )
 	{
 		ATLASSERT(1 == nFetched);
 
-		if (m_CommDlgBrowser.p == NULL || m_CommDlgBrowser->IncludeObject(this, pidl) == S_OK)
+		if (!bFilter || m_CommDlgBrowser->IncludeObject(this, pidl) == S_OK)
 			pids.push_back(ILClone(ILFindLastID(pidl)));
 	}
 

@@ -304,7 +304,7 @@ protected:
 
 	CComPtr<IContextMenu2>					m_IMenu2;
 	CComPtr<IContextMenu3>					m_IMenu3;
-	CComPtr<ICommDlgBrowser>				m_CommDlgBrowser;
+	CComPtr<ICommDlgBrowser2>				m_CommDlgBrowser;
 
 	ULONG									m_nShellNotificationID;
 
