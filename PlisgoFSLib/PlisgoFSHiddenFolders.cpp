@@ -633,11 +633,12 @@ bool				RootPlisgoFSFolder::AddIcons(int nListIndex, const std::wstring& sFilena
 
 		size_t nExtPos = sFilename.rfind(L".");
 
-		boost::wformat nameFmt = boost::wformat(L".icons_%1%_%2%%3%") %nListIndex %nHeight %sFilename.substr(nExtPos);
+		boost::wformat		nameFmt	= boost::wformat(L".icons_%1%_%2%%3%") %nListIndex %nHeight %sFilename.substr(nExtPos);
+		const std::wstring	sName	= nameFmt.str();
 
-		if (GetChild(nameFmt.str().c_str()).get() == NULL)
+		if (GetChild(sName.c_str()).get() == NULL)
 		{
-			AddChild(nameFmt.str().c_str(), IPtrPlisgoFSFile(new PlisgoFSRealFile(sFilename)));
+			AddChild(sName.c_str(), IPtrPlisgoFSFile(new PlisgoFSRealFile(sFilename)));
 
 			if ((UINT)nListIndex >= m_nIconListsNum)
 				m_nIconListsNum = nListIndex+1;
