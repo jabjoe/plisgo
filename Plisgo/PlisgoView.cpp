@@ -1016,6 +1016,10 @@ STDMETHODIMP CPlisgoView::TranslateAccelerator(LPMSG pMsg)
 						OnPaste();
 						Refresh();
 					}
+					else if (GetAsyncKeyState('A'))
+					{
+						ListView_SetItemState(m_hList,-1, LVNI_SELECTED, LVNI_SELECTED);
+					}
 
 					return S_OK;
 				}
