@@ -667,7 +667,9 @@ public:
 												ULONGLONG*	pInstanceData)	{ return m_file->SetAttributes(nFileAttributes, pInstanceData ); }
 
 
-	PlisgoFSFolder*				GetAsFolder() const							{ return m_file->GetAsFolder(); }
+	virtual PlisgoFSFolder*		GetAsFolder() const							{ return m_file->GetAsFolder(); }
+
+	IPtrPlisgoFSFile			GetEncapsulated() const						{ return m_file; }
 
 protected:
 	IPtrPlisgoFSFile m_file;

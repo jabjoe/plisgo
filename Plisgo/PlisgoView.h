@@ -139,7 +139,7 @@ public:
     STDMETHOD(AddPropertySheetPages)(DWORD, LPFNADDPROPSHEETPAGE, LPARAM)	{ return E_NOTIMPL; }
     STDMETHOD(EnableModeless)(BOOL)											{ return E_NOTIMPL; }
     STDMETHOD(SaveViewState)()												{ return E_NOTIMPL; }
-    STDMETHOD(SelectItem)(LPCITEMIDLIST, UINT)								{ return E_NOTIMPL; }
+    STDMETHOD(SelectItem)(LPCITEMIDLIST pIDLItem, UINT uFlags);
     STDMETHOD(GetItemObject)(UINT uItem, REFIID rIID, LPVOID* pPv);
     STDMETHOD(TranslateAccelerator)(LPMSG pMsg);
 
@@ -311,6 +311,8 @@ protected:
 	IPtrRefIconList							m_IconList;
 
 	volatile LONG							m_bViewInit;
+
+	std::vector<LPITEMIDLIST>				m_InitSelection;
 
 	CPlisgoFolder*							m_pContainingFolder;
 	IPtrPlisgoFSRoot						m_PlisgoFSFolder;

@@ -123,8 +123,7 @@ static bool		GetShortcutIconLocation(std::wstring& rsIconPath, int& rnIndex, LPC
 {
 	CComPtr<IShellLink>		pSL;
 
-	HRESULT hr = CoCreateInstance(CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER,
-									IID_IShellLink, (LPVOID*) &pSL);
+	HRESULT hr = pSL.CoCreateInstance(CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER);
 
 	if (FAILED(hr))
 		return false;

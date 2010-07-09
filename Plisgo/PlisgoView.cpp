@@ -629,6 +629,55 @@ STDMETHODIMP CPlisgoView::DestroyViewWindow()
 }
 
 
+HRESULT		 CPlisgoView::SelectItem(LPCITEMIDLIST pIDLItem, UINT uFlags)
+{
+	if (m_bViewInit)
+	{
+		int nItem = ListViewGetItemFromIDL(m_hList, const_cast<LPITEMIDLIST>(pIDLItem));
+
+		if (nItem == -1)
+			return E_INVALIDARG;
+
+		if (uFlags & SVSI_SELECT)
+		{
+			ListView_SetItemState(m_hList, nItem, LVNI_SELECTED, LVNI_SELECTED);
+		}
+		else if (uFlags & SVSI_DESELECT)
+		{
+			ListView_SetItemState(m_hList, nItem, 0, LVNI_SELECTED);
+		}
+		else return E_NOTIMPL;
+
+		return S_OK;
+	}
+	else
+	{
+		// Having to support this isn't a nice thing to do!
+
+		if (uFlags & SVSI_SELECT)
+		{
+			m_InitSelection.push_back(ILClone(pIDLItem));
+		}
+		else if (uFlags & SVSI_DESELECT)
+		{
+			for(std::vector<LPITEMIDLIST>::const_iterator it = m_InitSelection.begin();
+				it != m_InitSelection.end(); ++it)
+			{
+				if (ILIsEqual(pIDLItem, *it))
+				{
+					ILFree(*it);
+					m_InitSelection.erase(it);
+					break;
+				}
+			}
+		}
+		else return E_NOTIMPL;
+
+		return S_OK;
+	}
+}
+
+
 HRESULT		 CPlisgoView::GetItemObject(UINT uItem, REFIID rIID, LPVOID* pPv)
 {
 	HRESULT hr = E_NOINTERFACE;
@@ -1128,7 +1177,7 @@ STDMETHODIMP CPlisgoView::Exec(	const GUID* pguidCmdGroup, DWORD nCmdID,
 LRESULT		 CPlisgoView::OnCreate(	UINT uMsg, WPARAM wParam, 
 									LPARAM lParam, BOOL& rbHandled )
 {
-	DWORD dwListStyles			=	WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_BORDER | WS_CHILDWINDOW | WS_CLIPSIBLINGS | WS_CLIPCHILDREN |
+	DWORD dwListStyles			=	WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_CHILDWINDOW | WS_CLIPSIBLINGS | WS_CLIPCHILDREN |
 									LVS_EDITLABELS | LVS_SHOWSELALWAYS | LVS_SHAREIMAGELISTS | LVS_AUTOARRANGE;
 	DWORD dwListExStyles		=	WS_EX_CLIENTEDGE;
 
@@ -1398,6 +1447,18 @@ void		 CPlisgoView::FillList()
 	::SendMessage(m_hList, WM_SETREDRAW, (WPARAM)TRUE, 0);
 	::InvalidateRect(m_hList, NULL, TRUE);
 	::UpdateWindow(m_hList);
+
+	if (m_InitSelection.size())
+	{
+		for(std::vector<LPITEMIDLIST>::const_iterator it = m_InitSelection.begin();
+			it != m_InitSelection.end(); ++it)
+		{
+			SelectItem(*it, SVSI_SELECT);
+			ILFree(*it);
+		}
+
+		m_InitSelection.clear();
+	}
 }
 
 
@@ -1463,6 +1524,9 @@ LRESULT		 CPlisgoView::OnCustomViewShellMessage(UINT uMsg, WPARAM wParam, LPARAM
 	PIDLIST_ABSOLUTE pFullIDL = ((PIDLIST_ABSOLUTE*)wParam)[0]; //Second is a terminator
 
 	PUIDLIST_RELATIVE pChildIDL = ILFindChild(m_pContainingFolder->GetIDList(), pFullIDL);
+
+	if (nEvent == SHCNE_UPDATEDIR)
+		nEvent = nEvent;
 
 	if (pChildIDL != NULL)
 	{
