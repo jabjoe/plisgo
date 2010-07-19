@@ -23,11 +23,27 @@
 #include "stdafx.h"
 #include "PlisgoFSFolderReg.h"
 
-CPlisgoModule _AtlModule;
+#include "PlisgoExtractIcon.h"
+#include "PlisgoView.h"
+#include "PlisgoFolder.h"
+#include "PlisgoData.h"
+#include "PlisgoDropSource.h"
+#include "PlisgoMenu.h"
+#include "PlisgoEnumFORMATETC.h"
 
+CComModule _Module;
 
 HINSTANCE g_hInstance = NULL;
 
+BEGIN_OBJECT_MAP(ObjectMap)
+OBJECT_ENTRY(CLSID_PlisgoExtractIcon, CPlisgoExtractIcon)
+OBJECT_ENTRY(CLSID_PlisgoView, CPlisgoView)
+OBJECT_ENTRY(CLSID_PlisgoFolder, CPlisgoFolder)
+OBJECT_ENTRY(CLSID_PlisgoData, CPlisgoData)
+OBJECT_ENTRY(CLSID_PlisgoDropSource, CPlisgoDropSource)
+OBJECT_ENTRY(CLSID_PlisgoMenu, CPlisgoMenu)
+OBJECT_ENTRY(CLSID_PlisgoEnumFORMATETC, CPlisgoEnumFORMATETC)
+END_OBJECT_MAP()
 
 
 // DLL Entry Point
@@ -37,11 +53,14 @@ extern "C" BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpRes
 
 	switch(dwReason)
 	{
-	case DLL_PROCESS_ATTACH: g_hInstance = hInstance; break;
+	case DLL_PROCESS_ATTACH:
+		_Module.Init(ObjectMap, hInstance);
+		g_hInstance = hInstance;
+		break;
 	case DLL_THREAD_ATTACH: InterlockedIncrement(&nThreadNum); break;
 	case DLL_THREAD_DETACH: InterlockedDecrement(&nThreadNum); break;
 	case DLL_PROCESS_DETACH: g_hInstance = NULL;  break;
 	}
 
-	return _AtlModule.DllMain(dwReason, lpReserved); 
+	return TRUE; 
 }

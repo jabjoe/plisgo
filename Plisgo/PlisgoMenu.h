@@ -23,7 +23,6 @@
 #pragma once
 #include "resource.h"       // main symbols
 
-#include "Plisgo_i.h"
 
 
 #if defined(_WIN32_WCE) && !defined(_CE_DCOM) && !defined(_CE_ALLOW_SINGLE_THREADED_OBJECTS_IN_MTA)
@@ -33,44 +32,25 @@
 
 #include "PlisgoFSMenu.h"
 
+extern const CLSID	CLSID_PlisgoMenu;
 
 
 class ATL_NO_VTABLE CPlisgoMenu :
 	public CComObjectRootEx<CComSingleThreadModel>,
 	public CComCoClass<CPlisgoMenu, &CLSID_PlisgoMenu>,
-	public IDispatchImpl<IPlisgoMenu, &IID_IPlisgoMenu, &LIBID_PlisgoLib, /*wMajor =*/ 1, /*wMinor =*/ 0>,
 	public IShellExtInit,
 	public IContextMenu3
 {
 public:
-	CPlisgoMenu()
-	{
-	}
-
-DECLARE_REGISTRY_RESOURCEID(IDR_PLISGOMENU)
-
 
 BEGIN_COM_MAP(CPlisgoMenu)
-	COM_INTERFACE_ENTRY(IPlisgoMenu)
-	COM_INTERFACE_ENTRY(IDispatch)
 	COM_INTERFACE_ENTRY(IShellExtInit)
 	COM_INTERFACE_ENTRY(IContextMenu)
 	COM_INTERFACE_ENTRY(IContextMenu2)
 	COM_INTERFACE_ENTRY(IContextMenu3)
 END_COM_MAP()
 
-
-	DECLARE_PROTECT_FINAL_CONSTRUCT()
-
-	HRESULT FinalConstruct()
-	{
-		return S_OK;
-	}
-
-	void FinalRelease()
-	{
-	}
-
+	DECLARE_REGISTRY_RESOURCEID(IDR_PLISGOMENU)
 public:
 
     // IShellExtInit
@@ -105,6 +85,7 @@ public:
     // IContextMenu3
 	STDMETHOD(HandleMenuMsg2)( UINT uMsg, WPARAM wParam, LPARAM lParam, LRESULT *pResult);
 
+
 protected:
 
 	bool	InsertPlisgoMenuToMenu(HMENU hMenu, const IPtrPlisgoFSMenu& rPlisgoMenu, UINT& rnID, int nPos);
@@ -119,4 +100,3 @@ private:
 	WStringList							m_Selection;
 };
 
-OBJECT_ENTRY_AUTO(__uuidof(PlisgoMenu), CPlisgoMenu)

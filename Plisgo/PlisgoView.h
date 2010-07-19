@@ -24,7 +24,6 @@
 #pragma once
 #include "resource.h"       // main symbols
 
-#include "Plisgo_i.h"
 
 
 #if defined(_WIN32_WCE) && !defined(_CE_DCOM) && !defined(_CE_ALLOW_SINGLE_THREADED_OBJECTS_IN_MTA)
@@ -32,6 +31,8 @@
 #endif
 
 #include "IconRegistry.h"
+
+extern const CLSID	CLSID_PlisgoView;
 
 const UINT MSG_UPDATELISTITEM = (WM_USER + 0x01);
 
@@ -42,7 +43,6 @@ class CPlisgoFolder;
 class ATL_NO_VTABLE CPlisgoView :
 	public CComObjectRootEx<CComSingleThreadModel>,
 	public CComCoClass<CPlisgoView, &CLSID_PlisgoView>,
-	public IDispatchImpl<IPlisgoView, &IID_IPlisgoView, &LIBID_PlisgoLib, /*wMajor =*/ 1, /*wMinor =*/ 0>,
 	public IShellView2,
     public IOleCommandTarget,
 	public IDropTarget,
@@ -52,20 +52,18 @@ public:
     CPlisgoView();
     ~CPlisgoView();
 
-DECLARE_REGISTRY_RESOURCEID(IDR_PLISGOVIEW)
-
 
 BEGIN_COM_MAP(CPlisgoView)
-	COM_INTERFACE_ENTRY(IPlisgoView)
-	COM_INTERFACE_ENTRY(IDispatch)
     COM_INTERFACE_ENTRY(IShellView)
     COM_INTERFACE_ENTRY(IShellView2)
     COM_INTERFACE_ENTRY(IDropTarget)
-    COM_INTERFACE_ENTRY(IOleWindow)
     COM_INTERFACE_ENTRY(IOleCommandTarget)
+    COM_INTERFACE_ENTRY(IOleWindow)
 END_COM_MAP()
 
+	DECLARE_REGISTRY_RESOURCEID(IDR_PLISGOVIEW)
 
+//For break points
 	static HRESULT InternalQueryInterface(void* pThis,
 										  const _ATL_INTMAP_ENTRY* pEntries,
 										  REFIID iid,
@@ -110,18 +108,6 @@ BEGIN_MSG_MAP(CPlisgoView)
 	MESSAGE_HANDLER(MSG_UPDATELISTITEM, OnUpdateItem)
 
 END_MSG_MAP()
-
-
-	DECLARE_PROTECT_FINAL_CONSTRUCT()
-
-	HRESULT FinalConstruct()
-	{
-		return S_OK;
-	}
-
-	void FinalRelease()
-	{
-	}
 
 public:
     // IOleWindow
@@ -330,4 +316,3 @@ protected:
 	DWORD									m_nDropEffect;
 };
 
-OBJECT_ENTRY_AUTO(__uuidof(PlisgoView), CPlisgoView)

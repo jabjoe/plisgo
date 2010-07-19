@@ -25,6 +25,7 @@
 #include "PlisgoFSFolderReg.h"
 
 // CPlisgoMenu
+const CLSID	CLSID_PlisgoMenu		= {0xBBF30838,0x6C39,0x4D2B,{0x83,0xFA,0x46,0x54,0xA3,0x72,0x56,0x74}};
 
 int gShellIDList = RegisterClipboardFormat(CFSTR_SHELLIDLIST);
 

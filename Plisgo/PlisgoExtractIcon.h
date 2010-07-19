@@ -24,7 +24,6 @@
 #pragma once
 #include "resource.h"       // main symbols
 
-#include "Plisgo_i.h"
 #include "PlisgoFSFolder.h"
 #include "IconRegistry.h"
 
@@ -35,11 +34,11 @@
 
 class IconRegistry;
 
+extern const CLSID	CLSID_PlisgoExtractIcon;
 
 class ATL_NO_VTABLE CPlisgoExtractIcon :
 	public CComObjectRootEx<CComSingleThreadModel>,
 	public CComCoClass<CPlisgoExtractIcon, &CLSID_PlisgoExtractIcon>,
-	public IDispatchImpl<IPlisgoExtractIcon, &IID_IPlisgoExtractIcon, &LIBID_PlisgoLib, /*wMajor =*/ 1, /*wMinor =*/ 0>,
     public IPersistFile,
     public IExtractIcon
 {
@@ -47,23 +46,13 @@ public:
 
 	void Init(const std::wstring& sPath, IPtrPlisgoFSRoot localFSFolder);
 
-DECLARE_REGISTRY_RESOURCEID(IDR_PLISGOEXTRACTICON)
-
-
 BEGIN_COM_MAP(CPlisgoExtractIcon)
-	COM_INTERFACE_ENTRY(IPlisgoExtractIcon)
-	COM_INTERFACE_ENTRY(IDispatch)
     COM_INTERFACE_ENTRY(IPersist)
     COM_INTERFACE_ENTRY(IPersistFile)
     COM_INTERFACE_ENTRY(IExtractIcon)
 END_COM_MAP()
 
-
-	DECLARE_PROTECT_FINAL_CONSTRUCT()
-
-	HRESULT FinalConstruct()							{ return S_OK; }
-
-	void FinalRelease()									{}
+	DECLARE_REGISTRY_RESOURCEID(IDR_PLISGOEXTRACTICON)
 
 public:
 
@@ -91,5 +80,3 @@ protected:
 	bool					m_bOpen;
 	bool					m_bExtract;
 };
-
-OBJECT_ENTRY_AUTO(__uuidof(PlisgoExtractIcon), CPlisgoExtractIcon)

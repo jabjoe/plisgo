@@ -23,7 +23,6 @@
 #pragma once
 #include "resource.h"       // main symbols
 
-#include "Plisgo_i.h"
 #include "PlisgoFSFolder.h"
 
 
@@ -31,13 +30,12 @@
 #error "Single-threaded COM objects are not properly supported on Windows CE platform, such as the Windows Mobile platforms that do not include full DCOM support. Define _CE_ALLOW_SINGLE_THREADED_OBJECTS_IN_MTA to force ATL to support creating single-thread COM object's and allow use of it's single-threaded COM object implementations. The threading model in your rgs file was set to 'Free' as that is the only threading model supported in non DCOM Windows CE platforms."
 #endif
 
-
+extern const CLSID	CLSID_PlisgoFolder;
 
 
 class ATL_NO_VTABLE CPlisgoFolder :
 	public CComObjectRootEx<CComSingleThreadModel>,
 	public CComCoClass<CPlisgoFolder, &CLSID_PlisgoFolder>,
-	public IDispatchImpl<IPlisgoFolder, &IID_IPlisgoFolder, &LIBID_PlisgoLib, /*wMajor =*/ 1, /*wMinor =*/ 0>,
 	public IShellFolder2,
 	public IPersistFolder2,
 	public IShellIcon
@@ -46,12 +44,8 @@ public:
 	CPlisgoFolder();
 	~CPlisgoFolder();
 
-DECLARE_REGISTRY_RESOURCEID(IDR_PLISGOFOLDER)
-
 
 BEGIN_COM_MAP(CPlisgoFolder)
-	COM_INTERFACE_ENTRY(IPlisgoFolder)
-	COM_INTERFACE_ENTRY(IDispatch)
     COM_INTERFACE_ENTRY(IShellFolder)
     COM_INTERFACE_ENTRY(IShellFolder2)
     COM_INTERFACE_ENTRY(IPersistFolder2)
@@ -60,23 +54,14 @@ BEGIN_COM_MAP(CPlisgoFolder)
     COM_INTERFACE_ENTRY(IShellIcon)
 END_COM_MAP()
 
-	DECLARE_PROTECT_FINAL_CONSTRUCT()
-
-	HRESULT FinalConstruct()
-	{
-		return S_OK;
-	}
-
-	void FinalRelease()
-	{
-	}
+	DECLARE_REGISTRY_RESOURCEID(IDR_PLISGOFOLDER)
 
 	static HRESULT InternalQueryInterface(void* pThis,
 										  const _ATL_INTMAP_ENTRY* pEntries,
 										  REFIID iid,
 										  void** ppvObject )
 	{
-		if (iid == IID_IPlisgoFolder || iid == IID_IDispatch || 
+		if (iid == IID_IDispatch || 
 			iid == IID_IShellFolder || iid == IID_IShellFolder2 ||
 			iid == IID_IPersistFolder3 || iid == IID_IPersistFolder2 ||
 			iid == IID_IPersistFolder || iid == IID_IPersist ||
@@ -232,5 +217,3 @@ private:
 	IShellFolder2*			m_pCurrent;
 	LPITEMIDLIST			m_pIDL;
 };
-
-OBJECT_ENTRY_AUTO(__uuidof(PlisgoFolder), CPlisgoFolder)

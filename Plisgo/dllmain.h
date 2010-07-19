@@ -23,13 +23,6 @@
 #ifndef __CPlisgoModule__
 #define __CPlisgoModule__
 
-class CPlisgoModule : public CAtlDllModuleT< CPlisgoModule >
-{
-public :
-	DECLARE_LIBID(LIBID_PlisgoLib)
-	DECLARE_REGISTRY_APPID_RESOURCEID(IDR_PLISGO, "{A916EBB0-447C-4DE2-9FE2-68DC1274165D}")
-};
-
-extern class CPlisgoModule _AtlModule;
+extern CComModule _Module;
 
 #endif //__CPlisgoModule__

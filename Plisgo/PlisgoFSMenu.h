@@ -24,7 +24,6 @@
 
 #include "IconRegistry.h"
 
-
 typedef std::vector<IPtrPlisgoFSMenu>	IPtrPlisgoFSMenuList;
 
 

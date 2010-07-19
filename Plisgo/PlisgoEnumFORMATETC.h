@@ -24,7 +24,6 @@
 #pragma once
 #include "resource.h"       // main symbols
 
-#include "Plisgo_i.h"
 
 
 #if defined(_WIN32_WCE) && !defined(_CE_DCOM) && !defined(_CE_ALLOW_SINGLE_THREADED_OBJECTS_IN_MTA)
@@ -32,12 +31,12 @@
 #endif
 
 
+extern const CLSID	CLSID_PlisgoEnumFORMATETC;
 
 
 class ATL_NO_VTABLE CPlisgoEnumFORMATETC :
 	public CComObjectRootEx<CComSingleThreadModel>,
 	public CComCoClass<CPlisgoEnumFORMATETC, &CLSID_PlisgoEnumFORMATETC>,
-	public IDispatchImpl<IPlisgoEnumFORMATETC, &IID_IPlisgoEnumFORMATETC, &LIBID_PlisgoLib, /*wMajor =*/ 1, /*wMinor =*/ 0>,
 	public IEnumFORMATETC
 {
 public:
@@ -50,23 +49,9 @@ DECLARE_REGISTRY_RESOURCEID(IDR_PLISGOENUMFORMATETC)
 
 
 BEGIN_COM_MAP(CPlisgoEnumFORMATETC)
-	COM_INTERFACE_ENTRY(IPlisgoEnumFORMATETC)
-	COM_INTERFACE_ENTRY(IDispatch)
 	COM_INTERFACE_ENTRY(IEnumFORMATETC)
 END_COM_MAP()
 
-
-
-	DECLARE_PROTECT_FINAL_CONSTRUCT()
-
-	HRESULT FinalConstruct()
-	{
-		return S_OK;
-	}
-
-	void FinalRelease()
-	{
-	}
 
 	//IEnumFORMATETC
 	
@@ -111,5 +96,3 @@ private:
 
 	UINT m_nEnumPos;
 };
-
-OBJECT_ENTRY_AUTO(__uuidof(PlisgoEnumFORMATETC), CPlisgoEnumFORMATETC)

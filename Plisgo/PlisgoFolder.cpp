@@ -31,6 +31,9 @@
 
 #undef Shell_GetCachedImageIndex 
 
+const CLSID	CLSID_PlisgoFolder		= {0xADA19F85,0xEEB6,0x46F2,{0xB8,0xB2,0x2B,0xD9,0x77,0x93,0x4A,0x79}};
+
+
 
 CPlisgoFolder::CPlisgoFolder()
 {
@@ -113,15 +116,19 @@ HRESULT				CPlisgoFolder::Initialize(LPCITEMIDLIST pIDL, const std::wstring& rsP
 
 static HRESULT CreatePlisgoExtractIcon_(HWND hWnd, void** ppResult, IPtrPlisgoFSRoot plisgoFSFolder, const std::wstring& rsPath)
 {
-	CComPtr<CPlisgoExtractIcon> pPlisgoExtractIcon;
+	CComObject<CPlisgoExtractIcon>* pPlisgoExtractIcon;
 
-	HRESULT hr = CoCreateInstance(CLSID_PlisgoExtractIcon, NULL, CLSCTX_ALL, IID_IPlisgoExtractIcon, (void**)&pPlisgoExtractIcon);
+	HRESULT hr = CComObject<CPlisgoExtractIcon>::CreateInstance ( &pPlisgoExtractIcon );
 
 	if ( !FAILED(hr) && pPlisgoExtractIcon != NULL)
 	{
+		pPlisgoExtractIcon->AddRef();
+
 		pPlisgoExtractIcon->Init(rsPath, plisgoFSFolder);
 
 		hr = pPlisgoExtractIcon->QueryInterface(IID_IExtractIcon, ppResult);
+
+		pPlisgoExtractIcon->Release();
 	}
 	
 	return hr;
@@ -156,8 +163,7 @@ STDMETHODIMP CPlisgoFolder::CreateViewObject(HWND hWnd, REFIID rIID, void** ppRe
 
 	*ppResult = NULL;
 
-	if (rIID == IID_IPlisgoView	||
-		rIID == IID_IShellView	||
+	if (rIID == IID_IShellView	||
 		rIID == IID_IShellView2 ||
 		rIID == IID_IDropTarget ||
 		rIID == IID_IOleWindow	||
@@ -227,8 +233,7 @@ STDMETHODIMP CPlisgoFolder::EnumObjects(HWND hWnd, DWORD nFlags, LPENUMIDLIST* p
 HRESULT		 CPlisgoFolder::CreateIPlisgoFolder(LPCITEMIDLIST pIDL, LPBC pBC, REFIID rIID, void** ppResult)
 {
 	//Only if a folder is being asked for
-	if (rIID == IID_IPlisgoFolder ||
-		rIID == IID_IShellFolder ||
+	if (rIID == IID_IShellFolder ||
 		rIID == IID_IShellFolder2 ||
 		rIID == IID_IPersistFolder2 ||
 		rIID == IID_IPersistFolder)

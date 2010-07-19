@@ -33,6 +33,7 @@
 #define APSTUDIO_INVOKED
 #include "resource.h"
 
+const CLSID	CLSID_PlisgoView		= {0xE8716A04,0x546B,0x4DB1,{0xBB,0x55,0x0A,0x23,0x0E,0x20,0xA0,0xC5}};
 
 const UINT CF_PREFERREDDROPEFFECT = RegisterClipboardFormat(CFSTR_PREFERREDDROPEFFECT);
 
