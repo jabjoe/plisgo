@@ -182,35 +182,12 @@ public:
 protected:
 	static LRESULT CALLBACK ListWndProcedure(HWND hWnd, UINT nMsg, WPARAM wParam, LPARAM lParam);
 
-	class MenuClickPacket
-	{
-	public:
-		typedef void (CPlisgoView::*PlisgoViewMenuItemClickCB)();
-		typedef void (PlisgoFSMenu::*PlisgoFSMenuItemClickCB)();
-
-		MenuClickPacket(PlisgoFSMenu* pThis, PlisgoFSMenuItemClickCB cb);
-		MenuClickPacket(CPlisgoView* pThis, PlisgoViewMenuItemClickCB cb);
-		void Do();
-
-	private:
-		bool	m_bIsMenu;
-		union
-		{
-			struct
-			{
-				PlisgoFSMenu*				pThis;
-				PlisgoFSMenuItemClickCB	cb;
-			} PlisgoMenuPacket;
-			struct
-			{
-				CPlisgoView*				pThis;
-				PlisgoViewMenuItemClickCB	cb;
-			} PlisgoViewPacket;
-		} m_Data;
-	};
+	typedef void (CPlisgoView::*PlisgoViewMenuItemClickCB)();
 
 	void	DoDrop(HDROP hDrop, DWORD nDropEffect);
 	void	OnPaste();
+	void	OnSelectAll();
+	void	InvertSelection();
 	void	OnThumbnailsViewMenuItemClick();
 	void	OnLargeViewMenuItemClick();
 	void	OnDetailsViewMenuItemClick();
@@ -218,14 +195,22 @@ protected:
 	void	DoUndo();
 	void	PutSelectedToClipboard(const bool bMove);
 
-	void	InsertViewToMenu(HMENU hMenu, std::vector<MenuClickPacket>& rClickEvents, const UINT nIDOffset, int nPos);
-	void	InsertPasteToMenu(HMENU hMenu, std::vector<MenuClickPacket>& rClickEvents, const UINT nIDOffset, int nPos);
+	HRESULT	RenameSelection();
+	HRESULT	DeleteSelection();
 
-	LRESULT	DoContextMenu(IContextMenu* pIMenu, HMENU hMenu, int x, int y, std::vector<MenuClickPacket>& rClickEvents, const UINT nCustomIDOffset);
+	bool	IsPasteAvailable();
+	DWORD	GetAttributesOfSelection();
+
+	BOOL	DoStandardCommand(UINT nID);
+
+	void	InsertViewToMenu(HMENU hMenu, int nPos);
+	void	InsertPasteToMenu(HMENU hMenu, int nPos);
+
+	LRESULT	DoContextMenu(IContextMenu* pIMenu, HMENU hMenu, int x, int y);
 
 	static int CALLBACK DefaultCompareItems(LPARAM l1, LPARAM l2, LPARAM lData);
 
-	void	GetSelection(LPCITEMIDLIST*& rpSelection, int& rnSelected, LPARAM nItemFlag);
+	void	GetSelection(boost::shared_ptr<LPCITEMIDLIST>& rSelection, int& rnSelected, LPARAM nItemFlag);
 	void	GetSelection(WStringList& rSelection);
 
 	LRESULT FillInItem(LVITEM* pItem);

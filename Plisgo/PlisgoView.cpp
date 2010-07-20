@@ -35,7 +35,23 @@
 
 const CLSID	CLSID_PlisgoView		= {0xE8716A04,0x546B,0x4DB1,{0xBB,0x55,0x0A,0x23,0x0E,0x20,0xA0,0xC5}};
 
+
 const UINT CF_PREFERREDDROPEFFECT = RegisterClipboardFormat(CFSTR_PREFERREDDROPEFFECT);
+
+#define STD_EDIT_MENU_UNDO				0x0000701b
+#define STD_EDIT_MENU_CUT				0x00007018
+#define STD_EDIT_MENU_COPY				0x00007019
+#define STD_EDIT_MENU_PASTE				0x0000701a
+#define STD_EDIT_MENU_PASTE_SHORTCUT	0x0000701c
+#define STD_EDIT_MENU_COPY_TO_FOLDER	0x0000701e
+#define STD_EDIT_MENU_MOVE_TO_FOLDER	0x0000701f
+#define STD_EDIT_MENU_SELECT_ALL		0x00007021
+#define STD_EDIT_MENU_INVERT_SELECTION	0x00007022
+
+#define STD_VIEW_MENU_THUMBNAILS		0x0000702d
+#define STD_VIEW_MENU_DETAILS			0x0000702c
+#define STD_VIEW_MENU_ICONS				0x00007029
+
 
 
 
@@ -80,6 +96,7 @@ static int	FindSeperatorPosFromBottom(HMENU hMenu, int nSeperator)
 	return nPos;
 }
 
+
 static void	MarkSelectedAsCut(HWND hList)
 {
 	int nItem = ListView_GetNextItem(hList, -1, LVNI_SELECTED) ;
@@ -91,32 +108,6 @@ static void	MarkSelectedAsCut(HWND hList)
 		nItem = ListView_GetNextItem(hList, nItem, LVNI_SELECTED) ;
 	}
 }
-
-
-CPlisgoView::MenuClickPacket::MenuClickPacket(PlisgoFSMenu* pThis, PlisgoFSMenuItemClickCB cb)
-{
-	m_Data.PlisgoMenuPacket.pThis = pThis;
-	m_Data.PlisgoMenuPacket.cb = cb;
-	m_bIsMenu = true;
-}
-
-CPlisgoView::MenuClickPacket::MenuClickPacket(CPlisgoView* pThis, PlisgoViewMenuItemClickCB cb)
-{
-	m_Data.PlisgoViewPacket.pThis = pThis;
-	m_Data.PlisgoViewPacket.cb = cb;
-	m_bIsMenu = false;
-}
-
-void CPlisgoView::MenuClickPacket::Do()
-{
-	if (m_bIsMenu)
-		(m_Data.PlisgoMenuPacket.pThis->*m_Data.PlisgoMenuPacket.cb)();
-	else
-		(m_Data.PlisgoViewPacket.pThis->*m_Data.PlisgoViewPacket.cb)();
-}
-
-
-
 
 
 static LPITEMIDLIST	ListViewGetItemIDL(HWND hList, int nItem)
@@ -600,8 +591,8 @@ STDMETHODIMP CPlisgoView::CreateViewWindow(	LPSHELLVIEW			pPrevView,
 
 	m_nShellNotificationID = SHChangeNotifyRegister(m_hWnd, SHCNRF_ShellLevel | SHCNRF_RecursiveInterrupt,
 													SHCNE_ATTRIBUTES | SHCNE_CREATE | SHCNE_DELETE | SHCNE_RENAMEITEM |
-													SHCNE_UPDATEITEM | SHCNE_UPDATEDIR | SHCNE_MKDIR | SHCNE_RMDIR |
-													SHCNE_RENAMEFOLDER | SHCNE_RMDIR, WM_PLISGOVIEWSHELLMESSAGE, 1, &entry);
+													SHCNE_UPDATEITEM | SHCNE_UPDATEDIR | SHCNE_MKDIR | SHCNE_RMDIR | SHCNE_DRIVEADD
+													, WM_PLISGOVIEWSHELLMESSAGE, 1, &entry);
 
 
     return S_OK;
@@ -683,27 +674,24 @@ HRESULT		 CPlisgoView::GetItemObject(UINT uItem, REFIID rIID, LPVOID* pPv)
 {
 	HRESULT hr = E_NOINTERFACE;
 
-	LPCITEMIDLIST* pSelection = NULL;
+	boost::shared_ptr<LPCITEMIDLIST>	selection;
 	int nSelected = 0;
 
 	switch(uItem)
 	{
 		case SVGIO_ALLVIEW:
-			GetSelection(pSelection, nSelected, LVNI_ALL);
+			GetSelection(selection, nSelected, LVNI_ALL);
 			break;
 		case SVGIO_SELECTION:
 		case SVGIO_CHECKED:
-			GetSelection(pSelection, nSelected, LVNI_SELECTED);
+			GetSelection(selection, nSelected, LVNI_SELECTED);
 			break;
 	}
 
 	if (nSelected)
-		hr = m_pContainingFolder->GetUIObjectOf(m_hWnd, nSelected, pSelection, rIID, 0, pPv);
+		hr = m_pContainingFolder->GetUIObjectOf(m_hWnd, nSelected, selection.get(), rIID, 0, pPv);
 	else
 		hr = m_pContainingFolder->CreateViewObject(m_hWnd, rIID, pPv);
-
-	if (pSelection != NULL)
-		delete[] pSelection;
 
 	return hr;
 }
@@ -738,10 +726,8 @@ void		 CPlisgoView::GetSelection(WStringList& rSelection)
 }
 
 
-void		 CPlisgoView::GetSelection(LPCITEMIDLIST*& rpSelection, int& rnSelected, LPARAM nItemFlag)
+void		 CPlisgoView::GetSelection(boost::shared_ptr<LPCITEMIDLIST>& rSelection, int& rnSelected, LPARAM nItemFlag)
 {
-	rpSelection = NULL;
-
 	rnSelected= 0;
 
 	{
@@ -758,9 +744,9 @@ void		 CPlisgoView::GetSelection(LPCITEMIDLIST*& rpSelection, int& rnSelected, L
 
 	if (rnSelected > 0)
 	{
-		rpSelection = new LPCITEMIDLIST[rnSelected];
+		rSelection.reset(new LPCITEMIDLIST[rnSelected]);
 
-		LPCITEMIDLIST* pSelectionPos = rpSelection;
+		LPCITEMIDLIST* pSelectionPos = rSelection.get();
 
 		int nItem = ListView_GetNextItem(m_hList, -1,nItemFlag);
 
@@ -777,10 +763,9 @@ void		 CPlisgoView::GetSelection(LPCITEMIDLIST*& rpSelection, int& rnSelected, L
 		}
 	}
 
-	if (rnSelected == 0 && rpSelection != NULL)
+	if (rnSelected == 0 && rSelection.get() != NULL)
 	{
-		delete[] rpSelection;
-		rpSelection = NULL;
+		rSelection.reset();
 	}
 }
 
@@ -934,6 +919,9 @@ void		 CPlisgoView::PutSelectedToClipboard(const bool bMove)
 		GlobalFree(hEffect);
 		GlobalFree(hDropData);
 	}
+
+	if (bMove)
+		MarkSelectedAsCut(m_hList);
 }
 
 
@@ -952,96 +940,56 @@ STDMETHODIMP CPlisgoView::TranslateAccelerator(LPMSG pMsg)
 			}
 			else if (pMsg->wParam == VK_F2)
 			{
-				int nItem = ListView_GetNextItem(m_hList, -1, LVNI_SELECTED);
-
-				if (nItem != -1)
-				{
-					ListView_EditLabel(m_hList, nItem);
-
-					if (m_CommDlgBrowser.p != NULL)
-						m_CommDlgBrowser->OnStateChange(this, CDBOSC_RENAME);
-
-					return S_OK;
-				}
+				return RenameSelection();
 			}
 			else if (pMsg->wParam == VK_DELETE)
 			{
-				WStringList selection;
-
-				GetSelection(selection);
-
-				if (selection.size() == 0)
-					return S_FALSE;
-
-				SHFILEOPSTRUCT shellOp = {0};
-
-				shellOp.hwnd = m_hWnd;
-				shellOp.wFunc = FO_DELETE;
-
-				if (!GetAsyncKeyState(VK_LSHIFT) && !GetAsyncKeyState(VK_RSHIFT))
-					shellOp.fFlags = FOF_ALLOWUNDO;
-				else
-					shellOp.fFlags = FOF_WANTNUKEWARNING;
-				
-				std::wstring sFiles;
-
-				std::vector<bool> isFolder(selection.size());
-
-				for(WStringList::iterator it = selection.begin(); it != selection.end(); ++it)
-				{
-					EnsureWin32Path(*it);
-
-					if (GetFileAttributes(it->c_str()) & FILE_ATTRIBUTE_DIRECTORY)
-					{
-						isFolder[it-selection.begin()] = true;
-						//Remove anything under the folder
-						sFiles += *it + L"\\*";
-						sFiles += L'\0';
-					}
-
-					sFiles += *it;
-					sFiles += L'\0';
-				}
-
-				shellOp.pFrom = sFiles.c_str();
-
-				HRESULT hr = S_OK;
-
-				int nError = SHFileOperation(&shellOp);
-
-				if (nError != 0)
-					return S_FALSE;
-
-				for(WStringList::iterator it = selection.begin(); it != selection.end(); ++it)
-				{
-					const DWORD nAttr = GetFileAttributes(it->c_str());
-
-					if (nAttr == INVALID_FILE_ATTRIBUTES)
-					{
-						if (isFolder[it-selection.begin()])
-							SHChangeNotify(SHCNE_RMDIR, SHCNF_PATHW|SHCNF_FLUSH, it->c_str(), NULL);
-						else
-							SHChangeNotify(SHCNE_DELETE, SHCNF_PATHW|SHCNF_FLUSH, it->c_str(), NULL);
-					}
-					else hr = S_FALSE; //Still there..... (WHY DID SHFileOperation RETURN 0!?)
-				}
-
-				return hr;
+				return DeleteSelection();
 			}
 			else if (pMsg->wParam == VK_BACK)
 			{
-				LPITEMIDLIST pParentIDL;
+				LPITEMIDLIST pPathIDL;
 
-				if (m_pContainingFolder->GetCurFolder(&pParentIDL) == S_OK)
+				if (m_pContainingFolder->GetCurFolder(&pPathIDL) == S_OK)
 				{
-					LPITEMIDLIST pChild = ILFindLastID(pParentIDL);
+					LPITEMIDLIST pChild = ILFindLastID(pPathIDL);
 
 					pChild->mkid.cb = 0;
 
-					m_ShellBrowser->BrowseObject(pParentIDL, SBSP_DEFBROWSER);
+					m_ShellBrowser->BrowseObject(pPathIDL, SBSP_DEFBROWSER);
+
+					ILFree(pPathIDL);
 
 					return S_OK;
 				}
+			}
+			else if (pMsg->wParam == VK_F3)
+			{
+				CComQIPtr<IServiceProvider> pProvider(m_ShellBrowser);
+				
+				if (pProvider)
+				{
+					CComPtr<IWebBrowser2> pBrowser;
+					
+					pProvider->QueryService(SID_SWebBrowserApp, IID_IWebBrowser2, (void**)&pBrowser);
+
+					if (pBrowser)
+					{
+						OLECHAR szGuid[64];
+
+						if (StringFromGUID2(CLSID_FileSearchBand, szGuid, sizeof(szGuid)))
+						{
+							VARIANT varClsid;
+
+							varClsid.vt			= VT_BSTR;
+							varClsid.bstrVal	= szGuid;
+
+							pBrowser->ShowBrowserBar(&varClsid, NULL, NULL);
+						}
+					}
+				}
+				
+				return S_OK;
 			}
 			else
 			{
@@ -1051,27 +999,29 @@ STDMETHODIMP CPlisgoView::TranslateAccelerator(LPMSG pMsg)
 					{
 						DoUndo();
 						Refresh();
+						return S_OK;
 					}
 					else if (GetAsyncKeyState('X'))
 					{
 						PutSelectedToClipboard(true);
-						MarkSelectedAsCut(m_hList);
+						return S_OK;
 					}
 					else if (GetAsyncKeyState('C'))
 					{
 						PutSelectedToClipboard(false);
+						return S_OK;
 					}
 					else if (GetAsyncKeyState('V'))
 					{
 						OnPaste();
 						Refresh();
+						return S_OK;
 					}
 					else if (GetAsyncKeyState('A'))
 					{
-						ListView_SetItemState(m_hList,-1, LVNI_SELECTED, LVNI_SELECTED);
+						OnSelectAll();
+						return S_OK;
 					}
-
-					return S_OK;
 				}
 			}
 		}
@@ -1180,7 +1130,7 @@ LRESULT		 CPlisgoView::OnCreate(	UINT uMsg, WPARAM wParam,
 {
 	DWORD dwListStyles			=	WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_CHILDWINDOW | WS_CLIPSIBLINGS | WS_CLIPCHILDREN |
 									LVS_EDITLABELS | LVS_SHOWSELALWAYS | LVS_SHAREIMAGELISTS | LVS_AUTOARRANGE;
-	DWORD dwListExStyles		=	WS_EX_CLIENTEDGE;
+	DWORD dwListExStyles		=	0;
 
 	m_bViewInit = 0;
 
@@ -1463,6 +1413,55 @@ void		 CPlisgoView::FillList()
 }
 
 
+static HMENU GetMenuFromID(HMENU hmMain, UINT uID)
+{
+	MENUITEMINFO miiSubMenu;
+
+	miiSubMenu.cbSize = sizeof(MENUITEMINFO);
+	miiSubMenu.fMask  = MIIM_SUBMENU;
+
+	if (!GetMenuItemInfo(hmMain, uID, FALSE, &miiSubMenu))
+		return NULL;
+
+	return miiSubMenu.hSubMenu;
+}
+
+
+static void		AddMenuItem(HMENU hMenu, LPCWSTR sText, bool bEnabled, UINT nID, int nIndex = -1)
+{
+	MENUITEMINFO itemInfo = {0};
+
+	itemInfo.cbSize		= sizeof(MENUITEMINFO);
+	itemInfo.fMask		= MIIM_STRING|MIIM_ID|MIIM_STATE;
+	itemInfo.fType		= MF_STRING;
+	itemInfo.fState		= (bEnabled)?MFS_ENABLED:MFS_GRAYED|MFS_DISABLED;
+	itemInfo.dwTypeData	= (LPWSTR)sText;
+	itemInfo.cch		= (UINT)wcslen(sText);
+	itemInfo.wID		= nID;
+
+	if (nIndex == -1)
+		nIndex = GetMenuItemCount(hMenu);
+
+	InsertMenuItem(hMenu, nIndex, TRUE, &itemInfo);
+}
+
+
+static void		AddMenuSeparatorItem(HMENU hMenu, int nIndex = -1)
+{
+	MENUITEMINFO itemInfo = {0};
+
+	itemInfo.cbSize		= sizeof(MENUITEMINFO);
+	itemInfo.fMask		= MIIM_TYPE;
+	itemInfo.fType		= MF_SEPARATOR;
+
+	if (nIndex == -1)
+		nIndex = GetMenuItemCount(hMenu);
+
+	InsertMenuItem(hMenu, nIndex, TRUE, &itemInfo);
+}
+
+
+
 void		 CPlisgoView::HandleActivate ( UINT nState )
 {
     HandleDeactivate();
@@ -1480,15 +1479,24 @@ void		 CPlisgoView::HandleActivate ( UINT nState )
 
 			m_ShellBrowser->InsertMenusSB ( m_hMenu, &omw );
 
-			//HMENU hEditMenu = GetSubMenu(m_hMenu, FCIDM_MENU_EDIT);
+			HMENU hEdit = GetMenuFromID(m_hMenu, FCIDM_MENU_EDIT);
 
+			AddMenuItem(hEdit, L"&Undo\tCtrl+Z", false, STD_EDIT_MENU_UNDO);
+			AddMenuSeparatorItem(hEdit);
+			AddMenuItem(hEdit, L"Cu&t\tCtrl+X", true, STD_EDIT_MENU_CUT);
+			AddMenuItem(hEdit, L"&Copy\tCtrl+C", true, STD_EDIT_MENU_COPY);
+			AddMenuItem(hEdit, L"&Paste\tCtrl+V", true, STD_EDIT_MENU_PASTE);
+			AddMenuSeparatorItem(hEdit);
+			AddMenuItem(hEdit, L"Select &All\tCtrl+A", true, STD_EDIT_MENU_SELECT_ALL);
+			AddMenuItem(hEdit, L"&Invert Selection", true, STD_EDIT_MENU_INVERT_SELECTION);
 
-			//InsertMenuItem(hEditMenu, 0, TRUE, 
+			HMENU hView = GetMenuFromID(m_hMenu, FCIDM_MENU_VIEW);
 
-/*
-			if ( SVUIA_ACTIVATE_FOCUS == nState )
-				DeleteMenu ( m_hMenu, FCIDM_MENU_EDIT, MF_BYCOMMAND );
-*/
+			AddMenuItem(hView, L"T&humbnails", true, STD_VIEW_MENU_THUMBNAILS, 4);
+			AddMenuItem(hView, L"Ico&ns", true, STD_VIEW_MENU_ICONS, 5);
+			AddMenuItem(hView, L"&Details", true, STD_VIEW_MENU_DETAILS, 6);
+			AddMenuSeparatorItem(hView, 7);
+
 			m_ShellBrowser->SetMenuSB ( m_hMenu, NULL, m_hWnd );
 		}
 
@@ -1630,12 +1638,54 @@ LRESULT		 CPlisgoView::OnInitMenuPopup(UINT uMsg, WPARAM wParam, LPARAM lParam, 
     if ( !IsWindow() /*!m_List.IsWindow() ||*/ )
         return DefWindowProc();
 
-	
+	bool bHasSelection = ( ListView_GetSelectedCount(m_hList) > 0 );
+	UINT uState = bHasSelection ? MF_BYCOMMAND : MF_BYCOMMAND | MF_GRAYED;
 
-	bool bEnable = ( ListView_GetSelectedCount(m_hList) > 0 );
-	UINT uState = bEnable ? MF_BYCOMMAND : MF_BYCOMMAND | MF_GRAYED;
+	MENUITEMINFO mii = {0};
 
-    return 0;
+	HMENU	hMenu	= (HMENU)wParam;
+	int		nIndex	= LOWORD(lParam);
+
+    mii.cbSize = sizeof(MENUITEMINFO);
+    mii.fMask = MIIM_SUBMENU|MIIM_ID;
+
+    if (!GetMenuItemInfo(m_hMenu, nIndex, TRUE, &mii) ||
+        mii.hSubMenu != hMenu)
+    {
+		return TRUE;
+	}
+
+	switch(mii.wID)
+	{
+	case FCIDM_MENU_EDIT:
+		{
+			if (ListView_GetNextItem(m_hList, -1, LVNI_SELECTED) == -1)
+			{
+				EnableMenuItem(mii.hSubMenu, STD_EDIT_MENU_COPY, MF_GRAYED|MF_BYCOMMAND);
+				EnableMenuItem(mii.hSubMenu, STD_EDIT_MENU_CUT, MF_GRAYED|MF_BYCOMMAND);
+			}
+			else
+			{
+				EnableMenuItem(mii.hSubMenu, STD_EDIT_MENU_COPY, MF_ENABLED|MF_BYCOMMAND);
+				EnableMenuItem(mii.hSubMenu, STD_EDIT_MENU_CUT, MF_ENABLED|MF_BYCOMMAND);
+			}
+
+			if (IsPasteAvailable())
+				EnableMenuItem(mii.hSubMenu, STD_EDIT_MENU_PASTE, MF_ENABLED|MF_BYCOMMAND);
+			else
+				EnableMenuItem(mii.hSubMenu, STD_EDIT_MENU_PASTE, MF_GRAYED|MF_BYCOMMAND);
+		}
+		break;
+	case FCIDM_MENU_VIEW:
+		{
+			CheckMenuItem(mii.hSubMenu, STD_VIEW_MENU_THUMBNAILS,	((m_FolderSettings.ViewMode == FVM_THUMBNAIL)?MFS_CHECKED:MF_UNCHECKED)|MF_BYCOMMAND);
+			CheckMenuItem(mii.hSubMenu, STD_VIEW_MENU_ICONS,		((m_FolderSettings.ViewMode == FVM_TILE)?MFS_CHECKED:MF_UNCHECKED)|MF_BYCOMMAND);
+			CheckMenuItem(mii.hSubMenu, STD_VIEW_MENU_DETAILS,		((m_FolderSettings.ViewMode == FVM_DETAILS)?MFS_CHECKED:MF_UNCHECKED)|MF_BYCOMMAND);
+		}
+		break;
+	}
+
+	return TRUE;
 }
 
 
@@ -1772,7 +1822,7 @@ void		 CPlisgoView::RefreshItemImages()
 {
 	if (InterlockedIncrement(&m_bViewInit) == 1)
 	{
-		MenuClickPacket::PlisgoViewMenuItemClickCB ViewTypeCD = &CPlisgoView::OnDetailsViewMenuItemClick;
+		PlisgoViewMenuItemClickCB ViewTypeCD = &CPlisgoView::OnDetailsViewMenuItemClick;
 
 		switch ( m_FolderSettings.ViewMode )
 		{
@@ -1828,6 +1878,56 @@ void		 CPlisgoView::RefreshItemImages()
 }
 
 
+BOOL		 CPlisgoView::DoStandardCommand(UINT nID)
+{
+	switch(nID)
+	{
+	case 0x00007010: //Create Shortcut
+	case 0x00007011: //Delete
+		DeleteSelection();
+		return TRUE;
+	case 0x00007012: //Rename
+		RenameSelection();
+		return TRUE;
+	case 0x00007013: //Properties
+		break;
+	case STD_EDIT_MENU_UNDO: //Undo
+		DoUndo();
+		return TRUE;
+	case STD_EDIT_MENU_CUT: //Cut
+		PutSelectedToClipboard(true);
+		return TRUE;
+	case STD_EDIT_MENU_COPY: //Copy
+		PutSelectedToClipboard(false);
+		return TRUE;
+	case STD_EDIT_MENU_PASTE: //Paste
+		OnPaste();
+		return TRUE;
+	case STD_EDIT_MENU_PASTE_SHORTCUT: //Past Shortcut
+	case STD_EDIT_MENU_COPY_TO_FOLDER: //Copy To Folder
+	case STD_EDIT_MENU_MOVE_TO_FOLDER: //Move To Folder
+		break; //Who else users this? No one that's who.
+	case STD_EDIT_MENU_SELECT_ALL: //Select All
+		OnSelectAll();
+		return TRUE;
+	case STD_EDIT_MENU_INVERT_SELECTION: //Invert Selection
+		InvertSelection();
+		return TRUE;
+	case STD_VIEW_MENU_THUMBNAILS:
+		OnThumbnailsViewMenuItemClick();
+		return TRUE;
+	case STD_VIEW_MENU_DETAILS:
+		OnDetailsViewMenuItemClick();
+		return TRUE;
+	case STD_VIEW_MENU_ICONS:
+		OnLargeViewMenuItemClick();
+		return TRUE;
+	}
+
+	return FALSE;
+}
+
+
 BOOL		 CPlisgoView::MessageProcessHock(HWND hWnd, UINT nMsg, WPARAM wParam, LPARAM lParam, LRESULT& rResult)
 {
 	switch (nMsg)
@@ -1855,7 +1955,7 @@ BOOL		 CPlisgoView::MessageProcessHock(HWND hWnd, UINT nMsg, WPARAM wParam, LPAR
 			rResult = (nMsg == WM_INITMENUPOPUP ? 0 : TRUE);
 			return TRUE;
 		}
-		else	if (m_IMenu3.p != NULL)
+		else if (m_IMenu3.p != NULL)
 		{
 			m_IMenu3->HandleMenuMsg (nMsg, wParam, lParam);
 			// inform caller that we handled WM_INITPOPUPMENU by ourself
@@ -1878,6 +1978,18 @@ BOOL		 CPlisgoView::MessageProcessHock(HWND hWnd, UINT nMsg, WPARAM wParam, LPAR
 						RefreshItemImages();
 				}
 			}
+		}
+	case WM_COMMAND:
+		{
+			if (HIWORD(wParam) == 0)
+			{
+				WORD nID = LOWORD(wParam);
+
+				if (DoStandardCommand(nID))
+					return TRUE;
+			}
+
+			break;
 		}
 
 	default:
@@ -1970,6 +2082,146 @@ void		 CPlisgoView::OnPaste()
 }
 
 
+HRESULT		 CPlisgoView::DeleteSelection()
+{
+	WStringList selection;
+
+	GetSelection(selection);
+
+	if (selection.size() == 0)
+		return S_FALSE;
+
+	SHFILEOPSTRUCT shellOp = {0};
+
+	shellOp.hwnd = m_hWnd;
+	shellOp.wFunc = FO_DELETE;
+
+	if (!GetAsyncKeyState(VK_LSHIFT) && !GetAsyncKeyState(VK_RSHIFT))
+		shellOp.fFlags = FOF_ALLOWUNDO;
+	else
+		shellOp.fFlags = FOF_WANTNUKEWARNING;
+	
+	std::wstring sFiles;
+
+	std::vector<bool> isFolder(selection.size());
+
+	for(WStringList::iterator it = selection.begin(); it != selection.end(); ++it)
+	{
+		EnsureWin32Path(*it);
+
+		if (GetFileAttributes(it->c_str()) & FILE_ATTRIBUTE_DIRECTORY)
+		{
+			isFolder[it-selection.begin()] = true;
+			//Remove anything under the folder
+			sFiles += *it + L"\\*";
+			sFiles += L'\0';
+		}
+
+		sFiles += *it;
+		sFiles += L'\0';
+	}
+
+	shellOp.pFrom = sFiles.c_str();
+
+	HRESULT hr = S_OK;
+
+	int nError = SHFileOperation(&shellOp);
+
+	if (nError != 0)
+		return S_FALSE;
+
+	for(WStringList::iterator it = selection.begin(); it != selection.end(); ++it)
+	{
+		const DWORD nAttr = GetFileAttributes(it->c_str());
+
+		if (nAttr == INVALID_FILE_ATTRIBUTES)
+		{
+			if (isFolder[it-selection.begin()])
+				SHChangeNotify(SHCNE_RMDIR, SHCNF_PATHW|SHCNF_FLUSH, it->c_str(), NULL);
+			else
+				SHChangeNotify(SHCNE_DELETE, SHCNF_PATHW|SHCNF_FLUSH, it->c_str(), NULL);
+		}
+		else hr = S_FALSE; //Still there..... (WHY DID SHFileOperation RETURN 0!?)
+	}
+
+	return hr;
+}
+
+
+HRESULT		 CPlisgoView::RenameSelection()
+{
+	int nItem = ListView_GetNextItem(m_hList, -1, LVNI_SELECTED);
+
+	if (nItem == -1)
+		return S_FALSE;
+	
+	ListView_EditLabel(m_hList, nItem);
+
+	if (m_CommDlgBrowser.p != NULL)
+		m_CommDlgBrowser->OnStateChange(this, CDBOSC_RENAME);
+
+	return S_OK;
+}
+
+
+void		 CPlisgoView::OnSelectAll()
+{
+	ListView_SetItemState(m_hList,-1, LVNI_SELECTED, LVNI_SELECTED);
+}
+
+
+DWORD		 CPlisgoView::GetAttributesOfSelection()
+{
+	if (m_pContainingFolder == NULL)
+		return 0;
+
+	boost::shared_ptr<LPCITEMIDLIST>	selection;
+	int nSelected = 0;
+
+	GetSelection(selection, nSelected, LVNI_SELECTED);
+
+	DWORD nAttr = 0;
+
+	for(int n = 0; n < nSelected; ++n)
+	{
+		DWORD nItemAttr = 0;
+
+		m_pContainingFolder->GetAttributesOf(selection.get()[n], &nItemAttr);
+
+		nAttr |= nItemAttr;
+	}
+
+	return nAttr;
+}
+
+
+void		 CPlisgoView::InvertSelection()
+{
+	std::map<int,bool> selected;
+
+	int nItem = ListView_GetNextItem(m_hList, -1, LVNI_SELECTED) ;
+
+	while(nItem != -1)
+	{
+		selected[nItem] = true;
+
+		nItem = ListView_GetNextItem(m_hList, nItem, LVNI_SELECTED) ;
+	}
+
+	ListView_SetItemState(m_hList,-1, 0, LVNI_SELECTED);
+
+	nItem = ListView_GetNextItem(m_hList, -1, LVNI_ALL) ;
+
+	while(nItem != -1)
+	{
+		if (selected.find(nItem) == selected.end())
+			ListView_SetItemState(m_hList, nItem, LVNI_SELECTED, LVNI_SELECTED);
+
+		nItem = ListView_GetNextItem(m_hList, nItem, LVNI_ALL) ;
+	}
+}
+
+
 void		 CPlisgoView::RefreshIconList(LONG nHeight)
 {
 	IconRegistry* pIconRegistry = PlisgoFSFolderReg::GetSingleton()->GetIconRegistry();
@@ -2023,44 +2275,41 @@ void		 CPlisgoView::OnDetailsViewMenuItemClick()
 
 
 
-void		 CPlisgoView::InsertViewToMenu(HMENU hMenu, std::vector<MenuClickPacket>& rClickEvents, const UINT nIDOffset, int nPos)
+void		 CPlisgoView::InsertViewToMenu(HMENU hMenu, int nPos)
 {
 	UINT nCheck = MF_CHECKED | MF_USECHECKBITMAPS;
 
 	MENUITEMINFO itemInfo = {0};
 
 	itemInfo.cbSize		= sizeof(MENUITEMINFO);
-	itemInfo.fMask		= MIIM_STRING|MIIM_ID|MIIM_STATE;
+	itemInfo.fMask		= MIIM_STRING|MIIM_ID|MIIM_STATE|MIIM_CHECKMARKS;
 	itemInfo.fType		= MF_STRING;
 	itemInfo.fState		= (m_FolderSettings.ViewMode == FVM_THUMBNAIL)?MFS_CHECKED:MFS_ENABLED;
 	itemInfo.dwTypeData	= L"Thumbnails";
 	itemInfo.cch		= 11;
-	itemInfo.wID		= nIDOffset+(UINT)rClickEvents.size();
-	rClickEvents.push_back(MenuClickPacket(this,&CPlisgoView::OnThumbnailsViewMenuItemClick));
+	itemInfo.wID		= STD_VIEW_MENU_THUMBNAILS;
 
 	::InsertMenuItem(hMenu, nPos, TRUE, &itemInfo);
 
 	itemInfo.fState		= (m_FolderSettings.ViewMode == FVM_TILE)?MFS_CHECKED:MFS_ENABLED;
 	itemInfo.dwTypeData	= L"Large";
 	itemInfo.cch		= 6;
-	itemInfo.wID		= nIDOffset+(UINT)rClickEvents.size();
-	rClickEvents.push_back(MenuClickPacket(this,&CPlisgoView::OnLargeViewMenuItemClick));
+	itemInfo.wID		= STD_VIEW_MENU_ICONS;
 
 	::InsertMenuItem(hMenu, nPos+1, TRUE, &itemInfo);
 
 	itemInfo.fState		= (m_FolderSettings.ViewMode == FVM_DETAILS)?MFS_CHECKED:MFS_ENABLED;
 	itemInfo.dwTypeData	= L"Details";
 	itemInfo.cch		= 8;
-	itemInfo.wID		= nIDOffset+(UINT)rClickEvents.size();
-	rClickEvents.push_back(MenuClickPacket(this,&CPlisgoView::OnDetailsViewMenuItemClick));
+	itemInfo.wID		= STD_VIEW_MENU_DETAILS;
 
 	::InsertMenuItem(hMenu, nPos+2, TRUE, &itemInfo);
 }
 
 
-void		 CPlisgoView::InsertPasteToMenu(HMENU hMenu, std::vector<MenuClickPacket>& rClickEvents, const UINT nIDOffset, int nPos)
+bool		 CPlisgoView::IsPasteAvailable()
 {
-	BOOL bCanPaste = FALSE;
+	bool bCanPaste = false;
 
 	if (::OpenClipboard(NULL))
 	{
@@ -2071,7 +2320,7 @@ void		 CPlisgoView::InsertPasteToMenu(HMENU hMenu, std::vector<MenuClickPacket>&
 			UINT nFiles = DragQueryFile(hDrop, (UINT)-1, NULL, 0);
 			
 			if (nFiles > 0)
-				bCanPaste = TRUE;
+				bCanPaste = true;
 
 			GlobalUnlock(hDrop);
 
@@ -2080,6 +2329,12 @@ void		 CPlisgoView::InsertPasteToMenu(HMENU hMenu, std::vector<MenuClickPacket>&
 		::CloseClipboard();
 	}
 
+	return bCanPaste;
+}
+
+
+void		 CPlisgoView::InsertPasteToMenu(HMENU hMenu, int nPos)
+{
 	MENUITEMINFO itemInfo = {0};
 
 	itemInfo.cbSize		= sizeof(MENUITEMINFO);
@@ -2088,19 +2343,20 @@ void		 CPlisgoView::InsertPasteToMenu(HMENU hMenu, std::vector<MenuClickPacket>&
 
 	::InsertMenuItem(hMenu, nPos++, TRUE, &itemInfo);
 
+	bool bCanPaste = IsPasteAvailable();
+
 	itemInfo.fMask		= MIIM_STRING|((bCanPaste)?0:MIIM_STATE)|MIIM_ID;
 	itemInfo.fType		= MF_STRING;
 	itemInfo.fState		= (bCanPaste)?0:MFS_GRAYED;
 	itemInfo.dwTypeData	= L"Paste";
 	itemInfo.cch		= 6;
-	itemInfo.wID		= nIDOffset+(UINT)rClickEvents.size();
-	rClickEvents.push_back(MenuClickPacket(this,&CPlisgoView::OnPaste));
+	itemInfo.wID		= STD_EDIT_MENU_PASTE;
 
 	::InsertMenuItem(hMenu, nPos, TRUE, &itemInfo);
 }
 
 
-LRESULT		 CPlisgoView::DoContextMenu(IContextMenu* pIMenu, HMENU hMenu, int x, int y, std::vector<MenuClickPacket>& rClickEvents, const UINT nCustomIDOffset)
+LRESULT		 CPlisgoView::DoContextMenu(IContextMenu* pIMenu, HMENU hMenu, int x, int y)
 {
 	LRESULT lr = 0;
 
@@ -2111,7 +2367,7 @@ LRESULT		 CPlisgoView::DoContextMenu(IContextMenu* pIMenu, HMENU hMenu, int x, i
 	{
 		WCHAR sBuffer[MAX_PATH];
 
-		if (nMenuSelection < nCustomIDOffset)
+		if (!DoStandardCommand(nMenuSelection))
 		{
 			--nMenuSelection;
 
@@ -2157,7 +2413,6 @@ LRESULT		 CPlisgoView::DoContextMenu(IContextMenu* pIMenu, HMENU hMenu, int x, i
 					m_CommDlgBrowser->OnStateChange(this, CDBOSC_RENAME);
 			}
 		}
-		else rClickEvents[nMenuSelection-nCustomIDOffset].Do();
 	}
 
 	return lr;
@@ -2221,14 +2476,12 @@ LRESULT		 CPlisgoView::OnContextMenu(UINT uMsg, WPARAM wParam, LPARAM lParam, BO
 	
 		const UINT nCustomIDOffset = HRESULT_CODE(pIMenu->QueryContextMenu(hMenu, 0, 1, 0x7fff, nFlags))+1;
 
-		std::vector<MenuClickPacket> clickEvents;
-
 
 		if (nFlags == CMF_NORMAL)
 		{
 			HMENU hViewSubMenu = CreatePopupMenu();
 
-			InsertViewToMenu(hViewSubMenu, clickEvents, nCustomIDOffset, 0);
+			InsertViewToMenu(hViewSubMenu, 0);
 
 			MENUITEMINFO itemInfo = {0};
 
@@ -2246,11 +2499,11 @@ LRESULT		 CPlisgoView::OnContextMenu(UINT uMsg, WPARAM wParam, LPARAM lParam, BO
 
 			::InsertMenuItem(hMenu, 1, TRUE, &itemInfo);
 
-			InsertPasteToMenu(hMenu, clickEvents, nCustomIDOffset, FindSeperatorPosFromBottom(hMenu, 1));
+			InsertPasteToMenu(hMenu, FindSeperatorPosFromBottom(hMenu, 1));
 		}
 		
 
-		DoContextMenu(pIMenu, hMenu, x, y, clickEvents, nCustomIDOffset);
+		DoContextMenu(pIMenu, hMenu, x, y);
 
 		if (m_IMenu2.p != NULL)
 			m_IMenu2.Release();
