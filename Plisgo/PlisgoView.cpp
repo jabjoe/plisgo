@@ -928,109 +928,55 @@ void		 CPlisgoView::PutSelectedToClipboard(const bool bMove)
 
 STDMETHODIMP CPlisgoView::TranslateAccelerator(LPMSG pMsg)
 {
-	if (ListView_GetEditControl(m_hList) == NULL)
+	if (ListView_GetEditControl(m_hList) != NULL)
+		return E_NOTIMPL;
+
+	if (pMsg->message == WM_KEYDOWN)
 	{
-		if (pMsg->message == WM_KEYDOWN)
+		if (pMsg->wParam == VK_F2)
 		{
-			if (pMsg->wParam == VK_F5)
+			return RenameSelection();
+		}
+		else if (pMsg->wParam == VK_DELETE)
+		{
+			return DeleteSelection();
+		}
+		else
+		{
+			if (GetAsyncKeyState(VK_CONTROL))
 			{
-				Refresh();
-
-				return S_OK;
-			}
-			else if (pMsg->wParam == VK_F2)
-			{
-				return RenameSelection();
-			}
-			else if (pMsg->wParam == VK_DELETE)
-			{
-				return DeleteSelection();
-			}
-			else if (pMsg->wParam == VK_BACK)
-			{
-				LPITEMIDLIST pPathIDL;
-
-				if (m_pContainingFolder->GetCurFolder(&pPathIDL) == S_OK)
+				if (GetAsyncKeyState('Z'))
 				{
-					LPITEMIDLIST pChild = ILFindLastID(pPathIDL);
-
-					pChild->mkid.cb = 0;
-
-					m_ShellBrowser->BrowseObject(pPathIDL, SBSP_DEFBROWSER);
-
-					ILFree(pPathIDL);
-
+					DoUndo();
+					Refresh();
 					return S_OK;
 				}
-			}
-			else if (pMsg->wParam == VK_F3)
-			{
-				CComQIPtr<IServiceProvider> pProvider(m_ShellBrowser);
-				
-				if (pProvider)
+				else if (GetAsyncKeyState('X'))
 				{
-					CComPtr<IWebBrowser2> pBrowser;
-					
-					pProvider->QueryService(SID_SWebBrowserApp, IID_IWebBrowser2, (void**)&pBrowser);
-
-					if (pBrowser)
-					{
-						OLECHAR szGuid[64];
-
-						if (StringFromGUID2(CLSID_FileSearchBand, szGuid, sizeof(szGuid)))
-						{
-							VARIANT varClsid;
-
-							varClsid.vt			= VT_BSTR;
-							varClsid.bstrVal	= szGuid;
-
-							pBrowser->ShowBrowserBar(&varClsid, NULL, NULL);
-						}
-					}
+					PutSelectedToClipboard(true);
+					return S_OK;
 				}
-				
-				return S_OK;
-			}
-			else
-			{
-				if (GetAsyncKeyState(VK_CONTROL))
+				else if (GetAsyncKeyState('C'))
 				{
-					if (GetAsyncKeyState('Z'))
-					{
-						DoUndo();
-						Refresh();
-						return S_OK;
-					}
-					else if (GetAsyncKeyState('X'))
-					{
-						PutSelectedToClipboard(true);
-						return S_OK;
-					}
-					else if (GetAsyncKeyState('C'))
-					{
-						PutSelectedToClipboard(false);
-						return S_OK;
-					}
-					else if (GetAsyncKeyState('V'))
-					{
-						OnPaste();
-						Refresh();
-						return S_OK;
-					}
-					else if (GetAsyncKeyState('A'))
-					{
-						OnSelectAll();
-						return S_OK;
-					}
+					PutSelectedToClipboard(false);
+					return S_OK;
+				}
+				else if (GetAsyncKeyState('V'))
+				{
+					OnPaste();
+					Refresh();
+					return S_OK;
+				}
+				else if (GetAsyncKeyState('A'))
+				{
+					OnSelectAll();
+					return S_OK;
 				}
 			}
 		}
 	}
-
-	TranslateMessage(pMsg);
-	DispatchMessage(pMsg);
-
-	return S_OK;
+	
+	return E_NOTIMPL;;
 }
 
 
