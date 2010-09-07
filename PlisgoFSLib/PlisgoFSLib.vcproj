@@ -147,7 +147,7 @@
 		</Configuration>
 		<Configuration
 			Name="Debug_DLL|Win32"
-			OutputDirectory="$(ConfigurationName)"
+			OutputDirectory="DLL\Debug\"
 			IntermediateDirectory="$(ConfigurationName)"
 			ConfigurationType="2"
 			UseOfMFC="2"
@@ -216,11 +216,12 @@
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
+				CommandLine=""
 			/>
 		</Configuration>
 		<Configuration
 			Name="Release_DLL|Win32"
-			OutputDirectory="$(ConfigurationName)"
+			OutputDirectory="DLL\Release\"
 			IntermediateDirectory="$(ConfigurationName)"
 			ConfigurationType="2"
 			UseOfMFC="2"
@@ -292,7 +293,7 @@
 		</Configuration>
 		<Configuration
 			Name="Debug_Static|Win32"
-			OutputDirectory="$(ConfigurationName)"
+			OutputDirectory="Static\Debug\"
 			IntermediateDirectory="$(ConfigurationName)"
 			ConfigurationType="4"
 			UseOfMFC="1"
@@ -357,7 +358,7 @@
 		</Configuration>
 		<Configuration
 			Name="Release_Static|Win32"
-			OutputDirectory="$(ConfigurationName)"
+			OutputDirectory="Static\Release\"
 			IntermediateDirectory="$(ConfigurationName)"
 			ConfigurationType="4"
 			UseOfMFC="1"

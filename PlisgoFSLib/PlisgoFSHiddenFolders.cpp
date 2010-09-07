@@ -127,35 +127,6 @@ public:
 		m_pRoot			= pRoot;
 	}
 
-	class DirectEachChild : public PlisgoFSFolder::EachChild
-	{
-	public:
-
-		DirectEachChild(const StubShellInfoFolder* pObj, PlisgoFSFolder::EachChild& rEachChild) : m_rEachChild(rEachChild)
-		{
-			m_pObj = pObj;
-		}
-
-		virtual bool Do(LPCWSTR sName, IPtrPlisgoFSFile file)
-		{
-			IPtrPlisgoFSFile shellFile;
-
-			std::wstring sShellName;
-
-			m_pObj->GetEntryFile(shellFile, sShellName, file, sName);
-
-			if (shellFile.get() == NULL)
-				return true;
-
-			return m_rEachChild.Do(sShellName.c_str(), shellFile);
-		}
-
-	private:
-		const StubShellInfoFolder*	m_pObj;
-		PlisgoFSFolder::EachChild&	m_rEachChild;
-	};
-
-
 	virtual bool				GetEntryFile(	IPtrPlisgoFSFile& rDstFile, std::wstring& rsDstName,
 												IPtrPlisgoFSFile& rSrcFile, const std::wstring& rsSrcName) const = 0;
 
@@ -191,13 +162,9 @@ public:
 	}
 
 
-	virtual bool				ForEachChild(EachChild& rEachChild) const
+	virtual int				GetChildren(ChildNames& rChildren) const
 	{
-		DirectEachChild cb(this, rEachChild);
-
-		const int nError = m_pRoot->GetVFS()->ForEachChild(m_sSubjectPath.c_str(), cb);
-
-		return (nError == 0);
+		return m_pRoot->GetVFS()->GetChildren(m_sSubjectPath.c_str(), rChildren);
 	}
 
 protected:
@@ -418,16 +385,18 @@ public:
 	}
 
 
-	virtual bool				ForEachChild(EachChild& rEachChild) const
+	virtual int				GetChildren(ChildNames& rChildren) const
 	{
 		InitVirtualFolder();
 
 		//This shouldn't be called unless the user has for some crazy reason browsed in!
 
-		if (!m_virtualChildren.ForEachFile(rEachChild))
-			return false;
+		int nError = m_virtualChildren.GetFileNames(rChildren);
+
+		if (nError != 0)
+			return nError;
 		
-		return StubShellInfoFolder::ForEachChild(rEachChild);
+		return StubShellInfoFolder::GetChildren(rChildren);
 	}
 
 
@@ -653,93 +622,15 @@ bool				RootPlisgoFSFolder::AddIcons(int nListIndex, const std::wstring& sFilena
 }
 
 
-
-class FindMenuCallObj : public PlisgoFSFolder::EachChild
-{
-public:
-	FindMenuCallObj(int& rnMenu) : m_rnMenu(rnMenu) {}
-	
-	void operator = (FindMenuCallObj&)	{}
-
-	virtual bool Do(LPCWSTR, IPtrPlisgoFSFile file)
-	{
-		if (file->GetAttributes() & FILE_ATTRIBUTE_DIRECTORY)
-		{
-			--m_rnMenu;
-
-			if (m_rnMenu == 0)
-			{
-				m_result = file;
-				return false;
-			}
-
-			PlisgoFSFolder* pFolder = file->GetAsFolder();
-
-			if (pFolder == NULL)
-				return false;
-		
-			if (!pFolder->ForEachChild(*this))
-				return false;
-		}
-
-		return true;
-	}	
-
-	IPtrPlisgoFSFile	m_result;
-	int&				m_rnMenu;
-};
-
-
-
 IPtrPlisgoFSFile	RootPlisgoFSFolder::FindMenu(int nMenu)
 {
 	if (nMenu == -1)
 		return IPtrPlisgoFSFile();
 
-	for(UINT n = 0; n < m_nRootMenuNum; ++n)
-	{
-		std::wstring  sMenuChild = (boost::wformat(L".menu_%1%") %n).str();
+	std::wstring  sMenuChild = (boost::wformat(L".menu_%1%") %nMenu).str();
 
-		IPtrPlisgoFSFile child = GetChild(sMenuChild.c_str());
-
-		if (child->GetAttributes() & FILE_ATTRIBUTE_DIRECTORY)
-		{
-			if (nMenu == 0)
-				return child;
-
-			--nMenu;
-
-			PlisgoFSFolder* pFolder = child->GetAsFolder();
-
-			if (pFolder == NULL)
-				return IPtrPlisgoFSFile();
-
-			FindMenuCallObj finder(nMenu);
-
-			if (!pFolder->ForEachChild(finder))
-				return finder.m_result;
-		}
-	}
-
-	return IPtrPlisgoFSFile();
+	return GetChild(sMenuChild.c_str());
 }
-
-
-class FolderCountCallObj : public PlisgoFSFolder::EachChild
-{
-public:
-	FolderCountCallObj() { m_nCount = 0; }
-	
-	virtual bool Do(LPCWSTR, IPtrPlisgoFSFile file)
-	{
-		if (file->GetAttributes() & FILE_ATTRIBUTE_DIRECTORY)
-			++m_nCount;
-
-		return true;
-	}
-
-	int		m_nCount;
-};
 
 
 int					RootPlisgoFSFolder::AddMenu(LPCWSTR			sText,
@@ -761,11 +652,11 @@ int					RootPlisgoFSFolder::AddMenu(LPCWSTR			sText,
 	{		
 		PlisgoFSMenuItem* pMenuFolder = static_cast<PlisgoFSMenuItem*>(parentMenu.get());
 
-		FolderCountCallObj	counter;
+		PlisgoFSFolder::ChildNames	children;
 
-		pMenuFolder->ForEachChild(counter);
+		pMenuFolder->GetChildren(children);
 
-		nResult = counter.m_nCount;
+		nResult = (int)children.size();
 
 		std::wstring sMenuName = (boost::wformat(L".menu_%1%") %nResult).str();
 

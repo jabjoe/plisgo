@@ -59,9 +59,8 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="PlisgoFSLib.lib"
 				LinkIncremental="2"
-				AdditionalLibraryDirectories="../Debug_DLL/"
+				AdditionalLibraryDirectories=""
 				GenerateDebugInformation="true"
 				SubSystem="1"
 				TargetMachine="1"
@@ -86,6 +85,7 @@
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
+				CommandLine="copy $(SolutionDir)..\DLL\Debug\PlisgoFSLib.dll $(TargetDir)"
 			/>
 		</Configuration>
 		<Configuration
@@ -132,9 +132,8 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="PlisgoFSLib.lib"
 				LinkIncremental="1"
-				AdditionalLibraryDirectories="../Release_DLL/"
+				AdditionalLibraryDirectories=""
 				GenerateDebugInformation="true"
 				SubSystem="1"
 				OptimizeReferences="2"

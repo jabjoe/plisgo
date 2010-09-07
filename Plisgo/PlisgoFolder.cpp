@@ -408,7 +408,7 @@ HRESULT			CPlisgoFolder::GetAttributesOf(LPCITEMIDLIST pIDL, LPDWORD rgfInOut)
 	const DWORD nAttr = GetFileAttributes(sPath.c_str());
 
 	if (nAttr == INVALID_FILE_ATTRIBUTES)
-		return STG_E_FILENOTFOUND;
+		return m_pCurrent->GetAttributesOf(1, &pIDL, rgfInOut); //Do orignal to extract attribute from LPCITEMIDLIST directly
 
 	*rgfInOut = SFGAO_STORAGE | SFGAO_STORAGEANCESTOR | SFGAO_FILESYSTEM | SFGAO_HASPROPSHEET | SFGAO_DROPTARGET |
 		SFGAO_CANRENAME | SFGAO_CANDELETE | SFGAO_CANLINK | SFGAO_CANCOPY | SFGAO_CANMOVE;

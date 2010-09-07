@@ -50,34 +50,27 @@ public:
 
 	virtual bool				IsValid() const	{ return false; }
 
-	virtual bool				ForEachChild(EachChild& rEachChild) const
+	virtual int					GetChildren(ChildNames& rChildren) const
 	{
-		bool bResult = false;
-
 		void* pHostFolderData = NULL;
 
 		if (m_pHostCBs->OpenHostFolderCB(m_sHostPath.c_str(), &pHostFolderData, m_pHostCBs->pUserData))
 		{
-			bResult = true;
-
-			while(bResult)
+			while(1)
 			{
 				WCHAR sName[MAX_PATH];
 				BOOL bIsFolder = FALSE;
 
 				if (m_pHostCBs->NextHostFolderChildCB(pHostFolderData, sName, &bIsFolder, m_pHostCBs->pUserData))
-				{
-					IPtrPlisgoFSFile file = CreateChildNode(sName, bIsFolder);
-
-					bResult = rEachChild.Do(sName, file);
-				}
-				else break;
+					rChildren.push_back(sName);
+				else
+					break;
 			}
 
 			m_pHostCBs->CloseHostFolderCB(pHostFolderData, m_pHostCBs->pUserData);
 		}
 
-		return bResult;
+		return 0;
 	}
 
 
@@ -134,13 +127,14 @@ public:
 	{
 	}
 
-
-	virtual bool				ForEachChild(EachChild& rEachChild) const
+	virtual int					GetChildren(ChildNames& rChildren) const
 	{
-		if (!m_Extras.ForEachFile(rEachChild))
-			return false;
+		int nError = m_Extras.GetFileNames(rChildren);
 
-		return HostFolder::ForEachChild(rEachChild);
+		if (nError != 0)
+			return nError;
+
+		return HostFolder::GetChildren(rChildren);
 	}
 
 	virtual IPtrPlisgoFSFile	GetChild(LPCWSTR sName) const
@@ -806,52 +800,50 @@ int		PlisgoVirtualFileFlushSetAttributes(PlisgoVirtualFile* pFile, DWORD nAttr)
 }
 
 
-class ForEachChildRedirect : public PlisgoFSFolder::EachChild
-{
-public:
-
-	ForEachChildRedirect(PlisgoVirtualFileForEachChildCB cb, void* pData)
-	{
-		m_cb	= cb;
-		m_pData = pData;
-	}
-
-	virtual bool Do(LPCWSTR sName, IPtrPlisgoFSFile file)
-	{
-		if (HostFileToSkip(file))
-			return true;
-
-		PlisgoFileInfo info = {0};
-
-		FILETIME Creation;
-		FILETIME LastAccess;
-		FILETIME LastWrite;
-
-		file->GetFileTimes(Creation, LastAccess, LastWrite);
-
-		info.nCreation		= *(ULONGLONG*)&Creation;
-		info.nLastAccess	= *(ULONGLONG*)&LastAccess;
-		info.nLastWrite		= *(ULONGLONG*)&LastWrite;
-
-		wcscpy_s(info.sName, MAX_PATH, sName);
-		info.nAttr			= file->GetAttributes();
-		info.nSize			= file->GetSize();
-
-		return (m_cb(&info, m_pData))?true:false;
-	}
-
-	PlisgoVirtualFileForEachChildCB		m_cb;
-	void*								m_pData;
-};
-
-
 int		PlisgoVirtualFileForEachChild(PlisgoVirtualFile* pFile, PlisgoVirtualFileForEachChildCB cb, void* pData)
 {
 	if (pFile == NULL || cb == NULL)
 		return -ERROR_BAD_ARGUMENTS;
 
-	ForEachChildRedirect cbObj(cb, pData);
+	PlisgoFSFolder::ChildNames children;
 	
-	return pFile->VFS->ForEachChild(pFile->hFileHandle, cbObj);
+	int nError = pFile->VFS->GetChildren(pFile->hFileHandle, children);
+
+	if (nError != 0)
+		return nError;
+
+	for(PlisgoFSFolder::ChildNames::const_iterator it = children.begin(); it != children.end(); ++it)
+	{
+		IPtrPlisgoFSFile child;
+
+		pFile->VFS->GetChild(child, pFile->hFileHandle, it->c_str());
+
+		if (child.get() != NULL)
+		{
+			if (HostFileToSkip(child))
+				return true;
+
+			PlisgoFileInfo info = {0};
+
+			FILETIME Creation;
+			FILETIME LastAccess;
+			FILETIME LastWrite;
+
+			child->GetFileTimes(Creation, LastAccess, LastWrite);
+
+			info.nCreation		= *(ULONGLONG*)&Creation;
+			info.nLastAccess	= *(ULONGLONG*)&LastAccess;
+			info.nLastWrite		= *(ULONGLONG*)&LastWrite;
+
+			wcscpy_s(info.sName, MAX_PATH, it->c_str());
+			info.nAttr			= child->GetAttributes();
+			info.nSize			= child->GetSize();
+
+			if (cb(&info, pData))
+				break;
+		}
+	}
+
+	return 0;
 }
 

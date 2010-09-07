@@ -208,39 +208,7 @@ IPtrPlisgoFSFile	PlisgoVFS::TracePath(LPCWSTR sPath, IPtrPlisgoFSFile* pParent) 
 }
 
 
-class MountSensitiveEachChild : public PlisgoFSFolder::EachChild 
-{
-public:
-
-	typedef std::map<std::wstring, IPtrPlisgoFSFile>	ChildMountTable;
-
-	MountSensitiveEachChild(PlisgoFSFolder::EachChild&	rCB,
-							const ChildMountTable&		rChildMnts) :
-																m_CB(rCB),
-																m_rChildMnts(rChildMnts)
-	{
-	}					
-
-	virtual bool Do(LPCWSTR sUnknownCaseName, IPtrPlisgoFSFile file)
-	{
-		WCHAR sName[MAX_PATH];
-
-		CopyToLower(sName, MAX_PATH, sUnknownCaseName);
-		
-		const ChildMountTable::const_iterator it = m_rChildMnts.find(sName);
-
-		if (it != m_rChildMnts.end())
-			return m_CB.Do(sUnknownCaseName, it->second);
-
-		return m_CB.Do(sUnknownCaseName, file);
-	}
-
-	PlisgoFSFolder::EachChild&	m_CB;
-	const ChildMountTable&		m_rChildMnts;
-};
-
-
-int					PlisgoVFS::ForEachChild(LPCWSTR sPath, PlisgoFSFolder::EachChild& rCB) const
+int					PlisgoVFS::GetChildren(LPCWSTR sPath, PlisgoFSFolder::ChildNames& rChildren) const
 {
 	std::wstring sPathLowerCase = sPath;
 
@@ -251,42 +219,28 @@ int					PlisgoVFS::ForEachChild(LPCWSTR sPath, PlisgoFSFolder::EachChild& rCB) c
 	if (file.get() == NULL)
 		return -ERROR_BAD_PATHNAME;
 
-	return ForEachChild(file->GetAsFolder(), sPathLowerCase, rCB);
-}
+	PlisgoFSFolder* pFolder = file->GetAsFolder();
 
-
-int					PlisgoVFS::ForEachChild(PlisgoFSFolder* pFolder, const std::wstring& rsLowerCasePath, PlisgoFSFolder::EachChild& rCB) const
-{
 	if (pFolder == NULL)
-		return -ERROR_ACCESS_DENIED;
+		return -ERROR_BAD_PATHNAME;
 
-	MountTree::SubKeyMap mntChildren;
-
-	m_MountTree.GetChildMap(rsLowerCasePath, mntChildren);
-
-	if (mntChildren.size())
-	{
-		MountSensitiveEachChild cb(rCB, mntChildren);
-
-		pFolder->ForEachChild(cb);
-
-		return 0;
-	}
-
-	pFolder->ForEachChild(rCB);
-
-	return 0;
+	return pFolder->GetChildren(rChildren);
 }
 
 
-int					PlisgoVFS::ForEachChild(PlisgoFileHandle&	rHandle, PlisgoFSFolder::EachChild& rCB) const
+int					PlisgoVFS::GetChildren(PlisgoFileHandle& rHandle, PlisgoFSFolder::ChildNames& rChildren) const
 {
 	OpenFileData* pOpenFileData = GetOpenFileData(rHandle);
 
 	if (pOpenFileData == NULL)
 		return -ERROR_INVALID_HANDLE;
 
-	return ForEachChild(pOpenFileData->File->GetAsFolder(), pOpenFileData->sPath, rCB);
+	PlisgoFSFolder* pFolder = pOpenFileData->File->GetAsFolder();
+
+	if (pFolder == NULL)
+		return -ERROR_BAD_PATHNAME;
+
+	return pFolder->GetChildren(rChildren);
 }
 
 
@@ -343,6 +297,77 @@ int					PlisgoVFS::Repath(LPCWSTR sOldPath, LPCWSTR sNewPath, bool bReplaceExist
 
 	//Nuke the cache
 	RestartCache();
+
+	return 0;
+}
+
+
+void				PlisgoVFS::GetOpenFilePath(PlisgoFileHandle& rHandle, std::wstring& rsPath)
+{
+	OpenFileData* pOpenFileData = GetOpenFileData(rHandle);
+
+	if (pOpenFileData == NULL)
+		return;
+
+	rsPath = pOpenFileData->sPath;
+}
+
+
+IPtrPlisgoFSFile	PlisgoVFS::GetParent(PlisgoFileHandle& rHandle) const
+{
+	OpenFileData* pOpenFileData = GetOpenFileData(rHandle);
+
+	if (pOpenFileData == NULL)
+		return IPtrPlisgoFSFile();
+
+	const std::wstring& rsPath = pOpenFileData->sPath;
+
+	if (rsPath.length() == 0)
+		return IPtrPlisgoFSFile(); //Is root
+
+	size_t nSlash = rsPath.rfind(L'\\');
+
+	if (nSlash == -1)
+		return m_Root;
+
+	std::wstring sParent(rsPath.begin(), rsPath.begin()+nSlash);
+
+	return TracePath(sParent);
+}
+
+
+int					PlisgoVFS::GetChild(IPtrPlisgoFSFile& rChild, PlisgoFileHandle& rHandle, LPCWSTR sChildName) const
+{
+	if (sChildName == NULL)
+		return -ERROR_INVALID_HANDLE;
+
+	OpenFileData* pOpenFileData = GetOpenFileData(rHandle);
+
+	if (pOpenFileData == NULL)
+		return -ERROR_INVALID_HANDLE;
+
+	PlisgoFSFolder* pFolder = pOpenFileData->File->GetAsFolder();
+
+	if (pFolder == NULL)
+		return -ERROR_BAD_PATHNAME;
+
+	size_t			nChildNameLen	= wcslen(sChildName);
+	std::wstring	sLowerPath		= pOpenFileData->sPath;
+
+	sLowerPath += L"\\";
+	sLowerPath.append(nChildNameLen,L' ');
+
+	CopyToLower((WCHAR*)sLowerPath.c_str() + pOpenFileData->sPath.length()+1, nChildNameLen+1, sChildName);
+
+	if (!GetCached(sLowerPath, rChild))
+	{
+		rChild = pFolder->GetChild(sChildName);
+
+		const_cast<PlisgoVFS*>(this)->AddToCache(sLowerPath, rChild);
+	}
+
+	if (rChild.get() == NULL)
+		return -ERROR_FILE_NOT_FOUND;
 
 	return 0;
 }

@@ -47,6 +47,7 @@ static const int PLISGO_APIVERSION = 2;
 #include <vector>
 #include <queue>
 #include <map>
+#include <list>
 #include <boost/shared_ptr.hpp>
 #include <boost/weak_ptr.hpp>
 #include <algorithm>
@@ -60,7 +61,7 @@ static const int PLISGO_APIVERSION = 2;
 #include <boost/interprocess/sync/scoped_lock.hpp>
 #include <boost/format.hpp>
 #include <fstream>
-#include <unordered_map>
+#include <boost/unordered_map.hpp>
 #include "../Common/Utils.h"
 #include "../Common/PathUtils.h"
 #include "../Common/IconUtils.h"
@@ -219,3 +220,6 @@ inline void			ToWide(std::wstring& rDst, const char* sSrc)
 
 
 #define TOPOWEROFTWO(_x) ((_x%2)?_x+1:_x)
+
+
+inline bool			IsVistaOrAbove()	{ return (LOBYTE(LOWORD(GetVersion())) > 5/*Vista*/); }

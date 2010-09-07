@@ -112,28 +112,23 @@ int				PlisgoFSFolder::Open(	DWORD	nDesiredAccess,
 	return 0;
 }
 
+static int				CopyPlisgoFile(IPtrPlisgoFSFile& rSrcFile, IPtrPlisgoFSFile& rDstFile, ULONGLONG* pnDstInstanceData);
 
-class FolderCopier : public PlisgoFSFolder::EachChild
+static int				CopyPlisgoChild(PlisgoFSFolder* pDstFolder, LPCWSTR sName, IPtrPlisgoFSFile& rSrcFile)
 {
-public:
+	IPtrPlisgoFSFile dstFile;
 
-	FolderCopier(PlisgoFSFolder* pDstFolder)
-	{
-		m_pDstFolder	= pDstFolder;
-		m_nError		= 0;
-	}
+	ULONGLONG nInstanceData = 0;
 
-	virtual bool Do(LPCWSTR sName, IPtrPlisgoFSFile file);
+	int nError = pDstFolder->CreateChild(dstFile, sName, rSrcFile->GetAttributes(), &nInstanceData);
 
-	int	GetError() const { return m_nError; }
+	if (nError != 0)
+		return nError;
 
-private:
+	nError = CopyPlisgoFile(rSrcFile, dstFile, &nInstanceData);
 
-	PlisgoFSFolder* m_pDstFolder;
-	int				m_nError;
-};
-
-
+	return dstFile->Close(&nInstanceData);
+}
 
 
 static int				CopyPlisgoFile(IPtrPlisgoFSFile& rSrcFile, IPtrPlisgoFSFile& rDstFile, ULONGLONG* pnDstInstanceData)
@@ -143,17 +138,31 @@ static int				CopyPlisgoFile(IPtrPlisgoFSFile& rSrcFile, IPtrPlisgoFSFile& rDstF
 		if ((rDstFile->GetAttributes()&FILE_ATTRIBUTE_DIRECTORY) != FILE_ATTRIBUTE_DIRECTORY)
 			return -ERROR_BAD_PATHNAME;
 
-		PlisgoFSFolder* pSrcChild = rSrcFile->GetAsFolder();
-		PlisgoFSFolder* pDstChild = rDstFile->GetAsFolder();
+		PlisgoFSFolder* pSrcFolder = rSrcFile->GetAsFolder();
+		PlisgoFSFolder* pDstFolder = rDstFile->GetAsFolder();
 
-		if (pSrcChild == NULL || pDstChild == NULL)
+		if (pSrcFolder == NULL || pDstFolder == NULL)
 			return -ERROR_BAD_PATHNAME;
 
-		FolderCopier copier(pDstChild);
+		PlisgoFSFolder::ChildNames children;
 
-		pSrcChild->ForEachChild(copier);
+		pSrcFolder->GetChildren(children);
 
-		return copier.GetError();
+		for(PlisgoFSFolder::ChildNames::const_iterator it = children.begin();
+			it != children.end(); ++it)
+		{
+			IPtrPlisgoFSFile srcChild = pSrcFolder->GetChild(it->c_str());
+
+			if (srcChild.get() == NULL)
+				continue;
+
+			int nError = CopyPlisgoChild(pDstFolder, it->c_str(), srcChild);
+
+			if (nError != 0)
+				return nError;
+		}
+
+		return 0;
 	}
 	else
 	{
@@ -202,30 +211,6 @@ static int				CopyPlisgoFile(IPtrPlisgoFSFile& rSrcFile, IPtrPlisgoFSFile& rDstF
 		return nError;
 	}
 }
-
-
-
-bool FolderCopier::Do(LPCWSTR sName, IPtrPlisgoFSFile file)
-{
-	IPtrPlisgoFSFile dstFile;
-
-	ULONGLONG nInstanceData = 0;
-
-	m_nError = m_pDstFolder->CreateChild(dstFile, sName, file->GetAttributes(), &nInstanceData);
-
-	if (m_nError != 0)
-		return false;
-
-	m_nError = CopyPlisgoFile(file, dstFile, &nInstanceData);
-
-	dstFile->Close(&nInstanceData);
-
-	if (m_nError != 0)
-		return false;
-
-	return true;
-}
-
 
 
 int						PlisgoFSFolder::Repath(LPCWSTR sOldName, LPCWSTR sNewName,
@@ -297,18 +282,14 @@ void				PlisgoFSFileList::RemoveFile(LPCWSTR sName)
 }
 
 
-bool				PlisgoFSFileList::ForEachFile(PlisgoFSFolder::EachChild& rEachFile) const
+int				PlisgoFSFileList::GetFileNames(PlisgoFSFolder::ChildNames& rFileNames) const
 {
 	boost::shared_lock<boost::shared_mutex> lock(m_Mutex);
 
-	for(PlisgoFSFileMap::const_iterator it = m_Files.begin();
-		it != m_Files.end(); ++it)
-	{
-		if (!rEachFile.Do(it->first.c_str(), it->second))
-			return false;
-	}
+	for(PlisgoFSFileMap::const_iterator it = m_Files.begin(); it != m_Files.end(); ++it)
+		rFileNames.push_back(it->first);
 
-	return true;
+	return 0;
 }
 
 
@@ -392,16 +373,12 @@ int		PlisgoFSStorageFolder::CreateChild(IPtrPlisgoFSFile& rChild, LPCWSTR sName,
 PlisgoFSReadOnlyStorageFolder::PlisgoFSReadOnlyStorageFolder(const PlisgoFSFileMap& rFileMap) : m_Files(rFileMap)
 {}
 
-bool				PlisgoFSReadOnlyStorageFolder::ForEachChild(PlisgoFSFolder::EachChild& rEachChild) const
+int				PlisgoFSReadOnlyStorageFolder::GetChildren(ChildNames& rChildren) const
 {
-	for(PlisgoFSFileMap::const_iterator it = m_Files.begin();
-		it != m_Files.end(); ++it)
-	{
-		if (!rEachChild.Do(it->first.c_str(), it->second))
-			return false;
-	}
+	for(PlisgoFSFileMap::const_iterator it = m_Files.begin(); it != m_Files.end(); ++it)
+		rChildren.push_back(it->first);
 
-	return true;
+	return 0;
 }
 
 IPtrPlisgoFSFile	PlisgoFSReadOnlyStorageFolder::GetChild(LPCWSTR sName) const
@@ -1427,7 +1404,7 @@ IPtrPlisgoFSFile	PlisgoFSRealFolder::GetChild(	WIN32_FIND_DATAW& rFind) const
 }
 
 
-bool				PlisgoFSRealFolder::ForEachChild(PlisgoFSFolder::EachChild& rEachChild) const
+int				PlisgoFSRealFolder::GetChildren(ChildNames& rChildren) const
 {
 	std::wstring sRealSearchPath = m_sRealPath + L"\\*";
 
@@ -1435,28 +1412,16 @@ bool				PlisgoFSRealFolder::ForEachChild(PlisgoFSFolder::EachChild& rEachChild) 
 
 	HANDLE hFind = FindFirstFileW(sRealSearchPath.c_str(), &findData);
 
-	if (hFind == NULL || hFind == INVALID_HANDLE_VALUE)
-		return false;
-	
-	bool bResult = true;
-
-	if (FindNextFileW(hFind, &findData)) //Skip . and ..
+	if (hFind != NULL && hFind != INVALID_HANDLE_VALUE)
 	{
-		while(FindNextFileW(hFind, &findData)) 
-		{
-			IPtrPlisgoFSFile file(GetChild(findData));
+		if (FindNextFileW(hFind, &findData)) //Skip . and ..
+			while(FindNextFileW(hFind, &findData)) 
+				rChildren.push_back(findData.cFileName);
 
-			if (!rEachChild.Do(findData.cFileName, file))
-			{
-				bResult = false;
-				break;
-			}
-		}
+		FindClose(hFind);
 	}
 
-	FindClose(hFind);
-	
-	return bResult;
+	return 0;
 }
 
 
@@ -1483,11 +1448,7 @@ IPtrPlisgoFSFile	PlisgoFSRealFolder::GetChild(LPCWSTR sName) const
 
 int					PlisgoFSRealFolder::AddChild(LPCWSTR sName, IPtrPlisgoFSFile file)
 {
-	FolderCopier copier(this);
-
-	copier.Do(sName, file);
-
-	return copier.GetError();
+	return CopyPlisgoChild(this, sName, file);
 }
 
 

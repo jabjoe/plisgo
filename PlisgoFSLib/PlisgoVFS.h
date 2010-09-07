@@ -52,15 +52,21 @@ public:
 
 	IPtrPlisgoFSFolder			GetRoot() const			{ return m_Root; }
 
-	int							ForEachChild(LPCWSTR sPath, PlisgoFSFolder::EachChild& rCB) const;
-
+	int							GetChildren(LPCWSTR sPath, PlisgoFSFolder::ChildNames& rChildren) const;
 
 	typedef ULONG64	PlisgoFileHandle;
 
+	
+	
 
 	int							Repath(LPCWSTR sOldPath, LPCWSTR sNewPath, bool bReplaceExisting = false);
 
-	int							ForEachChild(PlisgoFileHandle&	rHandle, PlisgoFSFolder::EachChild& rCB) const;
+	int							GetChildren(PlisgoFileHandle& rHandle, PlisgoFSFolder::ChildNames& rChildren) const;
+
+	void						GetOpenFilePath(PlisgoFileHandle& rHandle, std::wstring& rsPath);
+
+	IPtrPlisgoFSFile			GetParent(PlisgoFileHandle& rHandle) const;
+	int							GetChild(IPtrPlisgoFSFile& rChild, PlisgoFileHandle& rHandle, LPCWSTR sChildName) const;
 
 	IPtrPlisgoFSFile			GetPlisgoFSFile(PlisgoFileHandle& rHandle) const;
 
@@ -126,7 +132,7 @@ protected:
 
 private:
 
-	int							ForEachChild(PlisgoFSFolder* pFolder, const std::wstring& rsLowerCasePath, PlisgoFSFolder::EachChild& rCB) const;
+//	int							ForEachChild(PlisgoFSFolder* pFolder, const std::wstring& rsLowerCasePath, PlisgoFSFolder::EachChild& rCB) const;
 
 	void						RestartCache();
 

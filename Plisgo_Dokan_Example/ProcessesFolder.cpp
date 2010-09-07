@@ -518,10 +518,12 @@ ProcessesFolder::ProcessesFolder()
 }
 
 
-bool				ProcessesFolder::ForEachChild(EachChild& rEachChild) const
+int				ProcessesFolder::GetChildren(ChildNames& rChildren) const
 {
-	if (!m_Extras.ForEachFile(rEachChild))
-		return false;
+	int nError = m_Extras.GetFileNames(rChildren);
+
+	if (nError != 0)
+		return nError;
 
 	HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS,0);
 
@@ -540,10 +542,7 @@ bool				ProcessesFolder::ForEachChild(EachChild& rEachChild) const
 
 				wsprintf(sName,L"%i", pe.th32ProcessID);
 
-				IPtrPlisgoFSFile file = boost::make_shared<ProcessFile>(pe);
-
-				if (!rEachChild.Do(sName, file))
-					return false;
+				rChildren.push_back(sName);
 
 				pe.dwSize=sizeof(PROCESSENTRY32);
 			}
@@ -553,7 +552,7 @@ bool				ProcessesFolder::ForEachChild(EachChild& rEachChild) const
 		CloseHandle(hSnapshot);
 	}
 
-	return true;
+	return 0;
 }
 
 

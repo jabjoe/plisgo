@@ -63,7 +63,7 @@ public:
 
 	virtual DWORD				GetAttributes() const	{ return FILE_ATTRIBUTE_DIRECTORY|FILE_ATTRIBUTE_READONLY; }
 
-	virtual bool				ForEachChild(EachChild& rEachChild) const;
+	virtual int					GetChildren(ChildNames& rChildren) const;
 	virtual IPtrPlisgoFSFile	GetChild(LPCWSTR sName) const;
 
 private:

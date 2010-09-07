@@ -141,52 +141,67 @@ int __stdcall	PlisgoExampleGetFileInformation(LPCWSTR							sFileName,
 }
 
 
-
-class DokanPerFileCall : public PlisgoFSFolder::EachChild
-{
-public:
-	DokanPerFileCall(PFillFindData	FillFindData, PDOKAN_FILE_INFO pDokanInfo) :m_FillFindData(FillFindData),
-																				m_pDokanInfo(pDokanInfo)
-	{
-		m_nError		= 0;
-	}
-
-	virtual bool Do(LPCWSTR sName, IPtrPlisgoFSFile file)
-	{
-		WIN32_FIND_DATAW data = {0};
-
-		if (file.get() == NULL)
-		{
-			GetSystemTimeAsFileTime(&data.ftCreationTime);
-
-			data.ftLastAccessTime = data.ftLastWriteTime = data.ftCreationTime;
-		}
-		else file->GetFileInfo(&data);
-
-		wcscpy_s(data.cFileName, MAX_PATH, sName);
-
-		m_nError = m_FillFindData(&data, m_pDokanInfo);
-
-		return (m_nError == 0);
-	}
-
-	int	GetError() const	{ return m_nError; }
-
-private:
-	const PFillFindData		m_FillFindData;
-	const PDOKAN_FILE_INFO	m_pDokanInfo;
-	int						m_nError;
-};
-
-
-
 int __stdcall	PlisgoExampleFindFiles(	LPCWSTR				sFileName,
 										PFillFindData		FillFindData,
 										PDOKAN_FILE_INFO	pDokanFileInfo)
 {
-	DokanPerFileCall dokanPerFileCall(FillFindData, pDokanFileInfo);
+	PlisgoVFS::PlisgoFileHandle& rHandle = (PlisgoVFS::PlisgoFileHandle&)pDokanFileInfo->Context;
 
-	return GetPlisgoVFS(pDokanFileInfo)->ForEachChild((PlisgoVFS::PlisgoFileHandle&)pDokanFileInfo->Context, dokanPerFileCall);
+	WIN32_FIND_DATAW data = {0};
+	int nError;
+
+	PlisgoVFS* pVFS = GetPlisgoVFS(pDokanFileInfo);
+
+	IPtrPlisgoFSFile parent = pVFS->GetParent(rHandle);
+
+	if (parent.get() != NULL)
+	{
+		IPtrPlisgoFSFile self = pVFS->GetPlisgoFSFile(rHandle);
+
+		self->GetFileInfo(&data);
+
+		wcscpy_s(data.cFileName, MAX_PATH, L".");
+
+		nError = FillFindData(&data, pDokanFileInfo);
+
+		if (nError != 0)
+			return nError;
+
+		parent->GetFileInfo(&data);
+
+		wcscpy_s(data.cFileName, MAX_PATH, L"..");
+
+		nError = FillFindData(&data, pDokanFileInfo);
+
+		if (nError != 0)
+			return nError;
+	}
+
+	PlisgoFSFolder::ChildNames children;
+
+	nError = pVFS->GetChildren(rHandle, children);
+	
+	if (nError != 0)
+		return nError;
+
+	for(PlisgoFSFolder::ChildNames::const_iterator it = children.begin(); it != children.end(); ++it)
+	{
+		IPtrPlisgoFSFile child;
+
+		if (pVFS->GetChild(child, rHandle, it->c_str()) == 0)
+		{
+			child->GetFileInfo(&data);
+
+			wcscpy_s(data.cFileName, MAX_PATH, it->c_str());
+
+			nError = FillFindData(&data, pDokanFileInfo);
+
+			if (nError != 0)
+				return nError;
+		}
+	}
+
+	return 0;
 }
 
 

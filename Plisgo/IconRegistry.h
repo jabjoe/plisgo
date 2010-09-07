@@ -142,7 +142,7 @@ private:
 		bool				IsValid() const;
 	};
 
-	typedef std::tr1::unordered_map<std::wstring,int>		CachedIconsMap;
+	typedef boost::unordered_map<std::wstring,int>		CachedIconsMap;
 
 
 	mutable boost::shared_mutex				m_Mutex;
@@ -171,7 +171,7 @@ public:
 
 private:
 
-	typedef std::tr1::unordered_map<std::wstring, IPtrFSIconRegistry >	FSIconRegistries;
+	typedef boost::unordered_map<std::wstring, IPtrFSIconRegistry >	FSIconRegistries;
 
 	FSIconRegistries								m_FSIconRegistries;
 	std::vector<boost::weak_ptr<RefIconList> >		m_IconLists;

@@ -278,7 +278,7 @@ static HTREEITEM	FindDrive(WCHAR nDrive, HWND hWnd)
 }
 
 
-typedef std::tr1::unordered_map<std::wstring, bool>	PathDoneMap;
+typedef boost::unordered_map<std::wstring, bool>	PathDoneMap;
 
 struct FolderUpdatePacket
 {

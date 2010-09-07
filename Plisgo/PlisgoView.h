@@ -206,7 +206,7 @@ protected:
 	void	InsertViewToMenu(HMENU hMenu, int nPos);
 	void	InsertPasteToMenu(HMENU hMenu, int nPos);
 
-	LRESULT	DoContextMenu(IContextMenu* pIMenu, HMENU hMenu, int x, int y);
+	LRESULT	DoContextMenu(IContextMenu* pIMenu, HMENU hMenu, int x, int y, int nDefaultId, int nSelectedItem);
 
 	static int CALLBACK DefaultCompareItems(LPARAM l1, LPARAM l2, LPARAM lData);
 

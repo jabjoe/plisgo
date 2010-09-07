@@ -34,7 +34,8 @@
 #include "resource.h"
 
 const CLSID	CLSID_PlisgoView		= {0xE8716A04,0x546B,0x4DB1,{0xBB,0x55,0x0A,0x23,0x0E,0x20,0xA0,0xC5}};
-
+#define IN_VIEW_BMP				 0x8000
+#define IDC_VIEWS                1025
 
 const UINT CF_PREFERREDDROPEFFECT = RegisterClipboardFormat(CFSTR_PREFERREDDROPEFFECT);
 
@@ -52,6 +53,7 @@ const UINT CF_PREFERREDDROPEFFECT = RegisterClipboardFormat(CFSTR_PREFERREDDROPE
 #define STD_VIEW_MENU_DETAILS			0x0000702c
 #define STD_VIEW_MENU_ICONS				0x00007029
 
+#define STD_NEWFOLDER					0x0000766d
 
 
 
@@ -575,7 +577,7 @@ STDMETHODIMP CPlisgoView::CreateViewWindow(	LPSHELLVIEW			pPrevView,
 
 	m_ShellBrowser->QueryInterface(IID_ICommDlgBrowser, (void**)&m_CommDlgBrowser);
 
-	if (LOBYTE(LOWORD(GetVersion())) > 5/*Vista*/ && m_CommDlgBrowser.p != NULL)
+	if (IsVistaOrAbove() && m_CommDlgBrowser.p != NULL)
 	{
 		HWND hPrev = ::GetDlgItem(m_hWndParent, 1120); //Place holder controller in open dialog template
 
@@ -594,6 +596,35 @@ STDMETHODIMP CPlisgoView::CreateViewWindow(	LPSHELLVIEW			pPrevView,
 													SHCNE_UPDATEITEM | SHCNE_UPDATEDIR | SHCNE_MKDIR | SHCNE_RMDIR | SHCNE_DRIVEADD
 													, WM_PLISGOVIEWSHELLMESSAGE, 1, &entry);
 
+	static const TBBUTTON c_tbDefault[] = {
+		{ VIEW_VIEWMENU | IN_VIEW_BMP, IDC_VIEWS, TBSTATE_ENABLED, TBSTYLE_DROPDOWN, {0,0}, 0, -1 }
+	};
+
+	LRESULT iStdBMOffset; 
+	LRESULT iViewBMOffset; 
+	TBADDBITMAP ab; 
+	ab.hInst = HINST_COMMCTRL; 
+ 
+	ab.nID   = IDB_STD_SMALL_COLOR;  
+	psb->SendControlMsg(FCW_TOOLBAR, TB_ADDBITMAP, 8, (LPARAM)&ab, &iStdBMOffset); 
+ 
+	ab.nID   = IDB_VIEW_SMALL_COLOR; 
+	psb->SendControlMsg(FCW_TOOLBAR, TB_ADDBITMAP, 8, (LPARAM)&ab, &iViewBMOffset); 
+ 
+	TBBUTTON tbActual[ARRAYSIZE(c_tbDefault)]; 
+ 
+	for (int i=0; i < ARRAYSIZE(c_tbDefault); ++i) 
+	{ 
+		tbActual[i] = c_tbDefault[i]; 
+
+		if (!(tbActual[i].fsStyle & TBSTYLE_SEP)) 
+		{ 
+			if (tbActual[i].iBitmap & IN_VIEW_BMP)
+				tbActual[i].iBitmap = (tbActual[i].iBitmap & ~IN_VIEW_BMP) + iViewBMOffset; 
+		} 
+	}
+  
+	psb->SetToolbarItems(tbActual, ARRAYSIZE(c_tbDefault), FCT_MERGE ); 
 
     return S_OK;
 }
@@ -1236,6 +1267,9 @@ LRESULT		 CPlisgoView::OnSetFocus(	UINT uMsg, WPARAM wParam,
 	if (m_CommDlgBrowser.p != NULL)
 		m_CommDlgBrowser->OnStateChange(this, CDBOSC_SETFOCUS);
 
+	if (m_ShellBrowser)
+		m_ShellBrowser->OnViewWindowActive(this);
+
     return 0;
 }
 
@@ -1309,7 +1343,7 @@ void		 CPlisgoView::FillList()
 #endif
 
 	const bool bFilter = m_CommDlgBrowser.p != NULL && m_CommDlgBrowser->GetViewFlags(&nFlags) == S_OK &&
-							nFlags != CDB2GVF_NOINCLUDEITEM && nFlags != CDB2GVF_SHOWALLFILES;
+							!(nFlags & CDB2GVF_NOINCLUDEITEM) && !(nFlags & CDB2GVF_SHOWALLFILES);
 
 
 	while ( pEnum->Next(1, &pidl, &nFetched) == S_OK )
@@ -1868,6 +1902,29 @@ BOOL		 CPlisgoView::DoStandardCommand(UINT nID)
 	case STD_VIEW_MENU_ICONS:
 		OnLargeViewMenuItemClick();
 		return TRUE;
+	case STD_NEWFOLDER:
+		{
+			std::wstring sPath = m_pContainingFolder->GetPath();
+
+			sPath += L"\\";
+			sPath += L"New Folder";
+
+			if (CreateDirectory(sPath.c_str(), NULL))
+			{
+				PUIDLIST_RELATIVE pNewIDL = NULL;
+
+				if (m_pContainingFolder->ParseDisplayName(NULL, NULL, L"New Folder", NULL, &pNewIDL, NULL) == S_OK)
+				{
+					int nItem = ListView_GetItemCount(m_hList);
+
+					AddItem(pNewIDL);
+
+					ListView_EditLabel(m_hList, nItem);
+				}
+			}
+
+			return TRUE;
+		}
 	}
 
 	return FALSE;
@@ -1931,7 +1988,25 @@ BOOL		 CPlisgoView::MessageProcessHock(HWND hWnd, UINT nMsg, WPARAM wParam, LPAR
 			{
 				WORD nID = LOWORD(wParam);
 
-				if (DoStandardCommand(nID))
+				if (nID == IDC_VIEWS)
+				{
+					HWND	hWndTB; 
+					m_ShellBrowser->GetControlWindow(FCW_TOOLBAR, &hWndTB); 
+
+					RECT    rc;
+					m_ShellBrowser->SendControlMsg(FCW_TOOLBAR, TB_GETRECT, (WPARAM)IDC_VIEWS, (LPARAM)&rc, NULL);
+					
+					::MapWindowPoints(hWndTB, GetDesktopWindow(), (LPPOINT)&rc, 2);
+
+					HMENU hPopupMenu = ::CreatePopupMenu();
+
+					InsertViewToMenu(hPopupMenu, 0);
+
+					::TrackPopupMenuEx(hPopupMenu, TPM_LEFTALIGN|TPM_LEFTBUTTON|TPM_VERTICAL, rc.left, rc.bottom, m_hWnd, NULL);
+
+					return TRUE;		
+				}
+				else if (DoStandardCommand(nID))
 					return TRUE;
 			}
 
@@ -2302,14 +2377,23 @@ void		 CPlisgoView::InsertPasteToMenu(HMENU hMenu, int nPos)
 }
 
 
-LRESULT		 CPlisgoView::DoContextMenu(IContextMenu* pIMenu, HMENU hMenu, int x, int y)
+LRESULT		 CPlisgoView::DoContextMenu(IContextMenu* pIMenu, HMENU hMenu, int x, int y, int nDefaultId, int nSelectedItem)
 {
 	LRESULT lr = 0;
 
 	UINT nMenuSelection = TrackPopupMenu ( hMenu, TPM_LEFTBUTTON | TPM_RETURNCMD,
 											x, y, 0, m_hWnd, NULL );
 
-	if (nMenuSelection > 0)
+
+	if (nMenuSelection == nDefaultId && m_CommDlgBrowser->OnDefaultCommand(this) == S_OK)
+	{
+		return 0;
+	}
+	else if (nMenuSelection == 0)
+	{
+		return 0;
+	}
+	else if (nMenuSelection > 0)
 	{
 		WCHAR sBuffer[MAX_PATH];
 
@@ -2392,18 +2476,26 @@ LRESULT		 CPlisgoView::OnContextMenu(UINT uMsg, WPARAM wParam, LPARAM lParam, BO
     }
 
 
-	DWORD nFlags =  CMF_NORMAL;
+	DWORD nFlags =  CMF_NORMAL | CMF_EXPLORE;
 
 	IContextMenu* pIMenu = NULL;
 
-	if (ListView_GetNextItem(m_hList, -1, LVNI_SELECTED) != -1)
+	int nSelectedItem = ListView_GetNextItem(m_hList, -1, LVNI_SELECTED);
+
+	if (nSelectedItem != -1)
 	{
 		GetItemObject(SVGIO_SELECTION, IID_IContextMenu, (void**)&pIMenu);
 
-		nFlags |= CMF_CANRENAME | CMF_EXPLORE;
+		nFlags |= CMF_CANRENAME;
 	}
-	else GetItemObject(SVGIO_BACKGROUND, IID_IContextMenu, (void**)&pIMenu);
-	
+	else
+	{
+		HCURSOR hPrev = SetCursor(LoadCursor(NULL, IDC_WAIT));
+
+		GetItemObject(SVGIO_BACKGROUND, IID_IContextMenu, (void**)&pIMenu);
+
+        SetCursor(hPrev);
+	}
 	
 	LRESULT hResult = S_OK;
 	
@@ -2411,6 +2503,8 @@ LRESULT		 CPlisgoView::OnContextMenu(UINT uMsg, WPARAM wParam, LPARAM lParam, BO
 
 	if (pIMenu != NULL)
 	{
+		IUnknown_SetSite(pIMenu, (IShellView2*)this);
+
 		if (m_IMenu2.p != NULL)
 			m_IMenu2.Release();
 
@@ -2423,7 +2517,50 @@ LRESULT		 CPlisgoView::OnContextMenu(UINT uMsg, WPARAM wParam, LPARAM lParam, BO
 		const UINT nCustomIDOffset = HRESULT_CODE(pIMenu->QueryContextMenu(hMenu, 0, 1, 0x7fff, nFlags))+1;
 
 
-		if (nFlags == CMF_NORMAL)
+		if (m_CommDlgBrowser.p != NULL)
+		{
+			//It's a dialog
+
+			if (nSelectedItem != -1)
+			{
+				HINSTANCE hShell32 = LoadLibrary(L"shell32.dll");
+
+				if (hShell32 != NULL && hShell32 != INVALID_HANDLE_VALUE)
+				{
+					HMENU hMenuParent = LoadMenu(hShell32, MAKEINTRESOURCE(260));
+
+					if (hMenuParent != NULL && hMenuParent != INVALID_HANDLE_VALUE)
+					{
+						HMENU hSelectMenu = GetSubMenu(hMenuParent, 0);
+						RemoveMenu(hMenuParent, 0, MF_BYPOSITION);
+						DestroyMenu(hMenuParent);
+
+						WCHAR sDefault[MAX_PATH];
+
+						if (m_CommDlgBrowser->GetDefaultMenuText(this, sDefault, MAX_PATH) == S_OK)
+						{
+							MENUITEMINFOW mi = {0};
+							mi.cbSize       = sizeof(mi);
+							mi.fMask        = MIIM_TYPE;
+							mi.fType        = MFT_STRING;
+							mi.dwTypeData   = sDefault;
+							SetMenuItemInfo(hSelectMenu, 0, MF_BYPOSITION, &mi);
+						}
+
+						Shell_MergeMenus(hMenu, hSelectMenu, 0, (UINT)(0x7900), (UINT)-1, MM_ADDSEPARATOR);
+						SetMenuDefaultItem(hMenu, 0, MF_BYPOSITION);
+						DestroyMenu(hSelectMenu);
+					}
+
+					FreeLibrary(hShell32);
+				}
+			}
+		}
+
+		int nDefaultId = GetMenuDefaultItem(hMenu, MF_BYCOMMAND, 0);
+
+
+		if (nSelectedItem == -1)
 		{
 			HMENU hViewSubMenu = CreatePopupMenu();
 
@@ -2445,17 +2582,36 @@ LRESULT		 CPlisgoView::OnContextMenu(UINT uMsg, WPARAM wParam, LPARAM lParam, BO
 
 			::InsertMenuItem(hMenu, 1, TRUE, &itemInfo);
 
-			InsertPasteToMenu(hMenu, FindSeperatorPosFromBottom(hMenu, 1));
+			int nPos = FindSeperatorPosFromBottom(hMenu, 1);
+
+			InsertPasteToMenu(hMenu, nPos);
+
+			if (IsVistaOrAbove())
+			{
+				++nPos;
+
+				::InsertMenuItem(hMenu, ++nPos, TRUE, &itemInfo);
+
+				itemInfo.fMask		= MIIM_STRING|MIIM_ID;
+				itemInfo.fType		= MF_STRING;
+				itemInfo.dwTypeData	= L"New Folder";
+				itemInfo.cch		= 11;
+				itemInfo.wID		= STD_NEWFOLDER;
+
+				::InsertMenuItem(hMenu, ++nPos, TRUE, &itemInfo);
+			}
 		}
 		
 
-		DoContextMenu(pIMenu, hMenu, x, y);
+		DoContextMenu(pIMenu, hMenu, x, y, nDefaultId, nSelectedItem);
 
 		if (m_IMenu2.p != NULL)
 			m_IMenu2.Release();
 
 		if (m_IMenu3.p != NULL)
 			m_IMenu3.Release();
+
+		IUnknown_SetSite(pIMenu, NULL);
 
 		pIMenu->Release();
 	}

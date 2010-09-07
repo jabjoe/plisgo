@@ -131,19 +131,15 @@ public:
 	virtual DWORD				GetAttributes() const						{ return FILE_ATTRIBUTE_DIRECTORY|FILE_ATTRIBUTE_READONLY; }
 	virtual LONGLONG			GetSize() const								{ return 0; }
 
-	class EachChild
-	{
-	public:
-		virtual bool Do(LPCWSTR sName, IPtrPlisgoFSFile file) = 0;
-	};
-
 	virtual int					Open(	DWORD		nDesiredAccess,
 										DWORD		nShareMode,
 										DWORD		nCreationDisposition,
 										DWORD		nFlagsAndAttributes,
 										ULONGLONG*	pInstanceData);
 
-	virtual bool				ForEachChild(EachChild& rEachChild) const = 0;
+	typedef std::vector<std::wstring>	ChildNames;
+
+	virtual int					GetChildren(ChildNames& rChildren) const = 0;
 	virtual IPtrPlisgoFSFile	GetChild(LPCWSTR sName) const = 0;
 
 	virtual int					AddChild(LPCWSTR sName, IPtrPlisgoFSFile file)	{ return -ERROR_ACCESS_DENIED; }
@@ -196,7 +192,7 @@ public:
 
 	void				AddFile(LPCWSTR sName, IPtrPlisgoFSFile file);
 	void				RemoveFile(LPCWSTR sName);
-	bool				ForEachFile(PlisgoFSFolder::EachChild& rEachFile) const;
+	int					GetFileNames(PlisgoFSFolder::ChildNames& rFileNames) const;
 	IPtrPlisgoFSFile	GetFile(LPCWSTR sName) const;
 	IPtrPlisgoFSFile	GetFile(UINT nIndex) const;
 	UINT				GetLength() const;
@@ -215,9 +211,9 @@ class PlisgoFSStorageFolder : public PlisgoFSFolder
 public:
 
 
-	virtual bool				ForEachChild(PlisgoFSFolder::EachChild& rEachChild) const
+	virtual int					GetChildren(ChildNames& rChildren) const
 	{
-		return m_childList.ForEachFile(rEachChild);
+		return m_childList.GetFileNames(rChildren);
 	}
 
 	virtual IPtrPlisgoFSFile	GetChild(LPCWSTR sName) const
@@ -248,8 +244,7 @@ public:
 
 	PlisgoFSReadOnlyStorageFolder(const PlisgoFSFileMap& rFileMap);
 
-	virtual bool				ForEachChild(PlisgoFSFolder::EachChild& rEachChild) const;
-
+	virtual int 				GetChildren(ChildNames& rChildren) const;
 	virtual IPtrPlisgoFSFile	GetChild(LPCWSTR sName) const;
 
 	virtual int					AddChild(LPCWSTR , IPtrPlisgoFSFile )							{ return -ERROR_ACCESS_DENIED; }
@@ -570,8 +565,7 @@ public:
 
 	virtual int					SetAttributes(DWORD	nFileAttributes, ULONGLONG* pInstanceData);
 
-	virtual bool				ForEachChild(PlisgoFSFolder::EachChild& rEachChild) const;
-
+	virtual int 				GetChildren(ChildNames& rChildren) const;
 	virtual IPtrPlisgoFSFile	GetChild(LPCWSTR sName) const;
 
 	virtual int					AddChild(LPCWSTR sName, IPtrPlisgoFSFile file);

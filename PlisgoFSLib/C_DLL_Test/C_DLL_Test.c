@@ -110,82 +110,58 @@ static void PrintBasicFile(LPCWSTR sName, BasicFile* pFile, int nDepth)
 }
 
 
-static void CreateTestTree(BasicFile* pParent, int nDepth)
+
+static void CreateTreeFromLocalFolder(BasicFile* pParent, LPCWSTR sLocalFolder)
 {
-	WCHAR sName[MAX_PATH];
-	int nChildNum;
+	WIN32_FIND_DATAW	findData;
 
-	assert(pParent != NULL);
-	
-	nChildNum = 1 + (rand() % 8);
+	HANDLE hFind = FindFirstFileW(sLocalFolder, &findData);
 
-
-	while(nChildNum--)
+	if (hFind != NULL && hFind != INVALID_HANDLE_VALUE)
 	{
-		BOOL bFolder = (rand()%2 == 0);
+		if (FindNextFileW(hFind, &findData)) //Skip . and ..
+			while(FindNextFileW(hFind, &findData)) 
+			{
+				BasicFile* pChild;
 
-		BasicFile* pTemp;
+				if (findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+				{
+					WCHAR sBuffer[MAX_PATH];
 
-		if (bFolder)
-			pTemp = BasicFolder_Create();
-		else
-			pTemp = BasicFile_Create();
+					pChild = BasicFolder_Create();
 
-		wsprintf(sName, L"file_%i", rand()%100000);
+					wcscpy_s(sBuffer, MAX_PATH, sLocalFolder);
+					sBuffer[wcslen(sBuffer)-1] = L'\0';
+					wcscat_s(sBuffer, MAX_PATH, findData.cFileName);
+					wcscat_s(sBuffer, MAX_PATH, L"\\*");
 
-		BasicFolder_AddChild(pParent, sName, pTemp);
+					CreateTreeFromLocalFolder(pChild, sBuffer);
+				}
+				else pChild = BasicFile_Create();
 
-		if (bFolder)
-			if (rand()%2 == 0 && nDepth < 6)
-				CreateTestTree(pTemp, nDepth+1);
+				BasicFolder_AddChild(pParent, findData.cFileName, pChild);
 
-		BasicFile_Release(pTemp);
+				BasicFile_Release(pChild);
+			}
+
+		FindClose(hFind);
 	}
 }
 
 
-static BOOL FindRandomFolderCB(LPCWSTR sName, BasicFile* pFile, void* pData)
+
+static void CreateTestTree(BasicFile* pParent)
 {
-	DumpTreePacket* pPacket = (DumpTreePacket*)pData;
+	WCHAR sBuffer[MAX_PATH];
 
-	assert(pData != NULL && pFile != NULL && sName != NULL);
+	GetCurrentDirectory(MAX_PATH, sBuffer);
 
-	if (BasicFile_IsFolder(pFile))
-	{
-		size_t nPos = wcslen(pPacket->sPath);
+	wcscat_s(sBuffer, MAX_PATH, L"\\*");
 
-		if (sName[0] != L'\0')
-		{
-			wcscat_s(pPacket->sPath, MAX_PATH, L"\\");
-			wcscat_s(pPacket->sPath, MAX_PATH, sName);
-		}
+	CreateTreeFromLocalFolder(pParent, sBuffer);
 
-		if ((rand()%(GetTotalBasicFileNum())) == pPacket->nDepth)
-			return FALSE;
 
-		if (!BasicFolder_ForEachChild(pFile, FindRandomFolderCB, pData))
-			return FALSE;
-
-		pPacket->sPath[nPos] = L'\0';
-	}
-
-	++(pPacket->nDepth);
-
-	return TRUE;
 }
-
-
-static void FindRandomFolder(BasicFile* pRoot, WCHAR sMountTest[MAX_PATH])
-{
-	DumpTreePacket packet = {0};
-
-	assert(pRoot != NULL);
-
-	FindRandomFolderCB(L"",pRoot,&packet);
-
-	wcscpy_s(sMountTest, MAX_PATH, packet.sPath);
-}
-
 
 /*
 	Example of using virtual files along side own files
@@ -253,7 +229,6 @@ int _tmain(int argc, _TCHAR* argv[])
 	PlisgoFolder* pPlisgoFolder = NULL;
 	PlisgoFiles* pPlisgoFiles = NULL;	
 	BasicFile* pRoot = NULL;
-	WCHAR sMountTest[MAX_PATH];
 	int nError = 0;
 	ULONG64	nNow;
 
@@ -263,18 +238,13 @@ int _tmain(int argc, _TCHAR* argv[])
 
 	GetSystemTimeAsFileTime((FILETIME*)&nNow);
 
-	srand((ULONG)nNow);
-	CreateTestTree(pRoot, 0);
-
-	sMountTest[0] = L'\0';
-	
-	FindRandomFolder(pRoot, sMountTest);
+	CreateTestTree(pRoot);
 
 	nError = PlisgoFilesCreate(&pPlisgoFiles, GetBasicFSPlisgoToHostCBs(pRoot));
 
 	assert(nError == 0 && pPlisgoFiles != NULL);
 
-	pPlisgoFolder = GetBacisFSUI_PlisgoFolder(pPlisgoFiles, pRoot, sMountTest);
+	pPlisgoFolder = GetBacisFSUI_PlisgoFolder(pPlisgoFiles, pRoot, L"\\");
 
 	//Dump combined tree
 	{
