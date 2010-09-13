@@ -354,7 +354,9 @@ int					PlisgoVFS::GetChild(IPtrPlisgoFSFile& rChild, PlisgoFileHandle& rHandle,
 	size_t			nChildNameLen	= wcslen(sChildName);
 	std::wstring	sLowerPath		= pOpenFileData->sPath;
 
-	sLowerPath += L"\\";
+	if (sLowerPath.length())
+		sLowerPath += L"\\";
+
 	sLowerPath.append(nChildNameLen,L' ');
 
 	CopyToLower((WCHAR*)sLowerPath.c_str() + pOpenFileData->sPath.length()+1, nChildNameLen+1, sChildName);
