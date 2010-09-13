@@ -355,11 +355,19 @@ int					PlisgoVFS::GetChild(IPtrPlisgoFSFile& rChild, PlisgoFileHandle& rHandle,
 	std::wstring	sLowerPath		= pOpenFileData->sPath;
 
 	if (sLowerPath.length())
+	{
 		sLowerPath += L"\\";
 
-	sLowerPath.append(nChildNameLen,L' ');
+		sLowerPath.append(nChildNameLen,L' ');
 
-	CopyToLower((WCHAR*)sLowerPath.c_str() + pOpenFileData->sPath.length()+1, nChildNameLen+1, sChildName);
+		CopyToLower((WCHAR*)sLowerPath.c_str() + pOpenFileData->sPath.length()+1, nChildNameLen+1, sChildName);
+	}
+	else
+	{
+		sLowerPath.append(nChildNameLen,L' ');
+
+		CopyToLower((WCHAR*)sLowerPath.c_str(), nChildNameLen+1, sChildName);
+	}
 
 	if (!GetCached(sLowerPath, rChild))
 	{
