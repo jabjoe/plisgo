@@ -622,17 +622,6 @@ bool				RootPlisgoFSFolder::AddIcons(int nListIndex, const std::wstring& sFilena
 }
 
 
-IPtrPlisgoFSFile	RootPlisgoFSFolder::FindMenu(int nMenu)
-{
-	if (nMenu == -1)
-		return IPtrPlisgoFSFile();
-
-	std::wstring  sMenuChild = (boost::wformat(L".menu_%1%") %nMenu).str();
-
-	return GetChild(sMenuChild.c_str());
-}
-
-
 int					RootPlisgoFSFolder::AddMenu(LPCWSTR			sText,
 												IPtrFileEvent	onClickEvent,
 												int				nParentMenu,
@@ -644,34 +633,41 @@ int					RootPlisgoFSFolder::AddMenu(LPCWSTR			sText,
 
 	assert(nIconList < (int)m_nIconListsNum);
 
-	IPtrPlisgoFSFile parentMenu = FindMenu(nParentMenu);
+	if (nParentMenu >= (int)m_AllMenus.size())
+		return -1;
 
-	int nResult = -1;
+	IPtrPlisgoFSFile parentMenu = (nParentMenu != -1)?m_AllMenus[nParentMenu]:IPtrPlisgoFSFile();
+
+	IPtrPlisgoFSFile menuFile;
 
 	if (parentMenu.get() != NULL)
 	{		
 		PlisgoFSMenuItem* pMenuFolder = static_cast<PlisgoFSMenuItem*>(parentMenu.get());
 
-		PlisgoFSFolder::ChildNames	children;
+		ChildNames children;
 
 		pMenuFolder->GetChildren(children);
 
-		nResult = (int)children.size();
+		std::wstring sMenuName = (boost::wformat(L".menu_%1%") %(UINT)children.size()).str();
 
-		std::wstring sMenuName = (boost::wformat(L".menu_%1%") %nResult).str();
+		menuFile.reset(new PlisgoFSMenuItem(this, onClickEvent, enabledEvent, sText, nIconList, nIconIndex));
 
-		pMenuFolder->AddChild(sMenuName.c_str(), IPtrPlisgoFSFile(new PlisgoFSMenuItem(this, onClickEvent, enabledEvent, sText, nIconList, nIconIndex)));
+		pMenuFolder->AddChild(sMenuName.c_str(), menuFile);
 	}
 	else
 	{
 		std::wstring sMenuName = (boost::wformat(L".menu_%1%") %m_nRootMenuNum).str();
 
-		nResult = (int)m_nRootMenuNum;
-
 		++m_nRootMenuNum;
 
-		AddChild(sMenuName.c_str(), IPtrPlisgoFSFile(new PlisgoFSMenuItem(this, onClickEvent, enabledEvent, sText, nIconList, nIconIndex)));
+		menuFile.reset(new PlisgoFSMenuItem(this, onClickEvent, enabledEvent, sText, nIconList, nIconIndex));
+
+		AddChild(sMenuName.c_str(), menuFile);
 	}
+
+	int nResult = (int)m_AllMenus.size();
+
+	m_AllMenus.push_back(menuFile);
 
 	return nResult;
 }

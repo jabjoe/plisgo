@@ -185,10 +185,6 @@ public:
 
 	virtual DWORD				GetAttributes() const		{ return FILE_ATTRIBUTE_DIRECTORY|FILE_ATTRIBUTE_HIDDEN; }
 
-protected:
-
-	IPtrPlisgoFSFile			FindMenu(int nMenu);
-
 private:
 	void						EnableCustomShell();
 	IPtrPlisgoFSFile			GetCustomTypeIconsFolder();
@@ -197,7 +193,9 @@ private:
 
 	mutable boost::shared_mutex	m_Mutex;
 
-	ULONG						m_nRootMenuNum;
+
+	PlisgoFSFileArray			m_AllMenus;
+	UINT						m_nRootMenuNum;
 	UINT						m_nIconListsNum;
 
 	IPtrIShellInfoFetcher		m_IShellInfoFetcher;
