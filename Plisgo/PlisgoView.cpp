@@ -2385,7 +2385,7 @@ LRESULT		 CPlisgoView::DoContextMenu(IContextMenu* pIMenu, HMENU hMenu, int x, i
 											x, y, 0, m_hWnd, NULL );
 
 
-	if (nMenuSelection == nDefaultId && m_CommDlgBrowser->OnDefaultCommand(this) == S_OK)
+	if (nMenuSelection == nDefaultId && m_CommDlgBrowser.p != NULL && m_CommDlgBrowser->OnDefaultCommand(this) == S_OK)
 	{
 		return 0;
 	}
