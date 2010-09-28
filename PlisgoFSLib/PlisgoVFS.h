@@ -132,8 +132,6 @@ protected:
 
 private:
 
-//	int							ForEachChild(PlisgoFSFolder* pFolder, const std::wstring& rsLowerCasePath, PlisgoFSFolder::EachChild& rCB) const;
-
 	void						RestartCache();
 
 
@@ -143,12 +141,44 @@ private:
 		IPtrPlisgoFSFile	File;
 		ULONG64				nData;
 		bool				bDeleteOnClose;
+		volatile LONG		nUseRef;
 
 		OpenFileData*		pNext;
 		OpenFileData*		pPrev;
 	};
 
-	OpenFileData*				GetOpenFileData(PlisgoFileHandle&	rHandle) const;
+protected:
+
+	void						DecrementOpenDataRef(OpenFileData* pOpenFileData);
+
+private:
+
+	class OpenFileDataSP
+	{
+	public:
+
+		OpenFileDataSP(const PlisgoVFS* pPlisgoVFS)	{ m_pPlisgoVFS = (PlisgoVFS*)pPlisgoVFS; m_pData = NULL; }
+		~OpenFileDataSP()	{ m_pPlisgoVFS->DecrementOpenDataRef(m_pData); }
+
+		OpenFileData* operator->()	{ return m_pData; }
+		OpenFileData* operator*()	{ return m_pData; }
+
+		void	operator = (OpenFileData* pData)
+		{
+			m_pPlisgoVFS->DecrementOpenDataRef(m_pData);
+
+			m_pData = pData;
+
+			if (m_pData != NULL)
+				InterlockedIncrement(&m_pData->nUseRef);
+		}
+
+	private:
+		OpenFileData*	m_pData;
+		PlisgoVFS*		m_pPlisgoVFS;
+	};
+
+	bool				GetOpenFileData(OpenFileDataSP& rResult, const PlisgoFileHandle&	rHandle) const;
 
 
 	IPtrPlisgoFSFolder									m_Root;

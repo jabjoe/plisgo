@@ -116,9 +116,7 @@ bool				PlisgoVFS::GetCached(const std::wstring& rsPath, IPtrPlisgoFSFile& rFile
 
 	rFile = rCached.file;
 
-	assert(rFile.get() != NULL); //We don't do duds
-
-	if (!rFile->IsValid())
+	if (rFile.get() == NULL || !rFile->IsValid())
 	{
 		boost::upgrade_to_unique_lock<boost::shared_mutex> writeLock(readLock);
 
@@ -230,12 +228,12 @@ int					PlisgoVFS::GetChildren(LPCWSTR sPath, PlisgoFSFolder::ChildNames& rChild
 
 int					PlisgoVFS::GetChildren(PlisgoFileHandle& rHandle, PlisgoFSFolder::ChildNames& rChildren) const
 {
-	OpenFileData* pOpenFileData = GetOpenFileData(rHandle);
+	OpenFileDataSP openFileData(this);
 
-	if (pOpenFileData == NULL)
+	if (!GetOpenFileData(openFileData, rHandle))
 		return -ERROR_INVALID_HANDLE;
 
-	PlisgoFSFolder* pFolder = pOpenFileData->File->GetAsFolder();
+	PlisgoFSFolder* pFolder = openFileData->File->GetAsFolder();
 
 	if (pFolder == NULL)
 		return -ERROR_BAD_PATHNAME;
@@ -266,7 +264,8 @@ int					PlisgoVFS::Repath(LPCWSTR sOldPath, LPCWSTR sNewPath, bool bReplaceExist
 
 	PlisgoFSFolder* pNewParent = newParent->GetAsFolder();
 
-	assert(pNewParent != NULL);
+	if (pNewParent == NULL)
+		return -ERROR_BAD_PATHNAME;
 
 	if (newFile.get() != NULL && !bReplaceExisting)
 		return -ERROR_ALREADY_EXISTS;
@@ -304,23 +303,23 @@ int					PlisgoVFS::Repath(LPCWSTR sOldPath, LPCWSTR sNewPath, bool bReplaceExist
 
 void				PlisgoVFS::GetOpenFilePath(PlisgoFileHandle& rHandle, std::wstring& rsPath)
 {
-	OpenFileData* pOpenFileData = GetOpenFileData(rHandle);
+	OpenFileDataSP openFileData(this);
 
-	if (pOpenFileData == NULL)
+	if (!GetOpenFileData(openFileData, rHandle))
 		return;
 
-	rsPath = pOpenFileData->sPath;
+	rsPath = openFileData->sPath;
 }
 
 
 IPtrPlisgoFSFile	PlisgoVFS::GetParent(PlisgoFileHandle& rHandle) const
 {
-	OpenFileData* pOpenFileData = GetOpenFileData(rHandle);
+	OpenFileDataSP openFileData(this);
 
-	if (pOpenFileData == NULL)
+	if (!GetOpenFileData(openFileData, rHandle))
 		return IPtrPlisgoFSFile();
 
-	const std::wstring& rsPath = pOpenFileData->sPath;
+	const std::wstring& rsPath = openFileData->sPath;
 
 	if (rsPath.length() == 0)
 		return IPtrPlisgoFSFile(); //Is root
@@ -341,18 +340,18 @@ int					PlisgoVFS::GetChild(IPtrPlisgoFSFile& rChild, PlisgoFileHandle& rHandle,
 	if (sChildName == NULL)
 		return -ERROR_INVALID_HANDLE;
 
-	OpenFileData* pOpenFileData = GetOpenFileData(rHandle);
+	OpenFileDataSP openFileData(this);
 
-	if (pOpenFileData == NULL)
+	if (!GetOpenFileData(openFileData, rHandle))
 		return -ERROR_INVALID_HANDLE;
 
-	PlisgoFSFolder* pFolder = pOpenFileData->File->GetAsFolder();
+	PlisgoFSFolder* pFolder = openFileData->File->GetAsFolder();
 
 	if (pFolder == NULL)
 		return -ERROR_BAD_PATHNAME;
 
 	size_t			nChildNameLen	= wcslen(sChildName);
-	std::wstring	sLowerPath		= pOpenFileData->sPath;
+	std::wstring	sLowerPath		= openFileData->sPath;
 
 	if (sLowerPath.length())
 	{
@@ -360,7 +359,7 @@ int					PlisgoVFS::GetChild(IPtrPlisgoFSFile& rChild, PlisgoFileHandle& rHandle,
 
 		sLowerPath.append(nChildNameLen,L' ');
 
-		CopyToLower((WCHAR*)sLowerPath.c_str() + pOpenFileData->sPath.length()+1, nChildNameLen+1, sChildName);
+		CopyToLower((WCHAR*)sLowerPath.c_str() + openFileData->sPath.length()+1, nChildNameLen+1, sChildName);
 	}
 	else
 	{
@@ -385,12 +384,12 @@ int					PlisgoVFS::GetChild(IPtrPlisgoFSFile& rChild, PlisgoFileHandle& rHandle,
 
 IPtrPlisgoFSFile	PlisgoVFS::GetPlisgoFSFile(PlisgoFileHandle& rHandle) const
 {
-	OpenFileData* pOpenFileData = GetOpenFileData(rHandle);
+	OpenFileDataSP openFileData(this);
 
-	if (pOpenFileData == NULL)
+	if (!GetOpenFileData(openFileData, rHandle))
 		return IPtrPlisgoFSFile();
 
-	return pOpenFileData->File;
+	return openFileData->File;
 }
 
 
@@ -478,6 +477,7 @@ int					PlisgoVFS::Open(	PlisgoFileHandle&	rHandle,
 	InterlockedIncrement(&m_OpenFileNum);
 
 	pOpenFileData->File = file;
+	pOpenFileData->nUseRef = 1; //Hold creation reference
 
 	pOpenFileData->sPath = sPathLowerCase;
 	pOpenFileData->nData = nOpenInstaceData;
@@ -509,17 +509,36 @@ int					PlisgoVFS::Open(	PlisgoFileHandle&	rHandle,
 }
 
 
-
-PlisgoVFS::OpenFileData*		PlisgoVFS::GetOpenFileData(PlisgoFileHandle&	rHandle) const
+bool				PlisgoVFS::GetOpenFileData(OpenFileDataSP& rResult, const PlisgoFileHandle&	rHandle) const
 {
 	OpenFileData* pOpenFileData = (OpenFileData*)rHandle;
 
 	boost::shared_lock<boost::shared_mutex>	lock(m_OpenFilePoolMutex);
 
 	if (!m_OpenFilePool.is_from(pOpenFileData))
-		return NULL;
+		return false;
 
-	return pOpenFileData;
+	rResult = pOpenFileData;
+
+	return true;
+}
+
+
+void				PlisgoVFS::DecrementOpenDataRef(OpenFileData* pOpenFileData)
+{
+	if (pOpenFileData == NULL)
+		return;
+
+	if (InterlockedDecrement(&pOpenFileData->nUseRef) == 0)
+	{
+		boost::unique_lock<boost::shared_mutex> lock(m_OpenFilePoolMutex);
+
+		if (InterlockedCompareExchange(&pOpenFileData->nUseRef,0,0) == 0)
+		{
+			m_OpenFilePool.destroy(pOpenFileData);
+		}
+	}
+
 }
 
 
@@ -529,16 +548,16 @@ int					PlisgoVFS::Read(	PlisgoFileHandle&	rHandle,
 										LPDWORD				pnNumberOfBytesRead,
 										LONGLONG			nOffset)
 {
-	OpenFileData* pOpenFileData = GetOpenFileData(rHandle);
+	OpenFileDataSP openFileData(this);
 
-	if (pOpenFileData == NULL)
+	if (!GetOpenFileData(openFileData, rHandle))
 		return -ERROR_INVALID_HANDLE;
 
-	return pOpenFileData->File->Read(	pBuffer,
+	return openFileData->File->Read(	pBuffer,
 										nNumberOfBytesToRead,
 										pnNumberOfBytesRead,
 										nOffset,
-										&pOpenFileData->nData);
+										&openFileData->nData);
 }
 
 
@@ -548,16 +567,16 @@ int					PlisgoVFS::Write(	PlisgoFileHandle&	rHandle,
 										LPDWORD				pnNumberOfBytesWritten,
 										LONGLONG			nOffset)
 {
-	OpenFileData* pOpenFileData = GetOpenFileData(rHandle);
+	OpenFileDataSP openFileData(this);
 
-	if (pOpenFileData == NULL)
+	if (!GetOpenFileData(openFileData, rHandle))
 		return -ERROR_INVALID_HANDLE;
 
-	return pOpenFileData->File->Write(	pBuffer,
+	return openFileData->File->Write(	pBuffer,
 										nNumberOfBytesToWrite,
 										pnNumberOfBytesWritten,
 										nOffset,
-										&pOpenFileData->nData);
+										&openFileData->nData);
 }
 
 
@@ -565,14 +584,14 @@ int					PlisgoVFS::LockFile(PlisgoFileHandle&	rHandle,
 										LONGLONG			nByteOffset,
 										LONGLONG			nByteLength)
 {
-	OpenFileData* pOpenFileData = GetOpenFileData(rHandle);
+	OpenFileDataSP openFileData(this);
 
-	if (pOpenFileData == NULL)
+	if (!GetOpenFileData(openFileData, rHandle))
 		return -ERROR_INVALID_HANDLE;
 
-	return pOpenFileData->File->LockFile(	nByteOffset,
+	return openFileData->File->LockFile(	nByteOffset,
 											nByteLength,
-											&pOpenFileData->nData);
+											&openFileData->nData);
 }
 
 
@@ -580,36 +599,36 @@ int					PlisgoVFS::UnlockFile(	PlisgoFileHandle&	rHandle,
 											LONGLONG			nByteOffset,
 											LONGLONG			nByteLength)
 {
-	OpenFileData* pOpenFileData = GetOpenFileData(rHandle);
+	OpenFileDataSP openFileData(this);
 
-	if (pOpenFileData == NULL)
+	if (!GetOpenFileData(openFileData, rHandle))
 		return -ERROR_INVALID_HANDLE;
 
-	return pOpenFileData->File->UnlockFile(	nByteOffset,
+	return openFileData->File->UnlockFile(	nByteOffset,
 											nByteLength,
-											&pOpenFileData->nData);
+											&openFileData->nData);
 }
 
 
 int					PlisgoVFS::FlushBuffers(PlisgoFileHandle&	rHandle)
 {
-	OpenFileData* pOpenFileData = GetOpenFileData(rHandle);
+	OpenFileDataSP openFileData(this);
 
-	if (pOpenFileData == NULL)
+	if (!GetOpenFileData(openFileData, rHandle))
 		return -ERROR_INVALID_HANDLE;
 
-	return pOpenFileData->File->FlushBuffers(&pOpenFileData->nData);
+	return openFileData->File->FlushBuffers(&openFileData->nData);
 }
 
 
 int					PlisgoVFS::SetEndOfFile(PlisgoFileHandle&	rHandle, LONGLONG nEndPos)
 {
-	OpenFileData* pOpenFileData = GetOpenFileData(rHandle);
+	OpenFileDataSP openFileData(this);
 
-	if (pOpenFileData == NULL)
+	if (!GetOpenFileData(openFileData, rHandle))
 		return -ERROR_INVALID_HANDLE;
 
-	return pOpenFileData->File->SetEndOfFile(nEndPos, &pOpenFileData->nData);
+	return openFileData->File->SetEndOfFile(nEndPos, &openFileData->nData);
 }
 
 
@@ -618,14 +637,20 @@ int					PlisgoVFS::Close(PlisgoFileHandle&	rHandle, bool bDeleteOnClose)
 	if (rHandle == 0)
 		return 0; //Already closed
 
-	OpenFileData* pOpenFileData = GetOpenFileData(rHandle);
+	OpenFileDataSP openFileData(this);
 
-	if (pOpenFileData == NULL)
+	if (!GetOpenFileData(openFileData, rHandle))
 		return -ERROR_INVALID_HANDLE;
 
-	int nError = pOpenFileData->File->Close(&pOpenFileData->nData);
+	 //nUseRef should be 2, 1 for creation, 1 for this call, others means the handle is being used from multiple thread at the same, which isn't supported.
+	assert(openFileData->nUseRef == 2);
 
-	const std::wstring& rsPath = pOpenFileData->sPath;
+	if (openFileData->nUseRef != 2)
+		return -ERROR_BAD_ENVIRONMENT;
+
+	int nError = openFileData->File->Close(&openFileData->nData);
+
+	const std::wstring& rsPath = openFileData->sPath;
 
 	if (nError == 0 && bDeleteOnClose)
 	{
@@ -644,15 +669,15 @@ int					PlisgoVFS::Close(PlisgoFileHandle&	rHandle, bool bDeleteOnClose)
 		{
 			boost::unique_lock<boost::shared_mutex> lock(m_CacheEntryMutex);
 
-			nError = pFolder->RemoveChild(GetNameFromPath(pOpenFileData->sPath.c_str()));
+			nError = pFolder->RemoveChild(GetNameFromPath(openFileData->sPath.c_str()));
 
 			if (nError == 0)
 			{
-				m_CacheEntryMap.erase(pOpenFileData->sPath);
+				m_CacheEntryMap.erase(openFileData->sPath);
 
-				m_MountTree.RemoveBranch(pOpenFileData->sPath);
+				m_MountTree.RemoveBranch(openFileData->sPath);
 
-				if (pOpenFileData->File->GetAsFolder() != NULL)
+				if (openFileData->File->GetAsFolder() != NULL)
 					RestartCache();
 			}
 		}	
@@ -661,28 +686,28 @@ int					PlisgoVFS::Close(PlisgoFileHandle&	rHandle, bool bDeleteOnClose)
 	boost::unique_lock<boost::shared_mutex>	lock(m_OpenFilePoolMutex);
 
 	if (m_pLog != NULL)
-		m_pLog->CloseFile(pOpenFileData->sPath);
+		m_pLog->CloseFile(openFileData->sPath);
 
-	if (m_pLatestOpen == pOpenFileData)
+	if (m_pLatestOpen == *openFileData)
 	{
-		m_pLatestOpen = pOpenFileData->pNext;
+		m_pLatestOpen = openFileData->pNext;
 
 		if (m_pLatestOpen != NULL)
 			m_pLatestOpen->pPrev = NULL;
 	}
 	else
 	{
-		if (pOpenFileData->pNext != NULL)
-			pOpenFileData->pNext->pPrev = pOpenFileData->pPrev;
+		if (openFileData->pNext != NULL)
+			openFileData->pNext->pPrev = openFileData->pPrev;
 
-		if (pOpenFileData->pPrev != NULL)
-			pOpenFileData->pPrev->pNext = pOpenFileData->pNext;
+		if (openFileData->pPrev != NULL)
+			openFileData->pPrev->pNext = openFileData->pNext;
 	}
 
-	if (pOpenFileData->bDeleteOnClose)
+	if (openFileData->bDeleteOnClose)
 		m_PendingDeletes.erase(rsPath);
 
-	m_OpenFilePool.destroy(pOpenFileData);
+	InterlockedDecrement(&openFileData->nUseRef); //Release creation refernce, so will be released on exit
 
 	InterlockedDecrement(&m_OpenFileNum);
 	
@@ -694,12 +719,12 @@ int					PlisgoVFS::Close(PlisgoFileHandle&	rHandle, bool bDeleteOnClose)
 
 int					PlisgoVFS::GetDeleteError(PlisgoFileHandle&	rHandle) const
 {
-	OpenFileData* pOpenFileData = GetOpenFileData(rHandle);
+	OpenFileDataSP openFileData(this);
 
-	if (pOpenFileData == NULL)
+	if (!GetOpenFileData(openFileData, rHandle))
 		return -ERROR_INVALID_HANDLE;
 
-	const std::wstring sPath = pOpenFileData->sPath;
+	const std::wstring sPath = openFileData->sPath;
 
 	size_t nSlash = sPath.rfind(L'\\');
 
@@ -715,18 +740,18 @@ int					PlisgoVFS::GetDeleteError(PlisgoFileHandle&	rHandle) const
 
 	boost::unique_lock<boost::shared_mutex>	lock(m_OpenFilePoolMutex);
 
-	int nError = pFolder->GetRemoveChildError(GetNameFromPath(pOpenFileData->sPath));
+	int nError = pFolder->GetRemoveChildError(GetNameFromPath(openFileData->sPath));
 
 	if (nError != 0)
 		return nError;
 
-	nError = pOpenFileData->File->GetDeleteError(&pOpenFileData->nData);
+	nError = openFileData->File->GetDeleteError(&openFileData->nData);
 
 	if (nError != 0)
 		return nError;
 
-	pOpenFileData->bDeleteOnClose = true;
-	m_PendingDeletes[pOpenFileData->sPath] = true;
+	openFileData->bDeleteOnClose = true;
+	m_PendingDeletes[openFileData->sPath] = true;
 
 	return 0;
 }
@@ -737,35 +762,35 @@ int					PlisgoVFS::SetFileTimes(	PlisgoFileHandle&	rHandle,
 												const FILETIME*		pLastAccess,
 												const FILETIME*		pLastWrite)
 {
-	OpenFileData* pOpenFileData = GetOpenFileData(rHandle);
+	OpenFileDataSP openFileData(this);
 
-	if (pOpenFileData == NULL)
+	if (!GetOpenFileData(openFileData, rHandle))
 		return -ERROR_INVALID_HANDLE;
 
-	return pOpenFileData->File->SetFileTimes(pCreation, pLastAccess, pLastWrite, &pOpenFileData->nData);
+	return openFileData->File->SetFileTimes(pCreation, pLastAccess, pLastWrite, &openFileData->nData);
 }
 
 
 int					PlisgoVFS::SetAttributes(	PlisgoFileHandle&	rHandle,
 												DWORD				nFileAttributes)
 {
-	OpenFileData* pOpenFileData = GetOpenFileData(rHandle);
+	OpenFileDataSP openFileData(this);
 
-	if (pOpenFileData == NULL)
+	if (!GetOpenFileData(openFileData, rHandle))
 		return -ERROR_INVALID_HANDLE;
 
-	return pOpenFileData->File->SetAttributes(nFileAttributes, &pOpenFileData->nData);
+	return openFileData->File->SetAttributes(nFileAttributes, &openFileData->nData);
 }
 
 
 int					PlisgoVFS::GetHandleInfo(PlisgoFileHandle&	rHandle, LPBY_HANDLE_FILE_INFORMATION pInfo)
 {
-	OpenFileData* pOpenFileData = GetOpenFileData(rHandle);
+	OpenFileDataSP openFileData(this);
 
-	if (pOpenFileData == NULL)
+	if (!GetOpenFileData(openFileData, rHandle))
 		return -ERROR_INVALID_HANDLE;
 
-	return pOpenFileData->File->GetHandleInfo(pInfo, &pOpenFileData->nData);
+	return openFileData->File->GetHandleInfo(pInfo, &openFileData->nData);
 }
 
 	
@@ -830,7 +855,9 @@ void				PlisgoVFS::RestartCache()
 
 	for(MountTree::FullKeyMap::const_iterator it = fullKeyMap.begin(); it != fullKeyMap.end(); ++it)
 	{
-		Cached& rCached = m_CacheEntryMap[it->first];
+		const std::wstring& rsPath = it->first;
+
+		Cached& rCached = m_CacheEntryMap[rsPath];
 		
 		rCached.file = it->second;
 		rCached.nTime = -1; //From the future, so is never too old!

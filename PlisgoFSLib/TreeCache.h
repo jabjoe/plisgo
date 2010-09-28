@@ -387,7 +387,7 @@ inline void TreeCache<TData>::MoveBranch(std::wstring sOldFullKey, std::wstring 
 
 	std::wstring sOldName;
 
-	if (!GetTreeParent(sOldFullKey, pOldTreeNode, pOldParentTreeNode, sOldName))
+	if (!GetTreeParent(sOldFullKey, pOldParentTreeNode, pOldTreeNode, sOldName))
 		return; //This path wasn't in the tree anyway
 
 	assert(pOldParentTreeNode != NULL);
@@ -400,6 +400,7 @@ inline void TreeCache<TData>::MoveBranch(std::wstring sOldFullKey, std::wstring 
 
 	assert(pNewTreeNode != NULL);
 
+	pNewTreeNode->bSet		= pOldTreeNode->bSet;
 	pNewTreeNode->Data		= pOldTreeNode->Data;
 	pNewTreeNode->Children	= pOldTreeNode->Children;
 

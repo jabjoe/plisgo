@@ -86,6 +86,20 @@ int __stdcall	PlisgoExampleCreateDirectory(	LPCWSTR					sFileName,
 int __stdcall	PlisgoExampleOpenDirectory(	LPCWSTR					sFileName,
 											PDOKAN_FILE_INFO		pDokanFileInfo)
 {
+	/*
+		Check the path is acturally a folder.
+		This will put the file into the cache, so the next call will be quicker, so not much cost.
+	*/
+	{
+		IPtrPlisgoFSFile file = GetPlisgoVFS(pDokanFileInfo)->TracePath(sFileName);
+		
+		if (file.get() == NULL)
+			return -ERROR_PATH_NOT_FOUND;
+
+		if (file->GetAsFolder() == NULL)
+			return -ERROR_NO_MORE_ITEMS; //STATUS_NOT_A_DIRECTORY   0xC0000103
+	}
+
 	return PlisgoExampleCreateFile(	sFileName,
 									GENERIC_READ,
 									FILE_SHARE_READ|FILE_SHARE_WRITE,

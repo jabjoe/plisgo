@@ -342,7 +342,8 @@ HRESULT		 CPlisgoFolder::GetTextOfColumn(PCUITEMID_CHILD pIDL, UINT nColumn, WCH
 
 HRESULT			CPlisgoFolder::GetItemName(PCUITEMID_CHILD pIDL, WCHAR* sBuffer, size_t nBufferSize) const
 {
-	assert(pIDL != NULL && sBuffer != NULL);
+	if (pIDL == NULL && sBuffer == NULL)
+		return E_INVALIDARG;
 
 	STRRET name;
 

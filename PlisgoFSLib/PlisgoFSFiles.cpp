@@ -1429,7 +1429,10 @@ IPtrPlisgoFSFile	PlisgoFSRealFolder::GetChild(LPCWSTR sName) const
 {
 	assert(sName != NULL);
 
-	std::wstring sRealSearchPath = m_sRealPath + L"\\" + sName;
+	std::wstring sRealSearchPath = m_sRealPath;
+	
+	sRealSearchPath+= L"\\";
+	sRealSearchPath+= sName;
 
 	WIN32_FIND_DATAW	findData;
 
