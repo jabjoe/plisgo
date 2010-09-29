@@ -591,7 +591,7 @@ STDMETHODIMP CPlisgoView::CreateViewWindow(	LPSHELLVIEW			pPrevView,
 	entry.fRecursive = TRUE;
 	entry.pidl = m_pContainingFolder->GetIDList();
 
-	m_nShellNotificationID = SHChangeNotifyRegister(m_hWnd, SHCNRF_ShellLevel | SHCNRF_RecursiveInterrupt,
+	m_nShellNotificationID = SHChangeNotifyRegister(m_hWnd, SHCNRF_ShellLevel | SHCNRF_InterruptLevel | SHCNRF_RecursiveInterrupt | SHCNRF_NewDelivery,
 													SHCNE_ATTRIBUTES | SHCNE_CREATE | SHCNE_DELETE | SHCNE_RENAMEITEM |
 													SHCNE_UPDATEITEM | SHCNE_UPDATEDIR | SHCNE_MKDIR | SHCNE_RMDIR | SHCNE_DRIVEADD
 													, WM_PLISGOVIEWSHELLMESSAGE, 1, &entry);
@@ -1508,72 +1508,71 @@ void		 CPlisgoView::HandleDeactivate()
 
 LRESULT		 CPlisgoView::OnCustomViewShellMessage(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& rbHandled)
 {
-	LONG nEvent = (LONG)lParam;
+	LONG nEvent = 0;
 
-	PIDLIST_ABSOLUTE pFullIDL = ((PIDLIST_ABSOLUTE*)wParam)[0]; //Second is a terminator
+	PIDLIST_ABSOLUTE* ppFullIDL = NULL;
 
-	PUIDLIST_RELATIVE pChildIDL = ILFindChild(m_pContainingFolder->GetIDList(), pFullIDL);
+	DWORD nProcessId = lParam;
 
-	if (nEvent == SHCNE_UPDATEDIR)
-		nEvent = nEvent;
+	HANDLE hLock = SHChangeNotification_Lock((HANDLE)wParam, nProcessId, &ppFullIDL, &nEvent);
 
-	if (pChildIDL != NULL)
+	if (hLock == NULL || hLock == INVALID_HANDLE_VALUE)
+		return 0;
+
+	PIDLIST_ABSOLUTE pFullIDL = ppFullIDL[0];
+
+
+	switch(nEvent)
 	{
-		LPITEMIDLIST pNextIDL = ILGetNext(pChildIDL);
-
-		if (pNextIDL == NULL)
+	case SHCNE_CREATE:
+	case SHCNE_MKDIR:
 		{
-			assert(pChildIDL->mkid.cb == 0);
+			/*
+				Ok, this is a bug work round.
+				The IDL of pChildIDL contains file info that is wrong.
+				So we recreate the IDL which corrects this.
+			*/
 
-			Refresh();
-		}
-		else if (pNextIDL->mkid.cb == 0)
-		{
+			PUIDLIST_RELATIVE pChildIDL = ILFindChild(m_pContainingFolder->GetIDList(), pFullIDL);
 
-			switch(nEvent)
+			WCHAR sName[MAX_PATH];
+
+			PUIDLIST_RELATIVE pNewChildIDL = NULL;
+
+			if (m_pContainingFolder->GetItemName(pChildIDL, sName, MAX_PATH) == S_OK)
 			{
-			case SHCNE_RENAMEITEM:
-			case SHCNE_RENAMEFOLDER:
-				{
-					PIDLIST_ABSOLUTE	pNewFullIDL = ((PIDLIST_ABSOLUTE*)wParam)[1];
-					PUIDLIST_RELATIVE	pNewChildIDL = ILFindChild(m_pContainingFolder->GetIDList(), pNewFullIDL);
-
-					pChildIDL = pNewChildIDL; //IDL already changed.
-					break;
-				}
-
-			case SHCNE_CREATE:
-			case SHCNE_MKDIR:
-				{
-					/*
-						Ok, this is a bug work round.
-						The IDL of pChildIDL contains file info that is wrong.
-						So we recreate the IDL which corrects this.
-					*/
-
-					WCHAR sName[MAX_PATH];
-
-					if (m_pContainingFolder->GetItemName(pChildIDL, sName, MAX_PATH) == S_OK)
-					{
-						PUIDLIST_RELATIVE pNewChildIDL = NULL;
-
-						if (m_pContainingFolder->ParseDisplayName(NULL, NULL, sName, NULL, &pNewChildIDL, NULL) == S_OK)
-							pChildIDL = pNewChildIDL;
-					}
-
-					if (ListViewGetItemFromIDL(m_hList, pChildIDL) == -1)
-						AddItem(pChildIDL);
-
-					return 0;
-				}
-			case SHCNE_DELETE:
-			case SHCNE_RMDIR:
-				{
-					DeleteItem(pChildIDL);			
-
-					return 0;
-				}
+				if (m_pContainingFolder->ParseDisplayName(NULL, NULL, sName, NULL, &pNewChildIDL, NULL) == S_OK)
+					pChildIDL = pNewChildIDL;
 			}
+
+			if (ListViewGetItemFromIDL(m_hList, pChildIDL) == -1)
+			{
+				AddItem(pChildIDL);
+				pNewChildIDL = NULL; //Ensure it doesn't get cleaned.
+			}
+
+			if (pNewChildIDL != NULL)
+				ILFree(pNewChildIDL);
+
+			break;
+		}
+	case SHCNE_DELETE:
+	case SHCNE_RMDIR:
+		{
+			PUIDLIST_RELATIVE pChildIDL = ILFindChild(m_pContainingFolder->GetIDList(), pFullIDL);
+
+			DeleteItem(pChildIDL);
+
+			break;
+		}
+	case SHCNE_RENAMEITEM:
+	case SHCNE_RENAMEFOLDER:
+		{
+			pFullIDL = ppFullIDL[1]; //IDL already changed.
+		}
+	default:
+		{
+			PUIDLIST_RELATIVE pChildIDL = ILFindChild(m_pContainingFolder->GetIDList(), pFullIDL);
 
 			//Refresh child .......
 
@@ -1608,7 +1607,11 @@ LRESULT		 CPlisgoView::OnCustomViewShellMessage(UINT uMsg, WPARAM wParam, LPARAM
 			else Refresh();
 		}
 	}
+		
 	
+	
+	SHChangeNotification_Unlock(hLock);
+
     return 0;
 }
 
