@@ -64,22 +64,78 @@ private:
 };
 
 
-class ClickFile : public PlisgoFSStringFile
+
+
+int	PlisgoMiscClickFile::Write(	LPCVOID		pBuffer,
+								DWORD		nNumberOfBytesToWrite,
+								LPDWORD		pnNumberOfBytesWritten,
+								LONGLONG	nOffset,
+								ULONGLONG*	pInstanceData)
+{
+	int nResult = PlisgoFSStringFile::Write(	pBuffer,
+										nNumberOfBytesToWrite,
+										pnNumberOfBytesWritten,
+										nOffset,
+										pInstanceData);
+	if (nResult == 0)
+	{
+		std::string sText;
+
+		GetString(sText);
+
+		*pInstanceData |= (atoi(sText.c_str()))?SYNCHRONIZE:0;
+	}
+
+	return nResult;
+}
+
+
+int	PlisgoMiscClickFile::FlushBuffers(ULONGLONG* pInstanceData)
+{
+	assert(pInstanceData != NULL);
+
+	bool bClick = (*pInstanceData & SYNCHRONIZE)?true:false;
+
+	*pInstanceData &=~SYNCHRONIZE; //Remove 'click' flag
+
+	if (bClick)
+		Triggered();
+
+	return PlisgoFSStringFile::FlushBuffers(pInstanceData);
+}
+
+
+int	PlisgoMiscClickFile::Close(ULONGLONG* pInstanceData)
+{
+	if (*pInstanceData & SYNCHRONIZE)
+		FlushBuffers(pInstanceData);
+
+	return PlisgoFSStringFile::Close(pInstanceData);
+}
+
+
+
+
+
+class ClickFile : public PlisgoMiscClickFile
 {
 public:
 	
 	ClickFile(	boost::shared_ptr<SelectionFile>	selectionFile,
-				IPtrFileEvent						onClickEvent);
+				IPtrFileEvent						onClickEvent) : m_OnClickEvent(onClickEvent)
+	{
+		m_selectionFile = selectionFile;
+	}
 
-	virtual int		Write(	LPCVOID		pBuffer,
-							DWORD		nNumberOfBytesToWrite,
-							LPDWORD		pnNumberOfBytesWritten,
-							LONGLONG	nOffset,
-							ULONGLONG*	pInstanceData);
+	virtual void Triggered()
+	{
+		if (m_OnClickEvent.get() != NULL)
+		{
+			assert(m_selectionFile.get() != NULL);
 
-	virtual int		FlushBuffers(ULONGLONG* pInstanceData);
-
-	virtual int		Close(ULONGLONG* pInstanceData);
+			m_selectionFile->CallPerPath(*m_OnClickEvent);
+		}
+	}
 
 private:
 	IPtrFileEvent						m_OnClickEvent;
@@ -210,63 +266,6 @@ bool	SelectionFile::CallPerPath(FileEvent& rEvent)
 	
 	return bResult;
 }
-
-
-ClickFile::ClickFile(	boost::shared_ptr<SelectionFile>	selectionFile,
-						IPtrFileEvent						onClickEvent)
-						: m_OnClickEvent(onClickEvent), PlisgoFSStringFile("0")
-{
-	m_selectionFile = selectionFile;
-}
-
-
-int		ClickFile::Write(	LPCVOID		pBuffer,
-							DWORD		nNumberOfBytesToWrite,
-							LPDWORD		pnNumberOfBytesWritten,
-							LONGLONG	nOffset,
-							ULONGLONG*	pInstanceData)
-{
-	int nResult = PlisgoFSStringFile::Write(	pBuffer,
-										nNumberOfBytesToWrite,
-										pnNumberOfBytesWritten,
-										nOffset,
-										pInstanceData);
-	if (nResult == 0)
-	{
-		std::string sText;
-
-		GetString(sText);
-
-		*pInstanceData |= (atoi(sText.c_str()))?SYNCHRONIZE:0;
-	}
-
-	return nResult;
-}
-
-
-int		ClickFile::FlushBuffers(ULONGLONG* pInstanceData)
-{
-	assert(pInstanceData != NULL);
-
-	bool bClick = (*pInstanceData & SYNCHRONIZE)?true:false;
-
-	*pInstanceData &=~SYNCHRONIZE; //Remove 'click' flag
-
-	if (bClick && m_OnClickEvent.get() != NULL)
-		m_selectionFile->CallPerPath(*m_OnClickEvent);
-
-	return PlisgoFSStringFile::FlushBuffers(pInstanceData);
-}
-
-
-int		ClickFile::Close(ULONGLONG* pInstanceData)
-{
-	if (*pInstanceData & SYNCHRONIZE)
-		FlushBuffers(pInstanceData);
-
-	return PlisgoFSStringFile::Close(pInstanceData);
-}
-
 
 
 

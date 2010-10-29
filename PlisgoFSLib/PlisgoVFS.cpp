@@ -23,6 +23,10 @@
 
 #include "PlisgoVFS.h"
 
+#define PLISGOVFS_DELETE_ON_CLOSE	0x1
+
+
+
 PlisgoVFS::PlisgoVFS(IPtrPlisgoFSFolder root, PlisgoVFSOpenLog* pLog)
 {
 	assert(root.get() != NULL);
@@ -484,10 +488,10 @@ int					PlisgoVFS::Open(	PlisgoFileHandle&	rHandle,
 	
 	if (nFlagsAndAttributes&FILE_FLAG_DELETE_ON_CLOSE)
 	{
-		pOpenFileData->bDeleteOnClose = true;
+		pOpenFileData->nFlags = PLISGOVFS_DELETE_ON_CLOSE;
 		m_PendingDeletes[sPathLowerCase] = true;
 	}
-	else pOpenFileData->bDeleteOnClose = false;
+	else pOpenFileData->nFlags = 0;
 
 	pOpenFileData->pPrev = NULL;
 
@@ -704,7 +708,7 @@ int					PlisgoVFS::Close(PlisgoFileHandle&	rHandle, bool bDeleteOnClose)
 			openFileData->pPrev->pNext = openFileData->pNext;
 	}
 
-	if (openFileData->bDeleteOnClose)
+	if (openFileData->nFlags & PLISGOVFS_DELETE_ON_CLOSE)
 		m_PendingDeletes.erase(rsPath);
 
 	InterlockedDecrement(&openFileData->nUseRef); //Release creation refernce, so will be released on exit
@@ -750,7 +754,7 @@ int					PlisgoVFS::GetDeleteError(PlisgoFileHandle&	rHandle) const
 	if (nError != 0)
 		return nError;
 
-	openFileData->bDeleteOnClose = true;
+	openFileData->nFlags |= PLISGOVFS_DELETE_ON_CLOSE;
 	m_PendingDeletes[openFileData->sPath] = true;
 
 	return 0;

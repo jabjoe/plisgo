@@ -26,97 +26,234 @@
 #include "IconUtils.h"
 
 
+static HBITMAP		CreateMeABitmap(HDC hDC, LONG nWidth, LONG nHeight, WORD nDepth, DWORD** ppBits )
+{
+	BITMAPINFO bi = {0};
+
+	bi.bmiHeader.biSize			= sizeof(BITMAPINFOHEADER);
+	bi.bmiHeader.biWidth		= nWidth;
+	bi.bmiHeader.biHeight		= nHeight;
+	bi.bmiHeader.biPlanes		= 1;
+	bi.bmiHeader.biBitCount		= nDepth;
+	bi.bmiHeader.biCompression	= BI_RGB;
+	bi.bmiHeader.biSizeImage	= nWidth * nHeight * 4;
+
+	return CreateDIBSection(hDC, (BITMAPINFO *)&bi, DIB_RGB_COLORS, (void **)ppBits, NULL, 0);
+}
 
 
-HICON	CreateIconFromBitMap(HBITMAP hBitmap, const UINT nAimHeight)
+HBITMAP			CreateAlphaBitmap(HDC hDC, LONG nWidth, LONG nHeight, DWORD** ppBits )
+{
+	return CreateMeABitmap(hDC, nWidth, nHeight, 32, ppBits);
+}
+
+
+HBITMAP	CreateBitmapOfHeight(HBITMAP hBitmap, const UINT nAimHeight, const WORD nColorDepth)
 {
 	BITMAP bm = {0};
 
-	GetObject(hBitmap, sizeof(BITMAP), &bm);
-
+	if (GetObject(hBitmap, sizeof(BITMAP), &bm) != sizeof(BITMAP))
+		return NULL;
 
 	UINT nHeight = bm.bmHeight;
 	UINT nWidth = bm.bmWidth;
 
-	if (nHeight != nAimHeight || nWidth != nAimHeight || bm.bmBitsPixel != 32)
+	if (nHeight == nAimHeight && nWidth == nAimHeight && bm.bmBitsPixel == nColorDepth)
+		return hBitmap;
+
+
+	UINT nTargetWidth;
+	UINT nTargetHeight;
+
+	if (nHeight==nWidth)
 	{
-		if (nHeight==nWidth)
+		nTargetHeight = nAimHeight;
+		nTargetWidth = nAimHeight;
+	}
+	else if (nHeight>nWidth)
+	{
+		nTargetWidth = (UINT)(nWidth * (nAimHeight/(float)nHeight));
+		nTargetHeight = nAimHeight;
+	}
+	else
+	{
+		nTargetHeight = (UINT)(nHeight * (nAimHeight/(float)nWidth));
+		nTargetWidth = nAimHeight;
+	}
+
+	HBITMAP hNewBitmap = NULL;
+	HDC hSrcDC = NULL;
+	HDC hDstDC = NULL;
+	HGDIOBJ hOldSrcSel = NULL;
+	HGDIOBJ hOldDstSel = NULL;
+
+	hSrcDC = CreateCompatibleDC(0);
+	hDstDC = CreateCompatibleDC(0);
+
+	if (hSrcDC == NULL || hDstDC == NULL)
+		goto cleanup;
+
+	hNewBitmap = CreateMeABitmap(hDstDC, nAimHeight, nAimHeight, nColorDepth, NULL);
+
+	if (hNewBitmap == NULL)
+		goto cleanup;
+
+	hOldSrcSel = SelectObject(hSrcDC, hBitmap);
+	hOldDstSel = SelectObject(hDstDC, hNewBitmap);
+
+	if (hOldSrcSel == NULL || hOldDstSel == NULL)
+	{
+		DeleteObject(hNewBitmap);
+		hNewBitmap = NULL;
+
+		goto cleanup;
+	}
+
+	const LONG nXOffset = max((nAimHeight-nTargetWidth)/2,0);
+	const LONG nYOffset = max((nAimHeight-nTargetHeight)/2,0);
+
+	{
+		BLENDFUNCTION bdf = {0};
+
+		bdf.BlendOp = AC_SRC_OVER;
+		bdf.SourceConstantAlpha = 255;
+		bdf.AlphaFormat = AC_SRC_ALPHA;
+
+		if (!AlphaBlend(	hDstDC, nXOffset, nYOffset, nAimHeight-nXOffset*2, nAimHeight-nYOffset*2, 
+					hSrcDC, 0, 0, nWidth, nHeight, bdf))
 		{
-			HBITMAP hNewBitmap = (HBITMAP)CopyImage(hBitmap, IMAGE_BITMAP, nAimHeight, nAimHeight, 0);
+			DeleteObject(hNewBitmap);
+			hNewBitmap = NULL;
 
-			DeleteObject(hBitmap);
-
-			if (hNewBitmap == NULL)
-				return false;
-
-			hBitmap = hNewBitmap;
-		}
-		else
-		{
-			UINT nTargetWidth;
-			UINT nTargetHeight;
-
-			if (nHeight>nWidth)
-			{
-				nTargetWidth = (UINT)(nWidth * (nAimHeight/(float)nHeight));
-				nTargetHeight = nAimHeight;
-			}
-			else
-			{
-				nTargetHeight = (UINT)(nHeight * (nAimHeight/(float)nWidth));
-				nTargetWidth = nAimHeight;
-			}
-		
-			HDC hSrcDC = CreateCompatibleDC(0);
-			HDC hDstDC = CreateCompatibleDC(0);
-
-			assert(hSrcDC != NULL && hDstDC != NULL);
-
-			HBITMAP hNewBitmap = CreateAlphaBitmap(hDstDC, nAimHeight, nAimHeight, NULL);
-
-			assert(hNewBitmap != NULL);
-
-			HGDIOBJ hOldSrcSel = SelectObject(hSrcDC, hBitmap);
-			HGDIOBJ hOldDstSel = SelectObject(hDstDC, hNewBitmap);
-
-			const LONG nXOffset = max((nAimHeight-nTargetWidth)/2,0);
-			const LONG nYOffset = max((nAimHeight-nTargetHeight)/2,0);
-
-			BLENDFUNCTION bdf = {0};
-
-			bdf.BlendOp = AC_SRC_OVER;
-			bdf.SourceConstantAlpha = 255;
-			bdf.AlphaFormat = AC_SRC_ALPHA;
-
-			AlphaBlend(	hDstDC, nXOffset, nYOffset, nAimHeight-nXOffset*2, nAimHeight-nYOffset*2, 
-						hSrcDC, 0, 0, nWidth, nHeight, bdf);
-
-			SelectObject(hSrcDC, hOldSrcSel);
-			SelectObject(hDstDC, hOldDstSel);
-
-			DeleteDC(hSrcDC);
-			DeleteDC(hDstDC);
-
-			DeleteObject(hBitmap);
-
-			hBitmap = hNewBitmap;
+			goto cleanup;
 		}
 	}
 
+cleanup:
+
+	if (hSrcDC != NULL)
+	{
+		if (hOldSrcSel != NULL)
+			SelectObject(hSrcDC, hOldSrcSel);
+
+		DeleteDC(hSrcDC);
+	}
+
+	if (hDstDC != NULL)
+	{
+		if (hOldDstSel != NULL)
+			SelectObject(hSrcDC, hOldDstSel);
+
+		DeleteDC(hDstDC);
+	}
+
+	return hNewBitmap;
+}
+
+
+
+HICON	CreateIconFromBitMap(HBITMAP hBitmap, const UINT nAimHeight)
+{
+	HBITMAP hNewBitmap = CreateBitmapOfHeight(hBitmap, nAimHeight, 32);
+
 	ICONINFO newIcon = {0};
 
-	newIcon.hbmColor = hBitmap;
+	newIcon.hbmColor = hNewBitmap;
 	newIcon.hbmMask = CreateBitmap(nAimHeight,nAimHeight,1,1,NULL);
 
 	assert(newIcon.hbmMask != NULL);
 
 	HICON hIcon = CreateIconIndirect(&newIcon);
 
+	if (hNewBitmap != hBitmap)
+		DeleteObject(hNewBitmap);
+
 	DeleteObject(hBitmap);
 	DeleteObject(newIcon.hbmMask);
 
 	return hIcon;
 }
+
+
+
+HBITMAP		ExtractBitmap( const std::wstring& rsFile, LONG /*nWidth*/, LONG nHeight, WORD nDepth)
+{
+	// Yer, we don't acturally use the width, at the moment this is only used by thumbnails code which asks for squares
+
+	Gdiplus::GdiplusStartupInput GDiplusStartupInput;
+	ULONG_PTR nDiplusToken;
+
+	HBITMAP hResult = NULL;
+
+	if (!Gdiplus::GdiplusStartup(&nDiplusToken, &GDiplusStartupInput, NULL) == Gdiplus::Ok)
+		return NULL;
+	
+	Gdiplus::Bitmap* pBitmap = Gdiplus::Bitmap::FromFile(rsFile.c_str(), TRUE);
+
+	if (pBitmap == NULL)
+	{
+		Gdiplus::GdiplusShutdown(nDiplusToken);
+		return NULL;
+	}
+
+	if (pBitmap->GetLastStatus() != Gdiplus::Ok)
+	{
+		//Mmmmm ok, maybe it's a icon in some form...
+
+		HICON hIcon = GetSpecificIcon(rsFile.c_str(), 0, nHeight);
+
+		if (hIcon != NULL)
+		{
+			HDC hDC = CreateCompatibleDC(0);
+
+			if (hDC != NULL)
+			{
+				hResult = CreateMeABitmap(hDC, nHeight, nHeight, nDepth, NULL);
+
+				if (hResult != NULL)
+				{
+					HGDIOBJ hOldSel = SelectObject(hDC, hResult);
+
+					if (hOldSel != NULL)
+					{
+						if (!DrawIconEx(hDC, 0, 0, hIcon, nHeight, nHeight, NULL, NULL, DI_NORMAL))
+						{
+							 SelectObject(hDC, hOldSel);
+
+							 DeleteObject(hResult);
+							 hResult = NULL;
+						}
+						else SelectObject(hDC, hOldSel);
+					}
+				}
+
+				DeleteDC(hDC);
+			}
+
+			DestroyIcon(hIcon);
+		}
+	}
+	else
+	{
+
+		HBITMAP hOrg = NULL;
+
+		if (pBitmap->GetHBITMAP(Gdiplus::Color::Transparent, &hOrg) == Gdiplus::Ok)
+		{
+			hResult = CreateBitmapOfHeight(hOrg, nHeight, nDepth);
+
+			if (hResult != hOrg)
+				DeleteObject(hOrg);
+		}
+	}
+
+	delete pBitmap;
+
+	Gdiplus::GdiplusShutdown(nDiplusToken);
+
+	return hResult;
+}
+
 
 
 static bool		GetShortcutIconLocation(std::wstring& rsIconPath, int& rnIndex, LPCWSTR sLinkFile)
@@ -149,11 +286,6 @@ static bool		GetShortcutIconLocation(std::wstring& rsIconPath, int& rnIndex, LPC
 
 	return true;
 }
-
-static bool		ReadUrlShortcutTarget(std::wstring& rsTarget, LPCWSTR sLinkFile)
-{
-}
-
 
 
 #pragma pack(push)
@@ -196,6 +328,8 @@ struct ICONDIRENTRY
 	DWORD       dwImageOffset;   // Where in the file is this image?
 };
 
+typedef std::pair<void*,ICONDIRENTRY>	LOADEDICONDIRENTRY;
+
 struct ICONDIR
 {
     WORD           idReserved;   // Reserved (must be 0)
@@ -208,6 +342,40 @@ struct ICONDIR
 static size_t	GetIconDirSize(WORD idCount)
 {
 	return GETOFFSET(ICONDIR,idEntries) + (sizeof(ICONDIRENTRY) * (idCount));
+}
+
+static UINT		GetIconHeight(BYTE bHeight)
+{
+	if (bHeight == 0)
+		return 256;
+	else
+		return bHeight;
+}
+
+
+template<typename T>
+bool	IsBetterFit(T* pEntry, T* pBestFit, UINT nHeight)
+{
+	const UINT nBestFitHeight = GetIconHeight(pBestFit->bHeight);
+	const UINT nEntryHeight = GetIconHeight(pEntry->bHeight);
+
+	nHeight = GetIconHeight((BYTE)nHeight); //In case unprocessed source
+
+	if (nEntryHeight == nHeight)
+	{
+		if (nBestFitHeight != nHeight || pEntry->wBitCount > pBestFit->wBitCount)
+			return true;
+	}
+	else if ( (nBestFitHeight > nHeight && nEntryHeight < nBestFitHeight && nEntryHeight > nHeight)
+							||
+			 (nBestFitHeight < nHeight && nEntryHeight > nBestFitHeight) 
+							||
+			 (nBestFitHeight == nEntryHeight && pEntry->wBitCount > pBestFit->wBitCount) )
+	{
+		return true;
+	}
+
+	return false;
 }
 
 
@@ -223,19 +391,8 @@ T2* FindBestEntry(T *pIcons, UINT nHeight)
 		if (pEntry->bReserved != 0)
 			return NULL;
 
-		if (pEntry->bHeight == nHeight)
-		{
-			if (pBestFit->bHeight != nHeight || pEntry->wBitCount > pBestFit->wBitCount)
-				pBestFit = pEntry;
-		}
-		else if ( (pBestFit->bHeight > nHeight && pEntry->bHeight < pBestFit->bHeight && pEntry->bHeight > nHeight)
-								||
-				 (pBestFit->bHeight < nHeight && pEntry->bHeight > pBestFit->bHeight) 
-								||
-				 (pBestFit->bHeight == pEntry->bHeight && pEntry->wBitCount > pBestFit->wBitCount) )
-		{
+		if (IsBetterFit(pEntry, pBestFit, nHeight))
 			pBestFit = pEntry;
-		}
 	}
 
 	return pBestFit;
@@ -331,14 +488,14 @@ static ICONDIR*	ReadIconDir(HANDLE hFile, size_t* pnSize = NULL)
 }
 
 
-static bool		ReadIconDirFull(const std::wstring& rsFile, std::vector<std::pair<void*,ICONDIRENTRY> >& rEntries)
+static bool		ReadIconDirFull(const std::wstring& rsFile, std::vector<LOADEDICONDIRENTRY>& rEntries)
 {
 	HANDLE hFile = CreateFile(rsFile.c_str(), GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 
 	if (hFile == NULL && hFile == INVALID_HANDLE_VALUE)
 		return false;
 
-	std::vector<std::pair<void*,ICONDIRENTRY> > entriesData;
+	std::vector<LOADEDICONDIRENTRY> entriesData;
 
 	bool bResult = false;
 
@@ -366,7 +523,7 @@ static bool		ReadIconDirFull(const std::wstring& rsFile, std::vector<std::pair<v
 					ReadFile(hFile, pEntryData, rEntry.dwBytesInRes, &nBytesRead, NULL);
 
 					if (rEntry.dwBytesInRes == nBytesRead)
-						rEntries.push_back(std::pair<void*,ICONDIRENTRY>(pEntryData, rEntry));
+						rEntries.push_back(LOADEDICONDIRENTRY(pEntryData, rEntry));
 					else
 						free(pEntryData);
 				}
@@ -393,7 +550,7 @@ static bool		WriteWord(HANDLE hFile, WORD nValue)
 }
 
 
-static bool		WriteIconDirFull(const std::wstring& rsFile, const std::vector<std::pair<void*,ICONDIRENTRY> >& rEnties)
+static bool		WriteIconDirFull(const std::wstring& rsFile, const std::vector<LOADEDICONDIRENTRY>& rEnties)
 {
 	HANDLE hFile = CreateFile(rsFile.c_str(), GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 
@@ -410,7 +567,7 @@ static bool		WriteIconDirFull(const std::wstring& rsFile, const std::vector<std:
 
 		bResult = true;
 
-		for(std::vector<std::pair<void*,ICONDIRENTRY> >::const_iterator it = rEnties.begin();
+		for(std::vector<LOADEDICONDIRENTRY>::const_iterator it = rEnties.begin();
 			bResult && it != rEnties.end(); ++it)
 		{
 			ICONDIRENTRY entry = it->second;
@@ -427,7 +584,7 @@ static bool		WriteIconDirFull(const std::wstring& rsFile, const std::vector<std:
 				bResult = false;
 		}
 
-		for(std::vector<std::pair<void*,ICONDIRENTRY> >::const_iterator it = rEnties.begin();
+		for(std::vector<LOADEDICONDIRENTRY>::const_iterator it = rEnties.begin();
 			bResult && it != rEnties.end(); ++it)
 		{
 			DWORD nWritten = 0;
@@ -444,6 +601,29 @@ static bool		WriteIconDirFull(const std::wstring& rsFile, const std::vector<std:
 	return bResult;
 }
 
+
+static HICON	ReadIcon(HANDLE hFile, ICONDIRENTRY* pEntry)
+{
+	BYTE* pData = (BYTE*)malloc( pEntry->dwBytesInRes );
+
+	if (pData == NULL)
+		return NULL;
+
+	DWORD dwBytesRead = 0;
+
+	// Read the image data
+	SetFilePointer( hFile, pEntry->dwImageOffset, NULL, FILE_BEGIN );
+	ReadFile( hFile, pData, pEntry->dwBytesInRes, &dwBytesRead, NULL );
+
+	HICON hResult = NULL;
+
+	if (pEntry->dwBytesInRes == dwBytesRead)
+		hResult = CreateIconFromResourceEx(pData, dwBytesRead, TRUE, 0x00030000,GetIconHeight(pEntry->bWidth), GetIconHeight(pEntry->bHeight), LR_DEFAULTCOLOR); 
+
+	free( pData );
+
+	return hResult;
+}
 
 
 static HICON	FindBestIconFromIco( LPCWSTR sFile, UINT nHeight)
@@ -467,21 +647,7 @@ static HICON	FindBestIconFromIco( LPCWSTR sFile, UINT nHeight)
 	if (pBestFit == NULL)
 		goto cleanup;
 
-	BYTE* pData = (BYTE*)malloc( pBestFit->dwBytesInRes );
-
-	if (pData == NULL)
-		goto cleanup;
-
-	DWORD dwBytesRead = 0;
-
-	// Read the image data
-	SetFilePointer( hFile, pBestFit->dwImageOffset, NULL, FILE_BEGIN );
-	ReadFile( hFile, pData, pBestFit->dwBytesInRes, &dwBytesRead, NULL );
-
-	if (pBestFit->dwBytesInRes == dwBytesRead)
-		hResult = CreateIconFromResourceEx(pData, dwBytesRead, TRUE, 0x00030000, pBestFit->bWidth, pBestFit->bHeight, LR_DEFAULTCOLOR); 
-
-	free( pData );
+	hResult = ReadIcon(hFile, pBestFit);
 	
 cleanup:
 
@@ -512,15 +678,46 @@ static bool		CreateIconStream(void*& rpData, size_t& rnDataSize, LONG& rnWidth, 
 		goto error;
 
 	if (bm.bmBitsPixel != 32)
-		goto error; //Sorry I'm only doing what I require
+	{
+		HDC hDC = CreateCompatibleDC(0);
 
-	BITMAP bmMask;
+		if (hDC == NULL)
+			goto error;
 
-	if (!GetObject(ii.hbmMask, sizeof(bmMask), &bmMask))
-		goto error;
+		LONG nHeight = bm.bmHeight;
 
-	if (bmMask.bmBitsPixel != 1)
-		goto error; //What the crap?
+		HBITMAP h32Version = CreateAlphaBitmap(hDC, nHeight, nHeight, NULL);
+
+		if (h32Version == NULL)
+			goto error;
+
+		HGDIOBJ hOld = SelectObject(hDC, h32Version);
+
+		BOOL bRendered = DrawIcon(hDC, 0, 0, hIcon);//DrawIconEx(hDC, 0, 0, hIcon, nHeight, nHeight, 0, NULL, DI_NORMAL );
+
+		SelectObject(hDC, hOld);
+		DeleteDC(hDC);
+
+		if (!bRendered)
+		{
+			DeleteObject(h32Version);
+	
+			goto error;
+		}
+
+		DeleteObject(ii.hbmColor);
+		ii.hbmColor = h32Version;		
+	}
+	else
+	{
+		BITMAP bmMask;
+
+		if (!GetObject(ii.hbmMask, sizeof(bmMask), &bmMask))
+			goto error;
+
+		if (bmMask.bmBitsPixel != 1)
+			goto error; //What the crap?
+	}
 
 
 	LONG nColorImageSize = bm.bmHeight * bm.bmWidthBytes; //32bpp
@@ -556,6 +753,9 @@ static bool		CreateIconStream(void*& rpData, size_t& rnDataSize, LONG& rnWidth, 
 
 	HDC hDC = CreateCompatibleDC(0);
 
+	if (hDC == NULL)
+		goto error;
+
 	HGDIOBJ hOld = SelectObject(hDC, ii.hbmColor);
 
 
@@ -577,7 +777,7 @@ static bool		CreateIconStream(void*& rpData, size_t& rnDataSize, LONG& rnWidth, 
 
 	bResult = true;
 
-error:
+cleanup:
 
 	if (ii.hbmMask)
 		DeleteObject(ii.hbmMask);
@@ -586,6 +786,16 @@ error:
 		DeleteObject(ii.hbmColor);
 
 	return bResult;
+
+error:
+
+	if (rpData != NULL)
+	{
+		free(rpData);
+		rpData = NULL;
+	}
+
+	goto cleanup;
 }
 
 
@@ -594,28 +804,39 @@ error:
 
 bool			WriteToIconFile(const std::wstring& rsFile, HICON hIcon, bool bAppend)
 {
+	return WriteToIconFile(rsFile, &hIcon, 1, bAppend);
+}
+
+
+bool			WriteToIconFile(const std::wstring& rsFile, const HICON* phIcons, int nIconNum, bool bAppend)
+{
+	std::vector<LOADEDICONDIRENTRY> entriesData;
+
 	bool bResult = false;
-	
-	void* pData;
-	size_t nDataSize = 0;
-	LONG nWidth, nHeight;
-
-	if (!CreateIconStream(pData, nDataSize, nWidth, nHeight, hIcon))
-		return false; //Nothing happening if this fails.
-
-	std::vector<std::pair<void*,ICONDIRENTRY> > entriesData;
 
 	if (bAppend)
 		ReadIconDirFull(rsFile, entriesData);
 
-	ICONDIRENTRY entry = {0};
+	while(nIconNum--)
+	{
+		LONG nWidth, nHeight;
+		void* pData;
+		size_t nDataSize = 0;
 
-	entry.bWidth = (BYTE)nWidth;
-	entry.bHeight = (BYTE)nHeight;
-	entry.dwBytesInRes = (DWORD)nDataSize;
-	entry.wBitCount = 32;
+		if (CreateIconStream(pData, nDataSize, nWidth, nHeight, *phIcons))
+		{
+			ICONDIRENTRY entry = {0};
 
-	entriesData.push_back(std::pair<void*,ICONDIRENTRY>(pData, entry));
+			entry.bWidth = (BYTE)nWidth;
+			entry.bHeight = (BYTE)nHeight;
+			entry.dwBytesInRes = (DWORD)nDataSize;
+			entry.wBitCount = 32;
+
+			entriesData.push_back(LOADEDICONDIRENTRY(pData, entry));
+		}
+
+		++phIcons;
+	}
 
 	bResult = WriteIconDirFull(rsFile, entriesData);
 
@@ -625,6 +846,7 @@ bool			WriteToIconFile(const std::wstring& rsFile, HICON hIcon, bool bAppend)
 
 	return bResult;
 }
+
 
 
 static HICON	LoadIcon(HMODULE hModule, DWORD nIconID)
@@ -700,6 +922,131 @@ static HICON	FindBestIconFromExe( LPCWSTR sFile, int nIndex, UINT nHeight)
 	return hIcon;
 }
 
+
+struct IconAndInfo
+{
+	HICON hIcon;
+	BYTE bWidth;
+	BYTE bHeight;
+	WORD wBitCount;
+};
+
+
+static bool		GenericReadIconDir(const std::wstring& rsFile, int nIndex, std::vector<IconAndInfo>& rEntries)
+{
+	HMODULE hModule = LoadLibraryEx(rsFile.c_str(), NULL, LOAD_LIBRARY_AS_DATAFILE);
+
+	bool bResult = false;
+
+	if (hModule == NULL)
+	{
+		HICON hResult = NULL;
+
+		HANDLE hFile = CreateFile(rsFile.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+
+		if (hFile == NULL || hFile == INVALID_HANDLE_VALUE)
+			return false;
+
+		size_t nIconDirSize;
+
+		ICONDIR* pIconDir = ReadIconDir(hFile, &nIconDirSize);
+
+		if (pIconDir != NULL)
+		{
+			for(WORD n = 0; n < pIconDir->idCount; ++n)
+			{
+				ICONDIRENTRY* pEntry = &pIconDir->idEntries[n];
+				IconAndInfo entry;
+
+				entry.hIcon = ReadIcon(hFile, pEntry);
+
+				if (entry.hIcon != NULL)
+				{
+					entry.bHeight	= pEntry->bHeight;
+					entry.bWidth	= pEntry->bWidth;
+					entry.wBitCount = pEntry->wBitCount;
+
+					rEntries.push_back(entry);
+					bResult = true;
+				}
+			}
+
+			free(pIconDir);
+		}
+
+		CloseHandle(hFile);
+
+		return bResult;
+	}
+
+
+	IndexedOfTypePacket packet = {NULL, nIndex};
+
+	EnumResourceNames(hModule, RT_GROUP_ICON, IndexedOfTypeCB, (LONG_PTR)&packet);
+
+	if (packet.sName != NULL)
+	{
+		HRSRC hResource = FindResource(hModule, packet.sName, RT_GROUP_ICON);
+
+		if (hResource != NULL)
+		{
+			HGLOBAL hGlob = LoadResource(hModule, hResource);
+
+			if (hGlob != NULL)
+			{
+				BYTE* pData = (BYTE*)LockResource(hGlob);
+
+				if (pData != NULL)
+				{
+					GRPICONDIR* pIconDir = (GRPICONDIR*)pData;
+
+					for(WORD n = 0; n < pIconDir->idCount; ++n)
+					{
+						GRPICONDIRENTRY* pEntry = &pIconDir->idEntries[n];
+						IconAndInfo entry;
+
+						entry.hIcon = LoadIcon(hModule, pEntry->nID);
+
+						if (entry.hIcon != NULL)
+						{
+							entry.bHeight	= pEntry->bHeight;
+							entry.bWidth	= pEntry->bWidth;
+							entry.wBitCount = pEntry->wBitCount;
+
+							rEntries.push_back(entry);
+							bResult = true;
+						}
+					}
+				}
+
+				FreeResource(hGlob);
+			}
+		}
+	}
+
+	FreeLibrary(hModule);
+
+	return bResult;
+
+	/*
+	size_t nDot = rsFile.rfind(L'.');
+
+	if (nDot == -1)
+		return false;
+
+	LPCWSTR sExt = rsFile.c_str()+nDot;
+
+	if (ExtIsIconFile(sExt))
+		return ReadIconDirFull(rsFile, rEntries);
+	
+	if (!ExtIsCodeImage(sExt))
+		return false;*/
+
+
+
+
+
+}
 
 
 BOOL CALLBACK	CountOfTypeCB(  HMODULE , LPCTSTR , LPTSTR , LONG_PTR lParam)
@@ -937,13 +1284,16 @@ HICON			GetSpecificIcon( const std::wstring& rsFile, const int nIndex, const UIN
 
 		if (ExtIsCodeImage(sExt))
 		{
+			//LoadImage and ExtractIcon will scale, not just find the closed in size
+			//hIcon = ExtractIcon(g_hInstance, rsFile.c_str(), nIndex);
 			hIcon = FindBestIconFromExe(rsFile.c_str(), nIndex, nHeight);
 		}
 		else if (ExtIsIconFile(sExt))
 		{
-			//LoadImage will scale, not just find the closed in size
+			//LoadImage and ExtractIcon will scale, not just find the closed in size
 			//hIcon = (HICON)LoadImage(g_hInstance, rsFile.c_str(), IMAGE_ICON, nHeight, nHeight, LR_LOADFROMFILE);
-			hIcon = FindBestIconFromIco(rsFile.c_str(), nHeight);			
+			//hIcon = ExtractIcon(g_hInstance, rsFile.c_str(), nIndex);	
+			hIcon = FindBestIconFromIco(rsFile.c_str(), nHeight);
 		}
 		else if (ExtIsShortcut(sExt))
 		{
@@ -1104,36 +1454,6 @@ static void		ManualIconBlitTo32Alphaed(HDC hDC, DWORD *pDstPixels, const LONG nW
 
 
 
-HBITMAP			CreateAlphaBitmap(HDC hDC, LONG nWidth, LONG nHeight, DWORD** ppBits )
-{
-	/*BITMAPV5HEADER bi = {0};
-
-    bi.bV5Size			= sizeof(BITMAPV5HEADER);
-    bi.bV5Width			= nWidth;
-    bi.bV5Height		= nHeight;
-    bi.bV5Planes		= 1;
-    bi.bV5BitCount		= 32;
-    bi.bV5Compression	= BI_BITFIELDS;
-    // The following mask specification specifies a supported 32 BPP
-    // alpha format for Windows XP.
-    bi.bV5RedMask		=  0x00FF0000;
-    bi.bV5GreenMask		=  0x0000FF00;
-    bi.bV5BlueMask		=  0x000000FF;
-    bi.bV5AlphaMask		=  0xFF000000; */
-
-//This is an alternative I found, that doesn't sometimes crash with a device by zero exception.
-	BITMAPINFO bi = {0};
-
-	bi.bmiHeader.biSize			= sizeof(BITMAPINFOHEADER);
-	bi.bmiHeader.biWidth		= nWidth;
-	bi.bmiHeader.biHeight		= nHeight;
-	bi.bmiHeader.biPlanes		= 1;
-	bi.bmiHeader.biBitCount		= 32;
-	bi.bmiHeader.biCompression	= BI_RGB;
-	bi.bmiHeader.biSizeImage	= nWidth * nHeight * 4;
-
-	return CreateDIBSection(hDC, (BITMAPINFO *)&bi, DIB_RGB_COLORS, (void **)ppBits, NULL, 0);
-}
 
 
 HICON			EnsureIconSizeResolution(HICON hIcon, LONG nHeight)
@@ -1274,28 +1594,42 @@ HICON			ExtractIconFromImageListFile(const std::wstring& rsFile, const UINT nInd
 
 			if (nIndex < nIconNum)
 			{
-				Gdiplus::Bitmap* pSubBitmap = pBitmap->Clone(nIndex*nHeight, 0, nHeight, nHeight, PixelFormat32bppARGB);
+				if (nIconNum > 1)
+				{
+					Gdiplus::Bitmap* pSubBitmap = pBitmap->Clone(nIndex*nHeight, 0, nHeight, nHeight, PixelFormat32bppARGB);
 
-				if (pSubBitmap != NULL)
+					delete pBitmap;
+					pBitmap = pSubBitmap;
+				}
+
+				if (pBitmap != NULL)
 				{
 					ICONINFO newIcon = {0};
 
 					newIcon.fIcon = TRUE;
-					newIcon.hbmMask = CreateBitmap(nHeight,nHeight,1,1,NULL);
-
-					assert(newIcon.hbmMask != NULL);
 
 					//GetHICON was causing funny alpha issues on some files. The alpha wasn't in the color or mask bitmap from GetIconInfo...
-					pSubBitmap->GetHBITMAP(Gdiplus::Color::Transparent, &newIcon.hbmColor);
+					pBitmap->GetHBITMAP(Gdiplus::Color::Transparent, &newIcon.hbmColor);
 
+					assert(newIcon.hbmColor != NULL);
+
+					HBITMAP hScaled = CreateBitmapOfHeight(newIcon.hbmColor, nAimHeight, 32);
+
+					if (hScaled != newIcon.hbmColor)
+					{
+						DeleteObject(newIcon.hbmColor);
+						newIcon.hbmColor = hScaled;
+					}
+
+					newIcon.hbmMask = CreateBitmap(nAimHeight,nAimHeight,1,1,NULL);
+
+					assert(newIcon.hbmMask != NULL);
 					assert(newIcon.hbmColor != NULL);
 
 					hIcon = CreateIconIndirect(&newIcon);
 
 					DeleteObject(newIcon.hbmColor);
 					DeleteObject(newIcon.hbmMask);
-
-					delete pSubBitmap;
 				}
 			}
 		}
@@ -1309,7 +1643,8 @@ HICON			ExtractIconFromImageListFile(const std::wstring& rsFile, const UINT nInd
 			hIcon = CreateIconFromBitMap(hBitmap, nAimHeight);
 		}
 
-		delete pBitmap;
+		if (pBitmap != NULL)
+			delete pBitmap;
 	}
 
 	Gdiplus::GdiplusShutdown(nDiplusToken);
@@ -1577,4 +1912,356 @@ bool			ExtractOwnIconInfoOfFile( std::wstring& rsIconFilePath, int& rnIconIndex,
 	}
 
 	return false;
+}
+
+
+static HICON	CreateIconFromGdiPlusBitMap(Gdiplus::Bitmap* pBitmap)
+{
+	ICONINFO newIcon = {0};
+
+	newIcon.fIcon = TRUE;
+	newIcon.hbmMask = CreateBitmap(pBitmap->GetWidth(),pBitmap->GetHeight(),1,1,NULL);
+
+	if (newIcon.hbmMask == NULL)
+		return NULL;
+
+	//GetHICON was causing funny alpha issues on some files. The alpha wasn't in the color or mask bitmap from GetIconInfo...
+	pBitmap->GetHBITMAP(Gdiplus::Color::Transparent, &newIcon.hbmColor);
+
+	HICON hIcon = NULL;
+
+	if (newIcon.hbmColor != NULL)
+	{
+		hIcon = CreateIconIndirect(&newIcon);
+
+		DeleteObject(newIcon.hbmColor);
+	}
+
+	DeleteObject(newIcon.hbmMask);
+
+	return hIcon;
+
+}
+
+
+
+HICON			ExtractIconFromFile(const std::wstring& rsFile, const UINT nIndex)
+{
+	HICON hIcon = NULL;
+
+	size_t nDot = rsFile.rfind(L'.');
+
+	if (nDot == -1)
+		return NULL; //WHAT? WHAT?
+
+	LPCWSTR sExt = rsFile.c_str()+nDot;
+
+	if (ExtIsCodeImage(sExt) || ExtIsIconFile(sExt))
+	{
+		hIcon = ExtractIcon(g_hInstance, rsFile.c_str(), nIndex);
+	}
+	else if (ExtIsShortcut(sExt))
+	{
+		std::wstring sTarget;
+		int nIndex;
+
+		if (GetShortcutIconLocation(sTarget, nIndex, rsFile.c_str()))
+			hIcon = ExtractIcon(g_hInstance, sTarget.c_str(), nIndex);
+		else
+			hIcon = ExtractIcon(g_hInstance, rsFile.c_str(), nIndex);
+	}
+	else
+	{
+		Gdiplus::GdiplusStartupInput GDiplusStartupInput;
+		ULONG_PTR nDiplusToken;
+
+		if (Gdiplus::GdiplusStartup(&nDiplusToken, &GDiplusStartupInput, NULL) != Gdiplus::Ok)
+			return NULL;
+
+		Gdiplus::Bitmap* pBitmap = Gdiplus::Bitmap::FromFile(rsFile.c_str(), TRUE);
+
+		if (pBitmap != NULL)
+		{
+			const UINT nHeight = pBitmap->GetHeight();
+			const UINT nWidth = pBitmap->GetWidth();
+
+			if (nHeight != 0 && (nWidth%nHeight) == 0)
+			{
+				const UINT nIconNum = nWidth/nHeight;
+
+				if (nIndex < nIconNum)
+				{
+					Gdiplus::Bitmap* pSubBitmap = pBitmap->Clone(nIndex*nHeight, 0, nHeight, nHeight, PixelFormat32bppARGB);
+
+					if (pSubBitmap != NULL)
+					{
+						hIcon = CreateIconFromGdiPlusBitMap(pSubBitmap);
+
+						delete pSubBitmap;
+					}
+				}
+			}
+
+			delete pBitmap;
+		}
+
+		Gdiplus::GdiplusShutdown(nDiplusToken);
+	}
+		
+	return hIcon;
+}
+
+
+
+
+HICON			GetSpecificIcon( LPCWSTR sFile, const int nIndex)
+{
+	HICON hIcon = NULL;
+
+	LPCWSTR sDot = wcsrchr(sFile, L'.');
+
+	if (sDot != NULL)
+	{
+		LPCWSTR sExt = sDot+1;
+
+		if (ExtIsCodeImage(sExt) || ExtIsIconFile(sExt))
+		{
+			hIcon = ExtractIcon(g_hInstance, sFile, nIndex);
+		}
+		else if (ExtIsShortcut(sExt))
+		{
+			std::wstring sTarget;
+			int nIndex;
+
+			if (GetShortcutIconLocation(sTarget, nIndex, sFile))
+				hIcon = ExtractIcon(g_hInstance, sTarget.c_str(), nIndex);
+			else
+				hIcon = ExtractIcon(g_hInstance, sFile, nIndex);
+		}
+		else
+		{
+			Gdiplus::GdiplusStartupInput GDiplusStartupInput;
+			ULONG_PTR nDiplusToken;
+
+			if (Gdiplus::GdiplusStartup(&nDiplusToken, &GDiplusStartupInput, NULL) != Gdiplus::Ok)
+				return NULL;
+
+			Gdiplus::Bitmap* pBitmap = Gdiplus::Bitmap::FromFile(sFile, TRUE);
+
+			if (pBitmap != NULL)
+			{
+				hIcon = CreateIconFromGdiPlusBitMap(pBitmap);
+
+				delete pBitmap;
+			}
+
+			Gdiplus::GdiplusShutdown(nDiplusToken);
+		}
+	}
+
+	return hIcon;
+}
+
+
+
+
+
+HIMAGELIST		LoadImageList(const std::wstring& rsFile)
+{
+	HIMAGELIST hImageList = NULL;
+
+	Gdiplus::GdiplusStartupInput GDiplusStartupInput;
+	ULONG_PTR nDiplusToken;
+
+	Gdiplus::GdiplusStartup(&nDiplusToken, &GDiplusStartupInput, NULL);
+
+	Gdiplus::Bitmap* pBitmap = Gdiplus::Bitmap::FromFile(rsFile.c_str(), TRUE);
+
+	if (pBitmap != NULL)
+	{
+		UINT nHeight = pBitmap->GetHeight();
+		UINT nWidth = pBitmap->GetWidth();
+
+		UINT nIconNum = nWidth/nHeight;
+
+		hImageList = ImageList_Create(nHeight, nHeight, ILC_COLOR32|ILC_MASK, 0, nIconNum);
+
+		if (nIconNum > 0)
+		{
+			UINT nPos = 0;
+
+			ICONINFO newIcon = {0};
+
+			newIcon.fIcon = TRUE;
+			newIcon.hbmMask = CreateBitmap(nHeight,nHeight,1,1,NULL);
+
+			while(nIconNum--)
+			{
+				HICON hIcon = NULL;
+
+				Gdiplus::Bitmap* pSubBitmap = pBitmap->Clone(nPos, 0, nHeight, nHeight, PixelFormat32bppARGB);
+
+				nPos += nHeight;
+
+				if (pSubBitmap != NULL)
+				{
+					//GetHICON was causing funny alpha issues on some files. The alpha wasn't in the color or mask bitmap from GetIconInfo...
+					pSubBitmap->GetHBITMAP(Gdiplus::Color::Transparent, &newIcon.hbmColor);
+
+					hIcon = CreateIconIndirect(&newIcon);
+
+					DeleteObject(newIcon.hbmColor);
+					newIcon.hbmColor = NULL;
+
+					delete pSubBitmap;
+				}						
+
+				const int nIndex = ImageList_GetImageCount(hImageList);
+
+				if ( ImageList_SetImageCount(hImageList, nIndex+1) && hIcon != NULL)
+					ImageList_ReplaceIcon(hImageList, nIndex, hIcon);
+
+				if (hIcon != NULL)
+					DestroyIcon(hIcon);
+			}
+
+
+			DeleteObject(newIcon.hbmMask);
+		}
+
+		delete pBitmap;
+	}
+	
+	Gdiplus::GdiplusShutdown(nDiplusToken);
+
+	return hImageList;
+	
+}
+
+
+bool SortIconCB (IconAndInfo& rA, IconAndInfo& rB)
+{
+	if (rA.bHeight == rB.bHeight)
+		return (rA.wBitCount < rB.wBitCount);
+
+	return (GetIconHeight(rA.bHeight) < GetIconHeight(rB.bHeight));
+}
+
+
+void			PreInfoAndInfoList(std::vector<IconAndInfo>& rList)
+{
+	std::sort(rList.begin(), rList.end(), SortIconCB);
+
+	for(std::vector<IconAndInfo>::const_iterator it = rList.begin();
+		it != rList.end();)
+	{
+		std::vector<IconAndInfo>::const_iterator next = it+1;
+
+		if (next == rList.end())
+			return; //We are done
+
+		if (it->bHeight == next->bHeight)
+		{
+			if (it->wBitCount < next->wBitCount)
+				next = rList.erase(it);
+		}
+
+		it = next;
+	}
+}
+
+
+const IconAndInfo*	FindBestFit(const std::vector<IconAndInfo>& rList, UINT nHeight)
+{
+	const IconAndInfo* pResult = &rList[0];
+
+	BOOST_FOREACH(const IconAndInfo& rEntry, rList)
+	{
+		if (IsBetterFit(&rEntry, pResult, nHeight))
+			pResult = &rEntry;
+	}
+
+	return pResult;
+}
+
+
+
+
+
+bool			BurnIconsTogether(LPCWSTR sDstFile, LPCWSTR sBaseFile, int nBaseIconIndex, LPCWSTR sOverlayFile, int nOverlayIconIndex)
+{
+	bool bResult = false;
+
+	std::vector<IconAndInfo> baseIcons;
+	std::vector<IconAndInfo> overlayIcons;
+
+	if (GenericReadIconDir(sBaseFile, nBaseIconIndex, baseIcons) &&
+		GenericReadIconDir(sOverlayFile, nOverlayIconIndex, overlayIcons))
+	{
+		std::vector<HICON> resultIcons;
+
+		PreInfoAndInfoList(baseIcons);
+		PreInfoAndInfoList(overlayIcons);
+
+		int nOverlayIndex = 0;
+
+		BOOST_FOREACH(IconAndInfo& rBase, baseIcons)
+		{
+			const UINT nBaseHeight = GetIconHeight(rBase.bHeight);
+
+			const IconAndInfo* pOverlay = FindBestFit(overlayIcons, nBaseHeight);
+			const UINT nOverlayHeight = GetIconHeight(pOverlay->bHeight);
+
+			POINT basePos = {0,0};
+			POINT overlayPos = {nBaseHeight,nBaseHeight};
+
+			overlayPos.x -= nOverlayHeight;
+			overlayPos.y -= nOverlayHeight;
+
+			overlayPos.x = max(overlayPos.x, 0);
+			overlayPos.y = max(overlayPos.y, 0);
+
+			HICON hIcon = BurnTogether(rBase.hIcon, basePos, pOverlay->hIcon, overlayPos, nBaseHeight);
+
+			if (hIcon != NULL)
+				resultIcons.push_back(hIcon);
+		}
+
+		if (resultIcons.size())
+			bResult = WriteToIconFile(sDstFile, &resultIcons[0], (int)resultIcons.size(), false);
+
+		BOOST_FOREACH(HICON hIcon, resultIcons)
+			DestroyIcon(hIcon);
+	}
+
+
+	BOOST_FOREACH(IconAndInfo& rInfo, baseIcons)
+		DestroyIcon(rInfo.hIcon);
+
+	BOOST_FOREACH(IconAndInfo& rInfo, overlayIcons)
+		DestroyIcon(rInfo.hIcon);
+
+	return bResult;
+}
+
+
+
+HBITMAP		GetIconAsRGBABitMap(HICON hIcon, DWORD nWidth, DWORD nHeight)
+{
+	HDC hDC = CreateCompatibleDC(0);
+
+	if (hDC == NULL)
+		return NULL;
+
+	HBITMAP hResult = CreateAlphaBitmap(hDC, nWidth, nHeight, NULL);
+
+	HGDIOBJ hSel = SelectObject(hDC, hResult);
+
+	DrawIconEx(hDC, 0, 0, hIcon, nWidth, nHeight, 0, NULL, DI_NORMAL);
+
+	SelectObject(hDC, hSel);
+
+	DeleteDC(hDC);
+
+	return hResult;
 }

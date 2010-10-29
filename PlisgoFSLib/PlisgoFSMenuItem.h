@@ -28,6 +28,28 @@
 class RootPlisgoFSFolder;
 
 
+class PlisgoMiscClickFile : public PlisgoFSStringFile
+{
+public:
+
+	PlisgoMiscClickFile() : PlisgoFSStringFile("0") {}
+
+	virtual void Triggered() = 0;
+
+	virtual int	Write(	LPCVOID		pBuffer,
+						DWORD		nNumberOfBytesToWrite,
+						LPDWORD		pnNumberOfBytesWritten,
+						LONGLONG	nOffset,
+						ULONGLONG*	pInstanceData);
+
+	
+	virtual int	FlushBuffers(ULONGLONG* pInstanceData);
+
+	virtual int	Close(ULONGLONG* pInstanceData);
+};
+
+
+
 class PlisgoFSMenuItem : public PlisgoFSStorageFolder
 {
 public:

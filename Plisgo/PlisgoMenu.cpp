@@ -310,7 +310,6 @@ static void DirtyChildren(HWND hWnd, HTREEITEM hFolder, std::wstring& rsFolderPa
 
 			if (rPathDoneMap.find(rsFolderPath) == rPathDoneMap.end())
 			{
-				SHChangeNotify(SHCNE_UPDATEDIR, SHCNF_PATHW, rsFolderPath.c_str(), NULL);
 				SHChangeNotify(SHCNE_UPDATEITEM, SHCNF_PATHW, rsFolderPath.c_str(), NULL);
 
 				rPathDoneMap[rsFolderPath] = true;
@@ -396,11 +395,10 @@ void __cdecl AsyncClickPacketCB( AsyncClickPacket* pPacket )
 	{
 		it->insert(0, sBasePath);
 
+		SHChangeNotify(SHCNE_UPDATEITEM, SHCNF_PATHW, it->c_str(), NULL);
+
 		if (GetFileAttributes(it->c_str()) & FILE_ATTRIBUTE_DIRECTORY)
 		{
-			SHChangeNotify(SHCNE_UPDATEDIR, SHCNF_PATHW, it->c_str(), NULL);
-			SHChangeNotify(SHCNE_UPDATEITEM, SHCNF_PATHW, it->c_str(), NULL);
-
 			const size_t nIndex = folders.size();
 
 			folders.push_back(*it);
@@ -409,7 +407,6 @@ void __cdecl AsyncClickPacketCB( AsyncClickPacket* pPacket )
 
 			std::transform(rsEntry.begin(), rsEntry.end(), rsEntry.begin(), tolower);
 		}
-		else SHChangeNotify(SHCNE_UPDATEITEM, SHCNF_PATHW, it->c_str(), NULL);
 	}
 
 	assert(selection.size());
@@ -441,7 +438,9 @@ void __cdecl AsyncClickPacketCB( AsyncClickPacket* pPacket )
 		}
 	}
 
-	SHChangeNotify(SHCNE_UPDATEDIR, SHCNF_PATHW|SHCNF_FLUSH, selection[0].substr(0, nSlash).c_str(), NULL);
+	const std::wstring sRoot = selection[0].substr(0, nSlash);
+
+	SHChangeNotify(SHCNE_UPDATEITEM, SHCNF_PATHW, sRoot.c_str(), NULL);
 }
 
 
@@ -604,10 +603,17 @@ bool		 CPlisgoMenu::InsertPlisgoMenuToMenu(HMENU hMenu, const IPtrPlisgoFSMenu& 
 		itemInfo.fType		= MFT_SEPARATOR;
 	}
 
-	if (rPlisgoMenu->GetIcon() != NULL)
+	HICON hIcon = rPlisgoMenu->GetIcon();
+
+
+	if (hIcon != NULL)
 	{
 		itemInfo.fMask |= MIIM_BITMAP;
-		itemInfo.hbmpItem =  HBMMENU_CALLBACK; /*future note: TortoiseSVN give a bitmap under Vista (6.0 and above)*/
+
+		if (IsVistaOrAbove())
+			itemInfo.hbmpItem = GetIconAsRGBABitMap(hIcon, 16, 16);
+		else
+			itemInfo.hbmpItem = HBMMENU_CALLBACK;
 	}
 
 	const IPtrPlisgoFSMenuList& rChildren = rPlisgoMenu->GetChildren();
@@ -699,12 +705,10 @@ STDMETHODIMP CPlisgoMenu::HandleMenuMsg2( UINT nMsg, WPARAM wParam, LPARAM lPara
 
 		if (pMIS != NULL)
 		{
-			const UINT nIconHeight = TOPOWEROFTWO(GetSystemMetrics(SM_CYMENUCHECK) + GetSystemMetrics(SM_CYEDGE));
+			pMIS->itemWidth += 2;
 
-			pMIS->itemWidth += GetSystemMetrics(SM_CYEDGE)*2;
-
-			if (pMIS->itemHeight < nIconHeight)
-				pMIS->itemHeight = nIconHeight;
+			if (pMIS->itemHeight < 16)
+				pMIS->itemHeight = 16;
 
 			if (pResult != NULL)
 				*pResult = TRUE;
@@ -720,12 +724,7 @@ STDMETHODIMP CPlisgoMenu::HandleMenuMsg2( UINT nMsg, WPARAM wParam, LPARAM lPara
 		{
 			PlisgoFSMenu* pPlisgoFSMenu = (PlisgoFSMenu*)pDrawItemPacket->itemData;
 
-			const int nIconHeight = TOPOWEROFTWO(GetSystemMetrics(SM_CYMENUCHECK) + GetSystemMetrics(SM_CYEDGE));
-
-			DrawIconEx(	pDrawItemPacket->hDC,
-						pDrawItemPacket->rcItem.left - nIconHeight,
-						pDrawItemPacket->rcItem.top + (pDrawItemPacket->rcItem.bottom - pDrawItemPacket->rcItem.top - nIconHeight) / 2,
-						pPlisgoFSMenu->GetIcon(), nIconHeight, nIconHeight, 0, NULL, DI_NORMAL);
+			DrawIconEx(	pDrawItemPacket->hDC, 2, 2, pPlisgoFSMenu->GetIcon(), 16, 16, 0, NULL, DI_NORMAL);
 
 			if (pResult != NULL)
 				*pResult = TRUE;

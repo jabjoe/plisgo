@@ -25,9 +25,10 @@
 
 extern HICON		GetSpecificIcon( const std::wstring& rsFile, const int nIndex, const UINT nHeight);
 
-extern HBITMAP		CreateAlphaBitmap(HDC hDC, LONG nWidth, LONG nHeight, DWORD** ppBits = NULL);
-
 extern HBITMAP		ExtractAsBitmap(HINSTANCE hHandle, LPCWSTR sName, LPCWSTR sType, UINT* pnHeight = NULL);
+
+extern HBITMAP		ExtractBitmap( const std::wstring& rsFile, LONG nWidth, LONG nHeight, WORD nDepth);
+
 
 extern HICON		CreateIconFromBitMap(HBITMAP hBitmap, const UINT nAimHeight);
 
@@ -44,7 +45,20 @@ extern bool			ExtractOwnIconInfoOfFile( std::wstring& rsIconFilePath, int& rnIco
 extern int			AddIconToResourcedFile(const std::wstring& rsFile, const HICON hIcon);
 
 extern bool			WriteToIconFile(const std::wstring& rsFile, HICON hIcon, bool bAppend = true);
+extern bool			WriteToIconFile(const std::wstring& rsFile, const HICON* phIcons, int nIconNum, bool bAppend = true);
 
 extern HICON		ExtractIconFromImageListFile(const std::wstring& rsFile, const UINT nIndex, const UINT nAimHeight);
 
 extern HIMAGELIST	LoadImageList(const std::wstring& rsFile, const UINT nHeight);
+
+extern HIMAGELIST	LoadImageList(const std::wstring& rsFile);
+
+extern HICON		ExtractIconFromFile(const std::wstring& rsFile, const UINT nIndex);
+
+extern HICON		GetSpecificIcon( LPCWSTR sFile, const int nIndex);
+
+extern HBITMAP		GetIconAsRGBABitMap(HICON hIcon, DWORD nWidth, DWORD nHeight);
+
+extern bool			BurnIconsTogether(LPCWSTR sDstFile, LPCWSTR sBaseFile, int nBaseIconIndex, LPCWSTR sOverlayFile, int nOverlayIconIndex);
+
+

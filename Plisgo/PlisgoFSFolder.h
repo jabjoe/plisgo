@@ -30,10 +30,12 @@ class PlisgoFSRoot
 {
 public:
 
-	PlisgoFSRoot(const std::wstring& rsPath, IconRegistry* pIconRegistry);
+	PlisgoFSRoot(const std::wstring& rsPath);
 	~PlisgoFSRoot();
 
 	ULONG64				GetTimeSinceLastUse();
+
+	bool				IsValid() const;
 
 	LPCWSTR				GetFSName() const								{ return m_sFSName.c_str(); }
 	ULONG				GetFSVersion() const							{ return m_nFSVersion; }
@@ -64,8 +66,8 @@ public:
 
 	IPtrFSIconRegistry	GetFSIconRegistry() const						{ return m_IconRegistry; }
 
-	bool				GetFolderIcon(IconLocation& rIconLocation, const UINT nHeight, bool bOpen = false) const;
-	bool				GetExtensionIcon(IconLocation& rIconLocation, LPCWSTR sExt, const UINT nHeight) const;
+	bool				GetFolderIcon(IconLocation& rIconLocation, bool bOpen = false) const;
+	bool				GetExtensionIcon(IconLocation& rIconLocation, LPCWSTR sExt) const;
 
 
 	void				GetMenuItems(IPtrPlisgoFSMenuList& rMenus, const WStringList& rSelection);
@@ -74,10 +76,15 @@ public:
 	bool				GetPathColumnIntEntry(int& rnResult, const std::wstring& rsPath, int nIndex) const;
 	bool				GetPathColumnFloatEntry(double& rnResult, const std::wstring& rsPath, int nIndex) const;
 
-	int					GetPathIconIndex(const std::wstring& rsPath, IPtrRefIconList iconList, bool bOpen = false) const;
+	int					GetPathIconIndex(const std::wstring& rsPath, bool bOpen = false) const;
 
-	bool				GetPathIconLocation(IconLocation& rIconLocation, const std::wstring& rsPath, IPtrRefIconList iconList, bool bOpen = false) const;
+	bool				GetPathIconLocation(IconLocation& rIconLocation, const std::wstring& rsPath, bool bOpen = false) const;
 
+	bool				GetThumbnailFile(	const std::wstring& rsPath,
+											std::wstring&		rsResult) const;
+
+	bool				GetFileOverlay(	const std::wstring& rsPath,
+										IconLocation&		rIconLocation) const;
 private:
 
 	bool				GetPathColumnEntryPath(std::wstring& rsOutPath, const std::wstring& rsInPath, int nIndex) const;
@@ -88,17 +95,14 @@ private:
 
 	bool				GetCustomIconIconLocation(	IconLocation&		rIconLocation,
 													const std::wstring& rsShellInfoFolder,
-													const std::wstring& rsName,
-													const UINT			nHeigh) const;
+													const std::wstring& rsName) const;
 
 	bool				GetThumbnailIconLocation(	IconLocation&		rIconLocation,
 													const std::wstring& rsShellInfoFolder,
-													const std::wstring& rsName,
-													const UINT			nHeight) const;
+													const std::wstring& rsName) const;
 
 	bool				GetMountIconLocation(	IconLocation&		rIconLocation,
 												const std::wstring& rsPath,
-												IPtrRefIconList		iconList,
 												bool				bOpen = false) const;
 
 	bool				GetShellInfoFolder(	std::wstring&		rsName,
@@ -122,6 +126,8 @@ private:
 	};
 
 	std::vector<ColumnDef>					m_Columns;
+
+	ULONG64									m_NameTime;
 
 	IPtrFSIconRegistry						m_IconRegistry;
 };

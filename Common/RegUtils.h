@@ -21,19 +21,10 @@
 	<http://www.gnu.org/licenses/>.
 */
 
-#include <atlbase.h>
-#include <atlcom.h>
-#include <atlwin.h>
-#include <string>
-#include <CommonControls.h>
-#include <gdiplus.h>
-#include <shlobj.h>
-#include <boost/algorithm/string/trim.hpp>
-#include <boost/foreach.hpp>
-#include <vector>
 
-extern HINSTANCE g_hInstance;
+bool	LoadDWORDFromReg(HKEY hRootKey, LPCWSTR sKey, LPCWSTR sName, DWORD& rnValue, bool bDoWOW64 = false);
+bool	StoreDWORDFromReg(HKEY hRootKey, LPCWSTR sKey, LPCWSTR sName, DWORD nValue, bool bDoWOW64 = false);
 
-#define GETOFFSET(_struct, _member)	((size_t)&((_struct*)NULL)->_member)
+bool	LoadStringFromReg(HKEY hRootKey, LPCWSTR sKey, LPCWSTR sName, std::wstring& rsValue, bool bDoWOW64 = false);
+bool	StoreStringFromReg(HKEY hRootKey, LPCWSTR sKey, LPCWSTR sName, const std::wstring& rsValue, bool bDoWOW64 = false);
 
-extern bool		IsInWOW64();

@@ -22,6 +22,7 @@
 */
 
 #include "PlisgoFSLib.h"
+#include "Common/RegUtils.h"
 
 
 
@@ -87,4 +88,58 @@ void			ToWide(std::wstring& rDst, const char* sSrc)
 	nSize = MultiByteToWideChar(CP_UTF8, 0, sSrc, nLen, const_cast<WCHAR*>(rDst.c_str()), (int)rDst.length());
 
 	rDst.resize(nSize);
+}
+
+
+class PlisgoAPIVersionRetriver
+{
+public:
+	PlisgoAPIVersionRetriver()
+	{
+		m_nVersion = PLISGO_MIN_APIVERSION;
+
+		//Do we need to step down?
+
+		std::wstring sPlisgo;
+
+		//Note, on a 64bit machine, this will get the 32bit DLL, that should also be registered
+
+		if (LoadStringFromReg(HKEY_CLASSES_ROOT, L"CLSID\\{ADA19F85-EEB6-46F2-B8B2-2BD977934A79}\\InprocServer32", NULL, sPlisgo))
+		{
+			HMODULE hModule = LoadLibraryW(sPlisgo.c_str());
+
+			if (hModule != NULL)
+			{
+				typedef DWORD (WINAPI *LPFN_MAXAPIVERSION)();
+
+				LPFN_MAXAPIVERSION cb = (LPFN_MAXAPIVERSION)GetProcAddress(hModule, "GetMaxPlisgoAPIVersion");
+
+				if (cb != NULL)
+				{
+					DWORD nMaxVersion = cb();
+
+					if (nMaxVersion > PLISGO_MAX_APIVERSION)
+						m_nVersion = PLISGO_MAX_APIVERSION; //We this is as high as we go
+					else
+						m_nVersion = nMaxVersion; //We can match you
+				}
+
+				FreeLibrary(hModule);
+			}
+		}
+	};
+
+	DWORD	GetVersion() const { return m_nVersion; }
+
+private:
+	DWORD	m_nVersion;
+};
+
+
+
+DWORD		GetPlisgoAPIVersion()
+{
+	static PlisgoAPIVersionRetriver retriver;
+
+	return retriver.GetVersion();
 }

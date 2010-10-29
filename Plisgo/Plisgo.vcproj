@@ -488,6 +488,10 @@
 					>
 				</File>
 				<File
+					RelativePath=".\PlisgoFSIcons.h"
+					>
+				</File>
+				<File
 					RelativePath=".\PlisgoFSMenu.cpp"
 					>
 				</File>
@@ -496,19 +500,11 @@
 				Name="COM"
 				>
 				<File
-					RelativePath=".\PlisgoData.cpp"
-					>
-				</File>
-				<File
-					RelativePath=".\PlisgoDropSource.cpp"
-					>
-				</File>
-				<File
-					RelativePath=".\PlisgoEnumFORMATETC.cpp"
-					>
-				</File>
-				<File
 					RelativePath=".\PlisgoExtractIcon.cpp"
+					>
+				</File>
+				<File
+					RelativePath=".\PlisgoExtractImage.cpp"
 					>
 				</File>
 				<File
@@ -517,10 +513,6 @@
 				</File>
 				<File
 					RelativePath=".\PlisgoMenu.cpp"
-					>
-				</File>
-				<File
-					RelativePath=".\PlisgoView.cpp"
 					>
 				</File>
 			</Filter>
@@ -566,19 +558,11 @@
 				Name="COM"
 				>
 				<File
-					RelativePath=".\PlisgoData.h"
-					>
-				</File>
-				<File
-					RelativePath=".\PlisgoDropSource.h"
-					>
-				</File>
-				<File
-					RelativePath=".\PlisgoEnumFORMATETC.h"
-					>
-				</File>
-				<File
 					RelativePath=".\PlisgoExtractIcon.h"
+					>
+				</File>
+				<File
+					RelativePath=".\PlisgoExtractImage.h"
 					>
 				</File>
 				<File
@@ -587,10 +571,6 @@
 				</File>
 				<File
 					RelativePath=".\PlisgoMenu.h"
-					>
-				</File>
-				<File
-					RelativePath=".\PlisgoView.h"
 					>
 				</File>
 			</Filter>
@@ -613,19 +593,11 @@
 				>
 			</File>
 			<File
-				RelativePath=".\PlisgoData.rgs"
-				>
-			</File>
-			<File
-				RelativePath=".\PlisgoDropSource.rgs"
-				>
-			</File>
-			<File
-				RelativePath=".\PlisgoEnumFORMATETC.rgs"
-				>
-			</File>
-			<File
 				RelativePath=".\PlisgoExtractIcon.rgs"
+				>
+			</File>
+			<File
+				RelativePath=".\PlisgoExtractImage.rgs"
 				>
 			</File>
 			<File
@@ -634,10 +606,6 @@
 			</File>
 			<File
 				RelativePath=".\PlisgoMenu.rgs"
-				>
-			</File>
-			<File
-				RelativePath=".\PlisgoView.rgs"
 				>
 			</File>
 			<File

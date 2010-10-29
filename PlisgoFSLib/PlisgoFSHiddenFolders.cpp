@@ -72,12 +72,13 @@ void	IShellInfoFetcher::DoMounts(IPtrRootPlisgoFSFolder plisgoFS, IPtrPlisgoVFS&
 	{
 		ULONGLONG nInstanceData = 0;
 
-		pFolder->CreateChild(mount, L".plisgofs", FILE_ATTRIBUTE_HIDDEN|FILE_ATTRIBUTE_READONLY, &nInstanceData);
+		pFolder->CreateChild(mount, L".plisgofs", FILE_ATTRIBUTE_READONLY, &nInstanceData);
 
 		if (mount.get() == NULL)
 			return; //Er wtf, it isn't there, and you won't let me put it there?
 
 		mount->Close(&nInstanceData);
+		mount->SetAttributes(FILE_ATTRIBUTE_HIDDEN|FILE_ATTRIBUTE_SYSTEM, &nInstanceData);
 	}
 
 
@@ -89,7 +90,7 @@ void	IShellInfoFetcher::DoMounts(IPtrRootPlisgoFSFolder plisgoFS, IPtrPlisgoVFS&
 	{
 		ULONGLONG nInstanceData = 0;
 
-		pFolder->CreateChild(mount, L"Desktop.ini", FILE_ATTRIBUTE_HIDDEN|FILE_ATTRIBUTE_READONLY, &nInstanceData);
+		pFolder->CreateChild(mount, L"Desktop.ini", FILE_ATTRIBUTE_READONLY, &nInstanceData);
 
 		if (mount.get() == NULL)
 		{
@@ -99,6 +100,7 @@ void	IShellInfoFetcher::DoMounts(IPtrRootPlisgoFSFolder plisgoFS, IPtrPlisgoVFS&
 		}
 
 		mount->Close(&nInstanceData);
+		mount->SetAttributes(FILE_ATTRIBUTE_HIDDEN|FILE_ATTRIBUTE_SYSTEM, &nInstanceData);
 	}
 
 	rVFS->AddMount((rsPath + L"\\Desktop.ini").c_str() , GetPlisgoDesktopIniFile());
@@ -331,6 +333,36 @@ public:
 
 		return true;
 	}
+
+	virtual int				GetChildren(ChildNames& rChildren) const
+	{
+		//This ONLY should happen if some crazy user has browsed in. If it becomes more then that, I'll speed it up.
+
+		int nError =  m_pRoot->GetVFS()->GetChildren(m_sSubjectPath.c_str(), rChildren);
+
+		if (nError != 0)
+			return nError;
+
+		for(ChildNames::iterator it = rChildren.begin(); it != rChildren.end();)
+		{
+			std::wstring sExt;
+
+			IPtrPlisgoFSFile srcFile = m_pRoot->GetVFS()->TracePath((m_sSubjectPath + *it).c_str());
+			IPtrPlisgoFSFile dstFile;
+
+			if (m_pRoot->GetShellInfoFetcher()->GetThumbnail(srcFile, sExt, dstFile))
+			{
+				if (sExt[0] != L'.')
+					*it += L".";
+
+				*it += sExt;
+				++it;
+			}
+			else it = rChildren.erase(it);
+		}
+
+		return 0;
+	}
 };
 
 
@@ -391,12 +423,12 @@ public:
 
 		//This shouldn't be called unless the user has for some crazy reason browsed in!
 
-		int nError = m_virtualChildren.GetFileNames(rChildren);
+		int nError = StubShellInfoFolder::GetChildren(rChildren);
 
 		if (nError != 0)
 			return nError;
 		
-		return StubShellInfoFolder::GetChildren(rChildren);
+		return m_virtualChildren.GetFileNames(rChildren);
 	}
 
 
@@ -466,7 +498,7 @@ RootPlisgoFSFolder::RootPlisgoFSFolder(const std::wstring& rsPath, LPCWSTR sFSNa
 {
 	assert(sFSName != NULL);
 
-	boost::format fmt = boost::format("%1%") %PLISGO_APIVERSION;
+	boost::format fmt = boost::format("%1%") %GetPlisgoAPIVersion();
 
 	m_IShellInfoFetcher = ShellInfoFetcher;
 

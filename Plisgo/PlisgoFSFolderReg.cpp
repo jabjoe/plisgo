@@ -25,61 +25,11 @@
 
 
 
-static volatile LONG gnCleaningThreadCheck = 0;
-
-static ULONG64	gnCleaningTheadCheckTime = 0;
-
-static HANDLE	ghCleaningThread = NULL;
-
-
-static DWORD WINAPI ClearningThreadCB(LPVOID)
-{
-	static IUnknown* pExplorer = NULL;
-
-	SHGetInstanceExplorer(&pExplorer);
-
-	PlisgoFSFolderReg::GetSingleton()->RunRootCacheClean();
-
-	//Spin until got lock
-	while(InterlockedCompareExchange(&gnCleaningThreadCheck, 1, 0) != 0);
-
-	HANDLE hHandle = ghCleaningThread;
-	ghCleaningThread = NULL;
-
-	InterlockedExchange(&gnCleaningThreadCheck, 0); //Release lock
-
-	CloseHandle(hHandle);
-
-	if (pExplorer != NULL)
-		pExplorer->Release();
-
-	return 0;
-}
-
-
 
 
 PlisgoFSFolderReg*	PlisgoFSFolderReg::GetSingleton()
 {
 	static PlisgoFSFolderReg gPlisgoFSFolderReg;
-
-	if (InterlockedCompareExchange(&gnCleaningThreadCheck, 1, 0) == 0) //Try lock
-	{
-		ULONG64 nNow = 0;
-
-		GetSystemTimeAsFileTime((FILETIME*)&nNow);
-
-		if (nNow-gnCleaningTheadCheckTime > NTMINUTE*5)
-		{
-			if (ghCleaningThread == NULL)
-			{
-				gnCleaningTheadCheckTime = nNow;
-				ghCleaningThread = CreateThread(NULL, 0, ClearningThreadCB, NULL, 0, NULL);
-			}
-		}
-
-		InterlockedExchange(&gnCleaningThreadCheck, 0); //release lock
-	}
 
 	return &gPlisgoFSFolderReg;
 }
@@ -92,82 +42,78 @@ PlisgoFSFolderReg::PlisgoFSFolderReg()
 
 void				PlisgoFSFolderReg::RunRootCacheClean()
 {
-	boost::upgrade_lock<boost::shared_mutex> lock(m_Mutex);
-
 	bool bCleaningToBeDone = false;
 
-	for(RootCacheMap::const_iterator it = m_RootCache.begin();
-		it != m_RootCache.end(); ++it)
 	{
-		if( GetFileAttributes(it->second->GetPath().c_str()) != INVALID_FILE_ATTRIBUTES)
+		boost::shared_lock<boost::shared_mutex> lock(m_Mutex);
+
+		for(RootCacheMap::const_iterator it = m_RootCache.begin();
+			it != m_RootCache.end(); ++it)
 		{
-			if( GetFileAttributes((it->second->GetPath() + L".plisgofs").c_str()) == INVALID_FILE_ATTRIBUTES)
+			if(!it->second->IsValid())
 			{
 				bCleaningToBeDone = true;
 				break;
 			}
 		}
-		else
-		{
-			bCleaningToBeDone = true;
-			break;
-		}
 	}
 
 	if (bCleaningToBeDone)
 	{
-		boost::upgrade_to_unique_lock<boost::shared_mutex> rwLock(lock);
-
-		bCleaningToBeDone = false;
+		boost::unique_lock<boost::shared_mutex> lock(m_Mutex);
 
 		for(RootCacheMap::const_iterator it = m_RootCache.begin();
 			it != m_RootCache.end();)
 		{
-			if( GetFileAttributes(it->second->GetPath().c_str()) != INVALID_FILE_ATTRIBUTES)
-			{
-				if( GetFileAttributes((it->second->GetPath() + L".plisgofs").c_str()) == INVALID_FILE_ATTRIBUTES)
-					bCleaningToBeDone = true;
-			}
-			else bCleaningToBeDone = true;
-
-			if (bCleaningToBeDone)
-			{
+			if(!it->second->IsValid())
 				it = m_RootCache.erase(it);
-				bCleaningToBeDone = false;
-			}
-			else ++it;
+			else
+				++it;
 		}
 	}
 }
 
 
-IPtrPlisgoFSRoot	PlisgoFSFolderReg::ReturnValidRoot(IPtrPlisgoFSRoot root, const std::wstring& rsPath) const
+bool	PlisgoFSFolderReg::IsRootValidForPath(IPtrPlisgoFSRoot root, const std::wstring& rsPath) const
 {
 	if (root.get() == NULL)
-		return root;
+		return false;
 
 	const std::wstring& rsRootPath = root->GetPath();
 
 	if (rsRootPath.length() == rsPath.length()+1) //+1 because of slash
-		return root;
+		return true;
 
 	if (rsRootPath.length() > rsPath.length())
-		return IPtrPlisgoFSRoot(); //what the crap?
+		return false;
 
 	std::wstring sPath = rsRootPath;
 
 	sPath += L".plisgofs\\.shellinfo\\";
-	sPath.append(rsPath.begin() + rsRootPath.length(), rsPath.end());
 
-	if (GetFileAttributes(sPath.c_str()) == INVALID_FILE_ATTRIBUTES)
-		return IPtrPlisgoFSRoot();
+	size_t nSlash = rsPath.rfind(L'\\');
 
-	return root;
+	if (nSlash == rsRootPath.length()-1)
+		return true;
+	
+	assert(nSlash > rsRootPath.length());
+
+	sPath.append(rsPath.begin() + rsRootPath.length(), rsPath.begin()+nSlash);
+
+	return (GetFileAttributes(sPath.c_str()) != INVALID_FILE_ATTRIBUTES);
 }
 
 
 IPtrPlisgoFSRoot	PlisgoFSFolderReg::GetPlisgoFSRoot(LPCWSTR sPathUnprocessed) const
 {
+	static ULONG nCleanCountDown = 100; //Not concurrent cache safe, but doesn't matter
+
+	if (--nCleanCountDown == 0)
+	{
+		const_cast<PlisgoFSFolderReg*>(this)->RunRootCacheClean();
+		nCleanCountDown = 100;
+	}
+
 	assert(sPathUnprocessed != NULL);
 
 	std::wstring sPath;
@@ -196,35 +142,28 @@ IPtrPlisgoFSRoot	PlisgoFSFolderReg::GetPlisgoFSRoot(LPCWSTR sPathUnprocessed) co
 	{
 		sSection.resize(nSlash);
 
-		const DWORD nAttr = GetFileAttributes((sSection + L"\\.plisgofs").c_str());
-
 		RootCacheMap::const_iterator it = m_RootCache.find(sSection);
 
 		if (it != m_RootCache.end())
-		{
-			if (nAttr == INVALID_FILE_ATTRIBUTES || !(nAttr & FILE_ATTRIBUTE_DIRECTORY))
-			{
-				boost::upgrade_to_unique_lock<boost::shared_mutex> rwLock(lock);
-
-				it = m_RootCache.find(sSection);
-
-				if (it != m_RootCache.end())
-					const_cast<PlisgoFSFolderReg*>(this)->m_RootCache.erase(it);
-			}
-			else return ReturnValidRoot(it->second, sPath);
-		}
-		else if (nAttr != INVALID_FILE_ATTRIBUTES && (nAttr & FILE_ATTRIBUTE_DIRECTORY))
+			if (it->second->IsValid() && IsRootValidForPath(it->second, sPath))
+				return it->second;
+				
+		const DWORD nAttr = GetFileAttributes((sSection + L"\\.plisgofs").c_str());
+		
+		if (nAttr != INVALID_FILE_ATTRIBUTES && (nAttr & FILE_ATTRIBUTE_DIRECTORY))
 		{
 			boost::upgrade_to_unique_lock<boost::shared_mutex> rwLock(lock);
 
 			it = m_RootCache.find(sSection);
 
 			if (it != m_RootCache.end())
-				return ReturnValidRoot(it->second, sPath);
+				if (it->second->IsValid() && IsRootValidForPath(it->second, sPath))
+					return it->second;
 
 			IPtrPlisgoFSRoot root = const_cast<PlisgoFSFolderReg*>(this)->CreateRoot(sSection);
 
-			return ReturnValidRoot(root, sPath);
+			if (root.get() != NULL && IsRootValidForPath(root, sPath))
+				return root;
 		}
 
 		nSlash = sPath.rfind(L'\\', nSlash-1);
@@ -238,7 +177,7 @@ IPtrPlisgoFSRoot	PlisgoFSFolderReg::CreateRoot(const std::wstring& rsRoot)
 {
 	IPtrPlisgoFSRoot result;
 
-	PlisgoFSRoot* pNewRoot = new PlisgoFSRoot(rsRoot, &m_IconRegistry);
+	PlisgoFSRoot* pNewRoot = new PlisgoFSRoot(rsRoot);
 
 	if (pNewRoot->GetFSName()[0] != L'\0')
 	{

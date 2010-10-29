@@ -29,7 +29,7 @@
 
 #include "targetver.h"
 
-static const int PLISGO_APIVERSION = 2;
+#define PLISGO_MAX_APIVERSION  3
 
 #define _ATL_APARTMENT_THREADED
 #define _ATL_NO_AUTOMATIC_NAMESPACE
@@ -55,10 +55,11 @@ static const int PLISGO_APIVERSION = 2;
 #include <boost/thread/mutex.hpp>
 #include <boost/thread/shared_mutex.hpp>
 #include <boost/thread/locks.hpp>
-#include <boost/algorithm/string/trim.hpp>
+#include <boost/algorithm/string.hpp>
 #include <boost/interprocess/sync/file_lock.hpp>
 #include <boost/interprocess/sync/sharable_lock.hpp>
 #include <boost/interprocess/sync/scoped_lock.hpp>
+#include <boost/algorithm/string/case_conv.hpp>
 #include <boost/format.hpp>
 #include <fstream>
 #include <boost/unordered_map.hpp>
@@ -145,6 +146,8 @@ inline bool			ReadIndicesPair(CHAR* sBuffer, UINT& rnList, UINT& rnEntry)
 
 		rnList	= (UINT)atol(sBuffer);
 		rnEntry	= (UINT)atol(sDevide);
+
+		sDevide[-1] = ':';
 		
 		return true;
 	}
@@ -161,34 +164,6 @@ inline int			PrePathCharacter(int c)
 	return tolower(c);
 };
 
-
-inline void		AddToPreHash64(ULONG64& rnHash, int n)
-{
-	rnHash += n;
-	rnHash += (rnHash << 10);
-	rnHash ^= (rnHash >> 6);
-}
-
-inline ULONG64	HashFromPreHash(ULONG64 nHash)
-{
-	nHash += (nHash << 3);
-	nHash ^= (nHash >> 11);
-	nHash += (nHash << 15);
-
-	return nHash;
-}
-
-
-inline ULONG64		SimpleHash64(const wchar_t* sKey)
-{
-	ULONG64 nResult = 0;
-
-	if (sKey)
-		for(; *sKey != L'\0'; ++sKey)
-			AddToPreHash64(nResult, tolower(*sKey));
-
-	return HashFromPreHash(nResult);
-}
 
 extern HRESULT		GetShellIShellFolder2Implimentation(IShellFolder2** ppResult);
 

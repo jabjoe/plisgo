@@ -90,7 +90,7 @@ Build Requiments
 ================
 
 * Visual Studio 2008
-* Boost 1.36   (add the boost include/lib directories to the Visual Studio VC++ include/lib Directories)
+* Boost 1.44 (or better)   (add the boost include/lib directories to the Visual Studio VC++ include/lib Directories)
 
 
 

@@ -118,20 +118,8 @@ PlisgoFSMenu::PlisgoFSMenu(IPtrFSIconRegistry FSIcons, const std::wstring& rsPat
 
 			if (FSIcons.get() != NULL)
 			{
-				const int nIconHeight = TOPOWEROFTWO(GetSystemMetrics(SM_CYMENUCHECK) + GetSystemMetrics(SM_CYEDGE));
-
-				if (FSIcons->ReadIconLocation(iconLocation, rsPath + L"\\.icon", nIconHeight))
-				{
-					const IconRegistry* pIconRegistry = FSIcons->GetMainIconRegistry();
-
-					assert(pIconRegistry != NULL);
-
-					IPtrRefIconList iconList = pIconRegistry->GetRefIconList(nIconHeight);
-
-					assert(iconList.get() != NULL);
-
-					iconList->GetIcon(m_hIcon, iconLocation);
-				}
+				if (FSIcons->ReadIconLocation(iconLocation, rsPath + L"\\.icon"))
+					m_hIcon = ExtractIcon(g_hInstance, iconLocation.sPath.c_str(), iconLocation.nIndex);
 			}
 
 			LoadMenus(m_children, FSIcons, rsPath+L"\\", rSelection);
@@ -152,7 +140,7 @@ PlisgoFSMenu::~PlisgoFSMenu()
 		CloseHandle(m_hSelectionFile);
 
 	if (m_hIcon != NULL)
-		DeleteObject(m_hIcon);
+		DestroyIcon(m_hIcon);
 }
 
 

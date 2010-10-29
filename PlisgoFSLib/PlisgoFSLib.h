@@ -43,9 +43,10 @@
 #include <boost/unordered_map.hpp>
 
 
-static const int PLISGO_APIVERSION = 2;
+#define PLISGO_MIN_APIVERSION  2
+#define PLISGO_MAX_APIVERSION  3
 
-#define PLISGOFSLIB_VERSION 1.1.0.0
+#define PLISGOFSLIB_VERSION 1.2.0.0
 
 
 typedef	WCHAR		FileNameBuffer[MAX_PATH];
@@ -55,6 +56,10 @@ extern void			FromWide(std::string& rsDst, LPCWSTR sSrc);
 
 extern void			ToWide(std::wstring& rDst, const std::string& sSrc);
 extern void			ToWide(std::wstring& rDst, const char* sSrc);
+
+
+//Retrieves the avaiable Plisgo API version
+extern DWORD		GetPlisgoAPIVersion();
 
 
 

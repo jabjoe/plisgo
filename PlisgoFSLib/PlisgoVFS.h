@@ -140,7 +140,7 @@ private:
 		std::wstring		sPath;
 		IPtrPlisgoFSFile	File;
 		ULONG64				nData;
-		bool				bDeleteOnClose;
+		ULONG32				nFlags;
 		volatile LONG		nUseRef;
 
 		OpenFileData*		pNext;

@@ -31,10 +31,7 @@ public:
 
 	static PlisgoFSFolderReg*	GetSingleton();
 
-	IconRegistry*				GetIconRegistry() 		{ return &m_IconRegistry; }
-
 	IPtrPlisgoFSRoot			GetPlisgoFSRoot(LPCWSTR sPath) const;
-
 
 	void						RunRootCacheClean();
 
@@ -43,14 +40,12 @@ private:
 
 	IPtrPlisgoFSRoot			CreateRoot(const std::wstring& rsRoot);
 
-	IPtrPlisgoFSRoot			ReturnValidRoot(IPtrPlisgoFSRoot root, const std::wstring& rsPath) const;
+	bool						IsRootValidForPath(IPtrPlisgoFSRoot root, const std::wstring& rsPath) const;
 
 
 	typedef boost::unordered_map<std::wstring, IPtrPlisgoFSRoot>	RootCacheMap;
 
 	RootCacheMap					m_RootCache;
-
-	IconRegistry					m_IconRegistry;
 
 	mutable boost::shared_mutex		m_Mutex;
 };

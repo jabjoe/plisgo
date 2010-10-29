@@ -43,7 +43,7 @@ struct IconLocation
 
 class FSIconRegistry
 {
-	friend class IconRegistry;
+	friend class FSIconRegistriesManager;
 public:
 
 	FSIconRegistry(	LPCWSTR				sFSName,
@@ -59,11 +59,9 @@ public:
 	const std::wstring&		GetFSName() const				{ return m_sFSName; }
 	int						GetFSVersion() const			{ return m_nVersion; }
 
-	bool					ReadIconLocation(IconLocation& rIconLocation, const std::wstring& rsPligoFile, const ULONG nHeight);
+	bool					ReadIconLocation(IconLocation& rIconLocation, const std::wstring& rsPath) const;
 
-	bool					GetIconLocation(IconLocation& rIconLocation, UINT nList, UINT nIndex, const ULONG nHeight) const;
-
-	bool					GetInstancePath(std::wstring& rsResult) const;
+	bool					HasInstancePath();
 
 protected:
 	
@@ -72,90 +70,74 @@ protected:
 
 private:
 
-	bool					GetInstancePath(std::wstring& rsResult, boost::upgrade_lock<boost::shared_mutex>& rLock) const;
-	bool					LoadImageList_Locked(UINT nList);
+	bool					GetInstancePath(std::wstring& rsResult);
 
-	struct ImageListVersion
+	bool					GetIconLocation(IconLocation& rIconLocation, UINT nList, UINT nIndex) const;
+	bool					GetIconLocation_Locked(IconLocation& rIconLocation, UINT nList, UINT nIndex);
+
+	//bool					GetInstancePath(std::wstring& rsResult, boost::upgrade_lock<boost::shared_mutex>& rLock) const;
+
+
+	class LoadedImageList
 	{
-		std::wstring	sExt;
-		UINT			nHeight;
+	public:
+		bool	Init(const std::wstring& rsFile);
+		bool	IsValid() const;
+		void	Clear();
+
+		bool	IsIconFile() const	{ return (m_nFileType == 1); }
+		bool	IsCodeFile() const	{ return (m_nFileType == 2); }
+
+		const std::wstring& GetFilePath() const { return m_sFile; }
+		ULONG64		GetLastModTime() const		{ return m_nLastModTime; }
+
+		HIMAGELIST	GetImageList() const		{ return m_hImageList; }
+
+	private:
+
+		HIMAGELIST		m_hImageList;
+		std::wstring	m_sFile;
+		ULONG32			m_nFileType;
+		ULONG64			m_nLastModTime;
 	};
 
-	typedef std::vector<ImageListVersion>	VersionedImageList;
+	typedef std::map<UINT, LoadedImageList>		VersionedImageList;
 
-	bool					GetBestImageList(std::wstring& rsImageListFile, UINT nList, UINT nHeight) const;
+
+	class CombiImageListIcon
+	{
+	public:
+		bool	Init(const WStringList& rFiles);
+		bool	IsValid() const;
+		void	Clear();
+
+		bool	GetIconLocation(IconLocation& rIconLocation, UINT nIndex, bool& rbLoaded) const;
+		bool	CreateIconLocation(IconLocation& rIconLocation, UINT nIndex, IconRegistry* pIconRegistry);
+
+
+	private:
+		VersionedImageList			m_ImageLists;
+		std::vector<IconLocation>	m_Baked;
+	};
+
+
+	typedef std::map<ULONG, CombiImageListIcon>						CombiImageListIconMap;
 
 
 	std::wstring							m_sFSName;
 	int										m_nVersion;
 
-	WStringList								m_Paths;
 
-	std::vector<VersionedImageList>			m_ImageLists;
+	typedef std::vector<std::pair<std::wstring, int> >				References;
+
+
+	References								m_References;
+
+	CombiImageListIconMap					m_ImageLists;
 
 	IconRegistry*							m_pMain;
 	mutable boost::shared_mutex				m_Mutex;
 };
-
-
-
-
-class RefIconList
-{
-	friend class FSIconRegistry;
-public:
-
-	RefIconList(UINT nHeight);
-
-	HIMAGELIST				GetImageList() const				{ return reinterpret_cast<HIMAGELIST>(m_ImageList.p); }
-	UINT					GetHeight() const					{ return m_nHeight; }
-
-	bool					GetFileIconLocation(IconLocation& rIconLocation, const std::wstring& rsPath) const;
-	bool					GetFolderIconLocation(IconLocation& rIconLocation, bool bOpen) const;
-
-	bool					GetIcon(HICON& rhResult, const int nIndex) const;
-	bool					GetIcon(HICON& rhResult, const IconLocation& rIconLocation) const;
-
-	bool					GetIconLocation(IconLocation& rIconLocation, const int nIndex) const;
-	bool					GetIconLocationIndex(int& rnIndex, const IconLocation& rIconLocation) const;
-
-	bool					MakeOverlaid(	IconLocation&		rDst,
-											const IconLocation& rFirst,	
-											const IconLocation& rSecond);
-
-	void					RemoveOlderThan(ULONG64 n100ns);
-
-private:
-	HICON					CreateOverlaidIcon(const IconLocation& rFirst, const IconLocation& rSecond);
-
-	bool					AddEntry_RW(int& rnIndex, HICON hIcon);
-	bool					GetIconLocationIndex_RW(int& rnIndex, const IconLocation& rIconLocation, const std::wstring& rsKey);
-
-	int						GetFreeSlot();
-
-	struct CachedIcon
-	{
-		IconLocation		Location;
-		ULONG64				nLastModified;
-		volatile ULONG64	nTime;
-
-		bool				IsValid() const;
-	};
-
-	typedef boost::unordered_map<std::wstring,int>		CachedIconsMap;
-
-
-	mutable boost::shared_mutex				m_Mutex;
-	UINT									m_nHeight;
-	CComPtr<IImageList>						m_ImageList;
-	CachedIconsMap							m_Extensions;
-	std::map<int, std::wstring>				m_ExtensionsInverse;
-	std::vector<bool>						m_EntryUsed;
-	std::vector<CachedIcon>					m_CachedIcons;
-	CachedIconsMap							m_CachedIconsMap;
-	ULONG64									m_nLastOldestEntry;
-};
-
 
 
 class IconRegistry
@@ -164,17 +146,65 @@ public:
 
 	IconRegistry();
 
-	IPtrFSIconRegistry		GetFSIconRegistry(LPCWSTR sFS, int nVersion, const std::wstring& rsInstancePath) const;
-	void					ReleaseFSIconRegistry(IPtrFSIconRegistry& rFSIconRegistry, const std::wstring& rsInstancePath); 
+	bool					GetFileIconLocation(IconLocation& rIconLocation, const std::wstring& rsPath) const;
+	bool					GetFolderIconLocation(IconLocation& rIconLocation, bool bOpen) const;
 
-	IPtrRefIconList			GetRefIconList(ULONG nHeight) const;
+	struct IconSource
+	{
+		IconLocation	location;
+		ULONG64			nLastModTime;
+	};
+
+	bool					GetCreatedIconPath(std::wstring& rsIconPath, const std::vector<IconSource>& rSources, bool* pbIsCurrent = NULL) const;
+
+	bool					MakeOverlaid(	IconLocation&		rDst,
+											const IconLocation& rFirst,	
+											const IconLocation& rSecond) const;
+
+	bool					GetAsWindowsIconLocation(IconLocation& rIconLocation, const std::wstring& rsImageFile, UINT nHeightHint = 0) const;
+
+	bool					GetWindowsIconLocation(IconLocation& rIconLocation, const IconLocation& rSrcIconLocation, UINT nHeightHint = 0) const;
+
 
 private:
 
-	typedef boost::unordered_map<std::wstring, IPtrFSIconRegistry >	FSIconRegistries;
+	struct CreatedIcon
+	{
+		std::wstring			sResult;
+		std::vector<IconSource> sources;
 
-	FSIconRegistries								m_FSIconRegistries;
-	std::vector<boost::weak_ptr<RefIconList> >		m_IconLists;
+		bool	IsValid() const;
+	};
+
+	typedef boost::unordered_map<std::wstring, CreatedIcon>			CreatedIcons;
+
+	CreatedIcons									m_CreatedIcons;
+	std::wstring									m_sShellPath;
 	mutable boost::shared_mutex						m_Mutex;
 };
 
+
+class FSIconRegistriesManager
+{
+public:
+
+	static FSIconRegistriesManager*	GetSingleton();
+
+
+	IPtrFSIconRegistry		GetFSIconRegistry(LPCWSTR sFS, int nVersion, const std::wstring& rsInstancePath) const;
+	void					ReleaseFSIconRegistry(IPtrFSIconRegistry& rFSIconRegistry, const std::wstring& rsInstancePath); 
+
+	IconRegistry*			GetIconRegistry() 	{ return &m_IconRegistry; }
+
+private:
+
+	FSIconRegistriesManager()	{}
+
+	IPtrFSIconRegistry		GetFSIconRegistry_Locked(const std::wstring& rsKey, LPCWSTR sFS, int nVersion, const std::wstring& rsInstancePath);
+
+	typedef boost::unordered_map<std::wstring, IPtrFSIconRegistry >	FSIconRegistries;
+
+	FSIconRegistries				m_FSIconRegistries;
+	IconRegistry					m_IconRegistry;
+	mutable boost::shared_mutex		m_Mutex;
+};

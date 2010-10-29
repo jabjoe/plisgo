@@ -22,16 +22,19 @@
 
 #include "stdafx.h"
 #include "PlisgoFolder.h"
-#include "PlisgoView.h"
 #include "shlobj.h"
 #include "PlisgoFSFolderReg.h"
 #include "PlisgoExtractIcon.h"
+#include "PlisgoExtractImage.h"
 
 // CPlisgoFolder
 
 #undef Shell_GetCachedImageIndex 
 
 const CLSID	CLSID_PlisgoFolder		= {0xADA19F85,0xEEB6,0x46F2,{0xB8,0xB2,0x2B,0xD9,0x77,0x93,0x4A,0x79}};
+
+const IID	IID_IShellFolderView	= {0x37A378C0,0xF82D,0x11CE,{0xAE,0x65,0x08,0x00,0x2B,0x2E,0x12,0x62}};
+
 
 
 
@@ -40,6 +43,8 @@ CPlisgoFolder::CPlisgoFolder()
 	m_pIDL = NULL;
 
 	m_pCurrent = NULL;
+
+	m_pDefaultSFVCB = NULL;
 }
 
 CPlisgoFolder::~CPlisgoFolder()
@@ -52,6 +57,9 @@ CPlisgoFolder::~CPlisgoFolder()
 
 	m_pCurrent = NULL;
 	m_pIDL = NULL;
+
+	if (m_pDefaultSFVCB != NULL)
+		m_pDefaultSFVCB->Release();
 }
 
 
@@ -114,7 +122,7 @@ HRESULT				CPlisgoFolder::Initialize(LPCITEMIDLIST pIDL, const std::wstring& rsP
 
 
 
-static HRESULT CreatePlisgoExtractIcon_(HWND hWnd, void** ppResult, IPtrPlisgoFSRoot plisgoFSFolder, const std::wstring& rsPath)
+static HRESULT CreatePlisgoExtractIcon_(void** ppResult, IPtrPlisgoFSRoot plisgoFSFolder, const std::wstring& rsPath)
 {
 	CComObject<CPlisgoExtractIcon>* pPlisgoExtractIcon;
 
@@ -135,8 +143,28 @@ static HRESULT CreatePlisgoExtractIcon_(HWND hWnd, void** ppResult, IPtrPlisgoFS
 }
 
 
+static HRESULT CreatePlisgoExtractImage_(void** ppResult, IPtrPlisgoFSRoot plisgoFSFolder, const std::wstring& rsPath)
+{
+	CComObject<CPlisgoExtractImage>* pPlisgoExtractImage;
 
-HRESULT		 CPlisgoFolder::CreatePlisgoExtractIcon(LPCITEMIDLIST pIDL, HWND hWnd, void** ppResult)
+	HRESULT hr = CComObject<CPlisgoExtractImage>::CreateInstance ( &pPlisgoExtractImage );
+
+	if ( !FAILED(hr) && pPlisgoExtractImage != NULL)
+	{
+		pPlisgoExtractImage->AddRef();
+
+		pPlisgoExtractImage->Init(rsPath, plisgoFSFolder);
+
+		hr = pPlisgoExtractImage->QueryInterface(IID_IExtractImage, ppResult);
+
+		pPlisgoExtractImage->Release();
+	}
+	
+	return hr;
+}
+
+
+HRESULT		 CPlisgoFolder::CreatePlisgoExtractImage(LPCITEMIDLIST pIDL, void** ppResult)
 {
 	WCHAR sName[MAX_PATH];
 
@@ -145,11 +173,70 @@ HRESULT		 CPlisgoFolder::CreatePlisgoExtractIcon(LPCITEMIDLIST pIDL, HWND hWnd, 
 	if (FAILED(hr))
 		return hr;
 
-	return CreatePlisgoExtractIcon_(hWnd, ppResult, m_PlisgoFSFolder, m_sPath + L"\\" += sName);
+	return CreatePlisgoExtractImage_( ppResult, m_PlisgoFSFolder, m_sPath + L"\\" += sName);
 }
+
+
+HRESULT		 CPlisgoFolder::CreatePlisgoExtractIcon(LPCITEMIDLIST pIDL, void** ppResult)
+{
+	WCHAR sName[MAX_PATH];
+
+	HRESULT hr = GetItemName(pIDL, sName, MAX_PATH);
+
+	if (FAILED(hr))
+		return hr;
+
+	return CreatePlisgoExtractIcon_(ppResult, m_PlisgoFSFolder, m_sPath + L"\\" += sName);
+}
+
 
 static const GUID IID_HACK_IShellView3 = {0xEC39FA88,0xF8AF,0x41CF,{0x84,0x21,0x38,0xBE,0xD2,0x8F,0x46,0x73}};
 
+
+
+	// IShellFolderViewCB
+HRESULT	CPlisgoFolder::MessageSFVCB(UINT	uMsg,
+									WPARAM	wParam,
+									LPARAM	lParam)
+{
+	if (uMsg == SFVM_GETNOTIFY)
+	{
+		*reinterpret_cast<PIDLIST_ABSOLUTE*>(wParam) = GetIDList();
+        *reinterpret_cast<LONG*>(lParam) = SHCNE_ATTRIBUTES | SHCNE_CREATE | SHCNE_DELETE | SHCNE_RENAMEITEM |
+											SHCNE_UPDATEITEM | SHCNE_UPDATEDIR | SHCNE_MKDIR | SHCNE_RMDIR;
+
+		return S_OK;
+	}
+	else if (uMsg == SFVM_QUERYFSNOTIFY)
+	{
+		SHChangeNotifyEntry* pChange = (SHChangeNotifyEntry*)lParam;
+
+		pChange->fRecursive = TRUE;
+		pChange->pidl = GetIDList();
+
+		return S_OK;
+	}
+	else if (uMsg == SFVM_FSNOTIFY)
+	{
+		return S_OK;
+	}
+	else if (uMsg == SFVM_BACKGROUNDENUM)
+	{
+		return S_OK;
+	}
+	else if (uMsg == SFVM_DEFVIEWMODE)
+	{
+		*((FOLDERVIEWMODE*)lParam) = FVM_DETAILS;
+
+		return S_OK;
+	}
+
+	/*if (m_pDefaultSFVCB != NULL)
+		return m_pDefaultSFVCB->MessageSFVCB(uMsg, wParam, lParam);
+*/
+	return E_NOTIMPL;
+
+}
 
 
 STDMETHODIMP CPlisgoFolder::CreateViewObject(HWND hWnd, REFIID rIID, void** ppResult)
@@ -157,38 +244,74 @@ STDMETHODIMP CPlisgoFolder::CreateViewObject(HWND hWnd, REFIID rIID, void** ppRe
 	if (ppResult == NULL)
 		return E_INVALIDARG;
 
-	if (rIID == IID_HACK_IShellView3)
-		return E_NOINTERFACE;
-
-
-	*ppResult = NULL;
-
 	if (rIID == IID_IShellView	||
 		rIID == IID_IShellView2 ||
-		rIID == IID_IDropTarget ||
-		rIID == IID_IOleWindow	||
-		rIID == IID_IOleCommandTarget)
+		rIID == IID_HACK_IShellView3)
 	{
-		HRESULT hr;
-		CComObject<CPlisgoView>* pPlisgoView;
+		/*SFV_CREATE csfv = {0};
+		
+		csfv.cbSize = sizeof(csfv);
 
-		hr = CComObject<CPlisgoView>::CreateInstance ( &pPlisgoView );
+		QueryInterface(IID_IShellFolder, (void**)&csfv.pshf);
 
-		if ( FAILED(hr) || pPlisgoView == NULL)
+		HRESULT hr =  SHCreateShellFolderView(&csfv, (LPSHELLVIEW*)ppResult);
+
+		if (FAILED(hr))
 			return hr;
 
-		pPlisgoView->AddRef();
+		IShellFolderView *pSFV;
 
-		if (pPlisgoView->Init(this))
-			hr = pPlisgoView->QueryInterface(rIID, ppResult);
-		else
-			hr = m_pCurrent->CreateViewObject(hWnd, rIID, ppResult);
+		if (SUCCEEDED(((IShellView*)*ppResult)->QueryInterface( IID_IShellFolderView, (LPVOID*)&pSFV)))
+		{
+			if (m_pDefaultSFVCB == NULL)
+			{
+				pSFV->SetCallback(this, &m_pDefaultSFVCB);
+			}
 
-		pPlisgoView->Release();
+			pSFV->Release();
+		}
+
+		if (csfv.pshf != NULL)
+			csfv.pshf->Release();
+
+		return S_OK;*/
+/*
+		HRESULT hr = m_pCurrent->CreateViewObject(hWnd, IID_IShellView, ppResult);
+
+		if (FAILED(hr))
+			return hr;
+
+		IShellFolderView *pSFV;
+
+		if (SUCCEEDED(((IShellView*)*ppResult)->QueryInterface( IID_IShellFolderView, (LPVOID*)&pSFV)))
+		{
+			if (m_pDefaultSFVCB == NULL)
+			{
+				pSFV->SetCallback(this, &m_pDefaultSFVCB);
+			}
+
+			pSFV->Release();
+		}
+
+		return S_OK;*/
+
+		SFV_CREATE csfv = {0};
+		
+		csfv.cbSize = sizeof(csfv);
+
+		QueryInterface(IID_IShellFolder, (void**)&csfv.pshf);
+		QueryInterface(IID_IShellFolderViewCB, (void**)&csfv.psfvcb);
+
+		HRESULT hr =  SHCreateShellFolderView(&csfv, (LPSHELLVIEW*)ppResult);
+
+		if (csfv.pshf != NULL)
+			csfv.pshf->Release();
+
+		if (csfv.psfvcb != NULL)
+			csfv.psfvcb->Release();
 
 		return hr;
 	}
-
 
 	if (rIID == IID_IExtractIconW && m_PlisgoFSFolder.get() != NULL)
 	{
@@ -201,24 +324,17 @@ STDMETHODIMP CPlisgoFolder::CreateViewObject(HWND hWnd, REFIID rIID, void** ppRe
 			IPtrPlisgoFSRoot plisgoFSFolder = PlisgoFSFolderReg::GetSingleton()->GetPlisgoFSRoot(sPath.c_str());
 
 			if (plisgoFSFolder.get() != NULL)
-				return CreatePlisgoExtractIcon_(hWnd, ppResult, plisgoFSFolder, m_sPath);
+				return CreatePlisgoExtractIcon_(ppResult, plisgoFSFolder, m_sPath);
 		}
 	}
 
-	if (rIID == IID_IContextMenu ||
-		rIID == IID_IContextMenu2 ||
-		rIID == IID_IContextMenu3)
-	{
-		return m_pCurrent->CreateViewObject(hWnd, rIID, ppResult);
-	}
+	if (rIID == IID_IExtractImage)
+		return E_NOTIMPL;
 
 	if (rIID == IID_IShellIcon)
 		return QueryInterface(IID_IShellIcon, ppResult);
 
-
-	HRESULT hr = m_pCurrent->CreateViewObject(hWnd, rIID, ppResult);
-
-	return hr;
+	return m_pCurrent->CreateViewObject(hWnd, rIID, ppResult);
 }
 
 
@@ -236,7 +352,8 @@ HRESULT		 CPlisgoFolder::CreateIPlisgoFolder(LPCITEMIDLIST pIDL, LPBC pBC, REFII
 	if (rIID == IID_IShellFolder ||
 		rIID == IID_IShellFolder2 ||
 		rIID == IID_IPersistFolder2 ||
-		rIID == IID_IPersistFolder)
+		rIID == IID_IPersistFolder ||
+		IsSupportEncapsulatedInterface(rIID))
 	{
 		std::wstring sPath;
 
@@ -316,27 +433,45 @@ STDMETHODIMP CPlisgoFolder::GetUIObjectOf(HWND hWnd, UINT cidl, LPCITEMIDLIST* p
 		return E_NOINTERFACE;
 
 	if (m_PlisgoFSFolder.get() != NULL && rIID == IID_IExtractIconW && cidl == 1)
-		return CreatePlisgoExtractIcon(*pIDL, hWnd, ppResult);
+		return CreatePlisgoExtractIcon(*pIDL, ppResult);
+
+	if (rIID == IID_IExtractImage && cidl == 1)
+		return CreatePlisgoExtractImage(*pIDL, ppResult);
 
 	return m_pCurrent->GetUIObjectOf(hWnd, cidl, pIDL, rIID, pnReserved, ppResult);
 }
 
 
-HRESULT		 CPlisgoFolder::GetTextOfColumn(PCUITEMID_CHILD pIDL, UINT nColumn, WCHAR* sBuffer, size_t nBufferSize) const
+STDMETHODIMP CPlisgoFolder::GetThumbnailHandler(PCUITEMID_CHILD pIDL,
+								IBindCtx *pbc,
+								REFIID rIID,
+								void **ppResult)
 {
-	SHELLDETAILS sd = {0};
+	if (rIID == IID_IExtractImage)
+		return CreatePlisgoExtractImage(pIDL, ppResult);
 
-	HRESULT hr = const_cast<CPlisgoFolder*>(this)->GetDetailsOf(pIDL, nColumn, &sd);
-
-	if (SUCCEEDED(hr) && hr != S_FALSE)
+	if (rIID == IID_IThumbnailProvider)
 	{
-		hr = StrRetToBuf(&sd.str, pIDL, sBuffer, (UINT)nBufferSize);
+		HRESULT hResult = CreatePlisgoExtractImage(pIDL, ppResult);
+		
+		if (hResult != S_OK)
+			return hResult;
 
-		if (sd.str.uType == STRRET_WSTR)
-			CoTaskMemFree(sd.str.pOleStr);
+		IUnknown* pUnknown = (IUnknown*)*ppResult;
+
+		hResult = pUnknown->QueryInterface(IID_IThumbnailProvider, ppResult);
+
+		pUnknown->Release();
+
+		return hResult;
 	}
 
-	return hr;
+	if (rIID == IID_IExtractIconW)
+		return CreatePlisgoExtractIcon(pIDL, ppResult);
+
+	PrintInterfaceName(rIID);
+
+	return E_NOTIMPL;
 }
 
 
@@ -417,11 +552,11 @@ HRESULT			CPlisgoFolder::GetAttributesOf(LPCITEMIDLIST pIDL, LPDWORD rgfInOut)
 	if (nAttr&FILE_ATTRIBUTE_READONLY)
 		*rgfInOut |= SFGAO_READONLY;
 
-	//if (nAttr&FILE_ATTRIBUTE_OFFLINE) //It's probably virtual if used with plisgo, which means slow
-		*rgfInOut |= SFGAO_ISSLOW;
-
 	if (nAttr&FILE_ATTRIBUTE_DIRECTORY)
 		*rgfInOut |= SFGAO_FILESYSANCESTOR|SFGAO_FOLDER|SFGAO_HASSUBFOLDER|SFGAO_BROWSABLE; //Too much work to check every folder for sub folders
+
+	if (nAttr&FILE_ATTRIBUTE_HIDDEN)
+		*rgfInOut |= SFGAO_HIDDEN|SFGAO_GHOSTED;
 
 	return S_OK;
 }
@@ -457,14 +592,9 @@ HRESULT			CPlisgoFolder::GetIconOf( LPCITEMIDLIST pIDL, UINT nFlags, LPINT lpIco
 
 	const bool bOpen = ((nFlags&GIL_OPENICON) == GIL_OPENICON);
 
-	IPtrRefIconList iconList = m_PlisgoFSFolder->GetFSIconRegistry()->GetMainIconRegistry()->GetRefIconList(16);
-
-	if (iconList.get() == NULL)
-		return E_NOTIMPL;
-
 	IconLocation Location;
 
-	if (!m_PlisgoFSFolder->GetPathIconLocation(Location, m_sPath + L"\\" += sName, iconList, bOpen))
+	if (!m_PlisgoFSFolder->GetPathIconLocation(Location, m_sPath + L"\\" += sName,  bOpen))
 		return E_FAIL;
 
 	int nSysIndex = Shell_GetCachedImageIndex(Location.sPath.c_str(), Location.nIndex, 0);
@@ -475,4 +605,133 @@ HRESULT			CPlisgoFolder::GetIconOf( LPCITEMIDLIST pIDL, UINT nFlags, LPINT lpIco
 	*lpIconIndex = nSysIndex;
 
 	return S_OK;
+}
+
+
+
+
+HRESULT			CPlisgoFolder::GetDefaultColumn(DWORD dwReserved, ULONG *pSort, ULONG *pDisplay)
+{
+	if (pSort == NULL || pDisplay == NULL)
+		return E_POINTER;
+
+	//name column
+	*pSort		= 0;
+	*pDisplay	= 0;
+
+	return S_OK;
+
+}
+
+#define MAX_STD_COLUMN 8
+
+
+HRESULT			CPlisgoFolder::GetDefaultColumnState(UINT iColumn, SHCOLSTATEF *pcsFlags)
+{
+	if (m_PlisgoFSFolder.get() == NULL)
+		return m_pCurrent->GetDefaultColumnState(iColumn, pcsFlags);
+
+	if (pcsFlags == NULL)
+		return E_POINTER;
+
+	if (iColumn < MAX_STD_COLUMN)
+	{
+		HRESULT hResult = m_pCurrent->GetDefaultColumnState(iColumn, pcsFlags);
+
+		if (FAILED(hResult))
+			return hResult;
+
+		if (m_PlisgoFSFolder->IsStandardColumnDisabled(iColumn))
+			*pcsFlags |= SHCOLSTATE_SECONDARYUI;
+		else
+			*pcsFlags &= ~(SHCOLSTATE_SECONDARYUI|SHCOLSTATE_HIDDEN);
+
+		return S_OK;
+	}
+
+	int nPlisgoColumnIndex = (int)iColumn-MAX_STD_COLUMN;
+
+	if (nPlisgoColumnIndex >= (int)m_PlisgoFSFolder->GetColumnNum())
+		return E_FAIL;
+
+	*pcsFlags = SHCOLSTATE_TYPE_STR|SHCOLSTATE_ONBYDEFAULT|SHCOLSTATE_SLOW;
+
+	return S_OK;
+}
+
+
+HRESULT			CPlisgoFolder::MapColumnToSCID(UINT iColumn, SHCOLUMNID *pscid)
+{
+	if (m_PlisgoFSFolder.get() == NULL || iColumn < MAX_STD_COLUMN)
+		return m_pCurrent->MapColumnToSCID(iColumn, pscid);
+
+	return E_NOTIMPL;
+}
+
+
+HRESULT			CPlisgoFolder::InitPlisgoColumnShellDetails(const std::wstring& rsEntry, int nPlisgoColumnIndex, SHELLDETAILS *psd)
+{
+	size_t nSize = sizeof(WCHAR)*(rsEntry.length()+1);
+
+	psd->str.uType = STRRET_WSTR;
+
+	HRESULT hResult = SHStrDup(rsEntry.c_str(), &psd->str.pOleStr);
+
+	if (hResult != S_OK)
+		return hResult;
+
+	psd->cxChar = (int)rsEntry.length()+1;
+
+	PlisgoFSRoot::ColumnAlignment alig = m_PlisgoFSFolder->GetColumnAlignment(nPlisgoColumnIndex);
+
+	if (alig == PlisgoFSRoot::LEFT)
+		psd->fmt = LVCFMT_LEFT;
+	else if (alig == PlisgoFSRoot::CENTER)
+		psd->fmt = LVCFMT_CENTER;
+	else
+		psd->fmt = LVCFMT_RIGHT;	
+
+	return hResult;
+}
+
+
+HRESULT			CPlisgoFolder::GetDetailsOf(PCUITEMID_CHILD pidl, UINT iColumn, SHELLDETAILS *psd)
+{
+	if (m_PlisgoFSFolder.get() == NULL || iColumn < MAX_STD_COLUMN)
+		return m_pCurrent->GetDetailsOf(pidl, iColumn, psd);
+
+	if (psd == NULL)
+		return E_POINTER;
+
+	int nPlisgoColumnIndex = (int)iColumn-MAX_STD_COLUMN;
+
+	if (nPlisgoColumnIndex >= (int)m_PlisgoFSFolder->GetColumnNum())
+		return E_FAIL;
+	
+
+	if (pidl != NULL)
+	{
+		std::wstring sPath;
+
+		HRESULT hResult = GetPathOf(sPath, pidl);
+
+		if (FAILED(hResult))
+			return hResult;
+
+		std::wstring sResult;
+
+		m_PlisgoFSFolder->GetPathColumnTextEntry(sResult, sPath, nPlisgoColumnIndex);
+
+		return InitPlisgoColumnShellDetails(sResult, nPlisgoColumnIndex, psd);
+	}
+	else
+	{
+		int nWidth = m_PlisgoFSFolder->GetColumnDefaultWidth(nPlisgoColumnIndex);
+
+		if (nWidth != -1)
+			psd->cxChar = nWidth;
+
+		return InitPlisgoColumnShellDetails(	m_PlisgoFSFolder->GetColumnHeader(nPlisgoColumnIndex),
+												nPlisgoColumnIndex, psd);
+	}
 }

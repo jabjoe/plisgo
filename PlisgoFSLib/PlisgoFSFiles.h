@@ -371,7 +371,7 @@ private:
 class PlisgoFSStringReadOnly : public  PlisgoFSFile
 {
 public:
-	PlisgoFSStringReadOnly()			{ m_bVolatile = false; }
+	PlisgoFSStringReadOnly();
 	PlisgoFSStringReadOnly(	const std::wstring& sData);
 	PlisgoFSStringReadOnly(	const std::string& sData);
 
@@ -401,9 +401,17 @@ public:
 
 	virtual int			Close(ULONGLONG* pInstanceData);
 
+	virtual bool		GetFileTimes(FILETIME& rCreation, FILETIME& rLastAccess, FILETIME& rLastWrite) const
+	{
+		rCreation = rLastAccess = rLastWrite = (FILETIME&)m_nTime;
+
+		return true;
+	}
+	
 protected:
 	volatile bool					m_bVolatile;
 	std::string						m_sData;
+	ULONG64							m_nTime;
 };
 
 
@@ -470,6 +478,8 @@ public:
 	bool				IsReadOnly() const							{ return m_bReadOnly; }
 	void				SetReadOnly(bool bReadOnly);
 
+	virtual bool		GetFileTimes(FILETIME& rCreation, FILETIME& rLastAccess, FILETIME& rLastWrite) const;
+	
 private:
 	bool							m_bReadOnly;
 	bool							m_bWriteOpen;

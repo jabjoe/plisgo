@@ -742,17 +742,26 @@ int		PlisgoFSDataFile::Write(	LPCVOID		pBuffer,
 ****************************************************************************
 */
 
+PlisgoFSStringReadOnly::PlisgoFSStringReadOnly()
+{
+	m_bVolatile = false;
+	GetSystemTimeAsFileTime((FILETIME*)&m_nTime);
+}
+
 
 PlisgoFSStringReadOnly::PlisgoFSStringReadOnly(	const std::wstring& rsData)
 {
 	m_bVolatile = false;
 	FromWide(m_sData, rsData);
+	GetSystemTimeAsFileTime((FILETIME*)&m_nTime);
 }
+
 
 PlisgoFSStringReadOnly::PlisgoFSStringReadOnly(	const std::string& sData)
 {
 	m_bVolatile = false;
 	m_sData		= sData;
+	GetSystemTimeAsFileTime((FILETIME*)&m_nTime);
 }
 
 
@@ -846,6 +855,8 @@ void			PlisgoFSStringFile::SetString(const std::string& rsData)
 	boost::unique_lock<boost::shared_mutex> lock(m_Mutex);
 
 	m_sData = rsData;
+
+	GetSystemTimeAsFileTime((FILETIME*)&m_nTime);
 }
 
 
@@ -874,6 +885,8 @@ void			PlisgoFSStringFile::SetString(const std::wstring& rsData)
 	FromWide(sData2, rsData);
 
 	m_sData = sData2;
+
+	GetSystemTimeAsFileTime((FILETIME*)&m_nTime);
 }
 
 
@@ -886,6 +899,8 @@ void			PlisgoFSStringFile::AddString(const std::wstring& rsData)
 	FromWide(sData2, rsData);
 
 	m_sData+= sData2;
+	
+	GetSystemTimeAsFileTime((FILETIME*)&m_nTime);
 }
 
 
@@ -956,6 +971,8 @@ int				PlisgoFSStringFile::SetEndOfFile(LONGLONG nEndPos, ULONGLONG* pInstanceDa
 
 	m_sData.resize((unsigned int)nEndPos);
 
+	GetSystemTimeAsFileTime((FILETIME*)&m_nTime);
+
 	return 0;
 }
 
@@ -1018,6 +1035,8 @@ int				PlisgoFSStringFile::Write(LPCVOID		pBuffer,
 
 	*pnNumberOfBytesWritten = nNumberOfBytesToWrite;
 
+	GetSystemTimeAsFileTime((FILETIME*)&m_nTime);
+
 	return 0;
 }
 
@@ -1066,6 +1085,15 @@ LONGLONG		PlisgoFSStringFile::GetSize() const
 	return m_sData.length();
 }
 
+
+bool			PlisgoFSStringFile::GetFileTimes(FILETIME& rCreation, FILETIME& rLastAccess, FILETIME& rLastWrite) const
+{
+	boost::shared_lock<boost::shared_mutex> lock(m_Mutex);
+
+	rCreation = rLastAccess = rLastWrite = (FILETIME&)m_nTime;
+
+	return true;
+}
 
 
 /*

@@ -77,6 +77,4 @@ protected:
 
 	std::wstring			m_sPath;
 	IPtrPlisgoFSRoot		m_PlisgoFSFolder;
-	bool					m_bOpen;
-	bool					m_bExtract;
 };

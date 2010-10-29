@@ -20,56 +20,70 @@
     along with Plisgo.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+
 #pragma once
 #include "resource.h"       // main symbols
+
+#include "PlisgoFSFolder.h"
+#include "IconRegistry.h"
+#include <Thumbcache.h>
 
 
 #if defined(_WIN32_WCE) && !defined(_CE_DCOM) && !defined(_CE_ALLOW_SINGLE_THREADED_OBJECTS_IN_MTA)
 #error "Single-threaded COM objects are not properly supported on Windows CE platform, such as the Windows Mobile platforms that do not include full DCOM support. Define _CE_ALLOW_SINGLE_THREADED_OBJECTS_IN_MTA to force ATL to support creating single-thread COM object's and allow use of it's single-threaded COM object implementations. The threading model in your rgs file was set to 'Free' as that is the only threading model supported in non DCOM Windows CE platforms."
 #endif
 
-extern const CLSID	CLSID_PlisgoData;
+class IconRegistry;
 
-class CPlisgoView;
+extern const CLSID	CLSID_PlisgoExtractImage;
 
-// CPlisgoData
-
-class ATL_NO_VTABLE CPlisgoData :
+class ATL_NO_VTABLE CPlisgoExtractImage :
 	public CComObjectRootEx<CComSingleThreadModel>,
-	public CComCoClass<CPlisgoData, &CLSID_PlisgoData>,
-	public IDataObject
+	public CComCoClass<CPlisgoExtractImage, &CLSID_PlisgoExtractImage>,
+    public IExtractImage,
+	public IThumbnailProvider,
+	public IInitializeWithFile
 {
 public:
-	CPlisgoData()
-	{
-	}
 
-	~CPlisgoData();
+	CPlisgoExtractImage();
+	~CPlisgoExtractImage();
 
-DECLARE_REGISTRY_RESOURCEID(IDR_PLISGODATA)
+	void Init(const std::wstring& sPath, IPtrPlisgoFSRoot localFSFolder);
 
-
-BEGIN_COM_MAP(CPlisgoData)
-	COM_INTERFACE_ENTRY(IDataObject)
+BEGIN_COM_MAP(CPlisgoExtractImage)
+    COM_INTERFACE_ENTRY(IExtractImage)
+    COM_INTERFACE_ENTRY(IThumbnailProvider)
+	COM_INTERFACE_ENTRY(IInitializeWithFile)
 END_COM_MAP()
 
+	DECLARE_REGISTRY_RESOURCEID(IDR_PLISGOEXTRACTIMAGE)
 
-	void Init(CPlisgoView* pPlisgoView);
+public:
+    // IExtractImage
 
-	//IDataObject
+    STDMETHOD(GetLocation)(	PWSTR pszPathBuffer,
+							DWORD		cchMax,
+							DWORD*		pdwPriority,
+							const SIZE*	prgSize,
+							DWORD		dwRecClrDepth,
+							DWORD*		pdwFlags);
 
-    STDMETHOD(GetData)( FORMATETC* pFormatetcIn, STGMEDIUM* pMedium);
-    STDMETHOD(QueryGetData)( FORMATETC* pFormatetc);
-    STDMETHOD(EnumFormatEtc)( DWORD dwDirection, IEnumFORMATETC **ppEnumFormatEtc);
-	STDMETHOD(GetDataHere)( FORMATETC*, STGMEDIUM* )										{ return E_NOTIMPL; }
-    STDMETHOD(GetCanonicalFormatEtc)( FORMATETC*, FORMATETC*)								{ return E_NOTIMPL; }
-    STDMETHOD(SetData)( FORMATETC*, STGMEDIUM*, BOOL )										{ return E_NOTIMPL; }
-    STDMETHOD(DAdvise)( FORMATETC*, DWORD , IAdviseSink*, DWORD*)							{ return E_NOTIMPL; }
-    STDMETHOD(DUnadvise)( DWORD )															{ return E_NOTIMPL; }
-    STDMETHOD(EnumDAdvise)( IEnumSTATDATA **)												{ return E_NOTIMPL; }
+    STDMETHOD(Extract)( HBITMAP *phBmpImage );
 
-private:
-	
-    CPlisgoView*					m_pPlisgoView;
+	// IInitializeWithFile
+	STDMETHOD(Initialize)(LPCWSTR sFilePath, DWORD grfMode);
+
+	// IThumbnailProvider
+	STDMETHOD(GetThumbnail)(UINT cx, HBITMAP *phBmpImage, WTS_ALPHATYPE *pdwAlpha);
+
+protected:
+
+	bool	InitResult(UINT hHeight);
+
+	std::wstring			m_sPath;
+	std::wstring			m_sResult;
+	IPtrPlisgoFSRoot		m_PlisgoFSFolder;
+	SIZE					m_Size;
+	WORD					m_nColorDepth;
 };
-

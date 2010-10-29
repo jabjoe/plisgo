@@ -38,7 +38,9 @@ class ATL_NO_VTABLE CPlisgoFolder :
 	public CComCoClass<CPlisgoFolder, &CLSID_PlisgoFolder>,
 	public IShellFolder2,
 	public IPersistFolder2,
-	public IShellIcon
+	public IShellIcon,
+	public IShellFolderViewCB,
+	public IThumbnailHandlerFactory
 {
 public:
 	CPlisgoFolder();
@@ -52,30 +54,47 @@ BEGIN_COM_MAP(CPlisgoFolder)
     COM_INTERFACE_ENTRY(IPersistFolder)
     COM_INTERFACE_ENTRY(IPersist)
     COM_INTERFACE_ENTRY(IShellIcon)
+    COM_INTERFACE_ENTRY(IShellFolderViewCB)
+    COM_INTERFACE_ENTRY(IThumbnailHandlerFactory)
 END_COM_MAP()
 
 	DECLARE_REGISTRY_RESOURCEID(IDR_PLISGOFOLDER)
 
+
+	static bool		IsSupportEncapsulatedInterface(REFIID rIID)
+	{
+		return (rIID == IID_IPropertyStore ||
+				rIID == IID_IPropertyStoreFactory ||
+				rIID == IID_IObjectProvider ||
+				rIID == IID_IExplorerPaneVisibility ||
+				rIID == IID_IParentAndItem ||
+				rIID == IID_IObjectWithSite || 
+				rIID == IID_IPersistIDList 
+				);
+	}
+
+
 	static HRESULT InternalQueryInterface(void* pThis,
 										  const _ATL_INTMAP_ENTRY* pEntries,
-										  REFIID iid,
+										  REFIID rIID,
 										  void** ppvObject )
 	{
-		if (iid == IID_IDispatch || 
-			iid == IID_IShellFolder || iid == IID_IShellFolder2 ||
-			iid == IID_IPersistFolder3 || iid == IID_IPersistFolder2 ||
-			iid == IID_IPersistFolder || iid == IID_IPersist ||
-			iid == IID_IShellIcon || iid == IID_IUnknown)
-			return CComObjectRootBase::InternalQueryInterface(pThis, pEntries, iid, ppvObject);
+		HRESULT hr = CComObjectRootBase::InternalQueryInterface(pThis, pEntries, rIID, ppvObject);
 
-		HRESULT hr = E_NOTIMPL;
+		if (SUCCEEDED(hr))
+			return hr;
+
+		if (!IsSupportEncapsulatedInterface(rIID))
+			return E_NOTIMPL;
+		
+		hr = E_NOTIMPL;
 
 		IShellFolder2* pCaptured = ((CPlisgoFolder*)pThis)->GetCaptured();
 
 		if (pCaptured != NULL)
-			hr = pCaptured->QueryInterface(iid, ppvObject);
+			hr = pCaptured->QueryInterface(rIID, ppvObject);
 		
-		return  hr;
+		return hr;
 	}
 
 public:
@@ -154,39 +173,35 @@ public:
 		return m_pCurrent->EnumSearches(ppEnum);
 	}
 
-	STDMETHOD(GetDefaultColumn) (DWORD dwReserved, ULONG *pSort, ULONG *pDisplay)
-	{
-		return m_pCurrent->GetDefaultColumn(dwReserved, pSort, pDisplay);
-	}
-
-	STDMETHOD(GetDefaultColumnState) (UINT iColumn, SHCOLSTATEF *pcsFlags)
-	{
-		return m_pCurrent->GetDefaultColumnState(iColumn,pcsFlags);
-	}
-	
 	STDMETHOD(GetDefaultSearchGUID) (GUID *pguid)
 	{
 		return m_pCurrent->GetDefaultSearchGUID(pguid);
 	}
 
+
+	STDMETHOD(GetDefaultColumn) (DWORD dwReserved, ULONG *pSort, ULONG *pDisplay);
+	STDMETHOD(GetDefaultColumnState) (UINT iColumn, SHCOLSTATEF *pcsFlags);
+	STDMETHOD(GetDetailsOf) (PCUITEMID_CHILD pidl, UINT iColumn, SHELLDETAILS *psd);
+	STDMETHOD(MapColumnToSCID) (UINT iColumn, SHCOLUMNID *pscid);
+
 	STDMETHOD(GetDetailsEx) (PCUITEMID_CHILD pidl, const SHCOLUMNID *pscid, VARIANT *pv)
 	{
 		return m_pCurrent->GetDetailsEx(pidl, pscid, pv);
 	}
-
-	STDMETHOD(GetDetailsOf) (PCUITEMID_CHILD pidl, UINT iColumn, SHELLDETAILS *psd)
-	{
-		return m_pCurrent->GetDetailsOf(pidl, iColumn, psd);
-	}
-
-
-	STDMETHOD(MapColumnToSCID) (UINT iColumn, SHCOLUMNID *pscid)
-	{
-		return m_pCurrent->MapColumnToSCID(iColumn, pscid);
-	}
-
 	// IShellIcon
 	STDMETHOD(GetIconOf)( LPCITEMIDLIST pIDL, UINT nFlags, LPINT lpIconIndex);
+
+
+	// IShellFolderViewCB
+	STDMETHOD(MessageSFVCB)(UINT	uMsg,
+							WPARAM	wParam,
+							LPARAM	lParam);
+
+	// IThumbnailHandlerFactory 
+	STDMETHOD(GetThumbnailHandler)(	PCUITEMID_CHILD pIDL,
+									IBindCtx *pbc,
+									REFIID rIID,
+									void **ppResult);
 
 	HRESULT	GetPathOf(std::wstring& rsResult, LPCITEMIDLIST pIDL);
 	
@@ -196,7 +211,7 @@ public:
 
 	IPtrPlisgoFSRoot	GetPlisgoFSLocal() const	{ return m_PlisgoFSFolder; }
 
-	HRESULT				GetTextOfColumn(PCUITEMID_CHILD pIDL, UINT nColumn, WCHAR* sBuffer, size_t nBufferSize) const;
+	//HRESULT				GetTextOfColumn(PCUITEMID_CHILD pIDL, UINT nColumn, WCHAR* sBuffer, size_t nBufferSize) const;
 	HRESULT				GetItemName(PCUITEMID_CHILD pIDL, WCHAR* sBuffer, size_t nBufferSize) const;
 
 	IShellFolder2*		GetCaptured() const		{ return m_pCurrent; }
@@ -208,12 +223,16 @@ protected:
 	HRESULT				Initialize(LPCITEMIDLIST pIDL, const std::wstring& rsPath, IPtrPlisgoFSRoot& rPlisgoFSFolder );
 
 private:
+	HRESULT				InitPlisgoColumnShellDetails(const std::wstring& rsEntry, int nPlisgoColumnIndex, SHELLDETAILS *psd);
 
 	HRESULT				CreateIPlisgoFolder(LPCITEMIDLIST pIDL, LPBC pBC, REFIID rIID, void** ppResult);
-	HRESULT				CreatePlisgoExtractIcon(LPCITEMIDLIST pIDL, HWND hWnd, void** ppResult);
+	HRESULT				CreatePlisgoExtractIcon(LPCITEMIDLIST pIDL, void** ppResult);
+	HRESULT				CreatePlisgoExtractImage(LPCITEMIDLIST pIDL, void** ppResult);
 
 	std::wstring			m_sPath;
 	IPtrPlisgoFSRoot		m_PlisgoFSFolder;
 	IShellFolder2*			m_pCurrent;
 	LPITEMIDLIST			m_pIDL;
+
+	IShellFolderViewCB*		m_pDefaultSFVCB;
 };

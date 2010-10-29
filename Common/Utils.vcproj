@@ -550,6 +550,14 @@
 			>
 		</File>
 		<File
+			RelativePath=".\RegUtils.cpp"
+			>
+		</File>
+		<File
+			RelativePath=".\RegUtils.h"
+			>
+		</File>
+		<File
 			RelativePath=".\Utils.h"
 			>
 		</File>
