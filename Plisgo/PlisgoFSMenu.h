@@ -52,6 +52,7 @@ private:
 	HICON					m_hIcon;
 	std::wstring			m_sText;
 	HANDLE					m_hSelectionFile;
+	bool					m_bCanUseClick;
 	std::wstring			m_sClickCmd;
 	std::wstring			m_sClickCmdArgs;
 	IPtrPlisgoFSMenuList	m_children;

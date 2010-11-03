@@ -28,18 +28,23 @@
 PlisgoFSMenu::PlisgoFSMenu(IPtrFSIconRegistry FSIcons, const std::wstring& rsPath, const WStringList& rSelection)
 {
 	m_sPath = rsPath;
+	m_bCanUseClick = false;
 
 	if (ReadTextFromFile(m_sText, (rsPath + L"\\.text").c_str()))
 	{
 		m_bEnabled = false;
 
-		m_hSelectionFile = CreateFile((rsPath + L"\\.selection").c_str(), GENERIC_WRITE, FILE_SHARE_READ, NULL, TRUNCATE_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+		std::wstring sSelectionFile = rsPath + L"\\.selection";
+
+		m_hSelectionFile = CreateFile(sSelectionFile.c_str(), GENERIC_WRITE, FILE_SHARE_READ, NULL, TRUNCATE_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 
 		if (m_hSelectionFile == INVALID_HANDLE_VALUE)
 			m_hSelectionFile = NULL;
 
 		if (m_hSelectionFile != NULL)
 		{
+			m_bCanUseClick = true; //We has the lock
+
 			for(WStringList::const_iterator it = rSelection.begin(); it != rSelection.end(); ++it)
 			{
 				LPCWSTR sPos = it->c_str();
@@ -67,6 +72,11 @@ PlisgoFSMenu::PlisgoFSMenu(IPtrFSIconRegistry FSIcons, const std::wstring& rsPat
 			}
 		
 			FlushFileBuffers(m_hSelectionFile); //Mark selection writing is finished
+		}
+		else
+		{
+			if (GetFileAttributes(sSelectionFile.c_str()) == INVALID_FILE_ATTRIBUTES)
+				m_bCanUseClick = true; //There is no lock not to have
 		}
 
 
@@ -157,7 +167,7 @@ int			PlisgoFSMenu::GetIndex() const
 
 void		PlisgoFSMenu::Click()
 {
-	if (m_hSelectionFile != NULL)
+	if (m_bCanUseClick)
 	{
 		HANDLE hClickFile = CreateFile((m_sPath + L"\\.click").c_str(), GENERIC_WRITE, 0, NULL, TRUNCATE_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 
@@ -172,7 +182,6 @@ void		PlisgoFSMenu::Click()
 			CloseHandle(hClickFile);
 		}
 	}
-
 
 	if (m_sClickCmd.length())
 		ShellExecute(NULL, NULL, m_sClickCmd.c_str(), m_sClickCmdArgs.c_str(), NULL, SW_SHOWNORMAL);
