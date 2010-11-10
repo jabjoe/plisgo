@@ -1266,7 +1266,7 @@ bool			ExtractIconInfoForExt( std::wstring& rsIconFilePath, int& rnIconIndex, LP
 		boost::trim_right_if(rsIconFilePath, boost::is_any_of(L"\""));
 		boost::trim_left_if(rsIconFilePath, boost::is_any_of(L"\""));
 
-		return true;
+		return (GetFileAttributes(rsIconFilePath.c_str()) != INVALID_FILE_ATTRIBUTES);
 	}
 	else return false;
 }

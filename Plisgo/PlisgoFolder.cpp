@@ -660,15 +660,6 @@ HRESULT			CPlisgoFolder::GetDefaultColumnState(UINT iColumn, SHCOLSTATEF *pcsFla
 }
 
 
-HRESULT			CPlisgoFolder::MapColumnToSCID(UINT iColumn, SHCOLUMNID *pscid)
-{
-	if (m_PlisgoFSFolder.get() == NULL || iColumn < MAX_STD_COLUMN)
-		return m_pCurrent->MapColumnToSCID(iColumn, pscid);
-
-	return E_NOTIMPL;
-}
-
-
 HRESULT			CPlisgoFolder::InitPlisgoColumnShellDetails(const std::wstring& rsEntry, int nPlisgoColumnIndex, SHELLDETAILS *psd)
 {
 	size_t nSize = sizeof(WCHAR)*(rsEntry.length()+1);

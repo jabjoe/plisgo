@@ -182,7 +182,7 @@ public:
 	STDMETHOD(GetDefaultColumn) (DWORD dwReserved, ULONG *pSort, ULONG *pDisplay);
 	STDMETHOD(GetDefaultColumnState) (UINT iColumn, SHCOLSTATEF *pcsFlags);
 	STDMETHOD(GetDetailsOf) (PCUITEMID_CHILD pidl, UINT iColumn, SHELLDETAILS *psd);
-	STDMETHOD(MapColumnToSCID) (UINT iColumn, SHCOLUMNID *pscid);
+	STDMETHOD(MapColumnToSCID)(UINT , SHCOLUMNID*)	{ return E_NOTIMPL; }
 
 	STDMETHOD(GetDetailsEx) (PCUITEMID_CHILD pidl, const SHCOLUMNID *pscid, VARIANT *pv)
 	{
