@@ -26,11 +26,10 @@
 #include "PlisgoFSMenu.h"
 
 
-class PlisgoFSRoot
+class PlisgoFSRoot : public boost::enable_shared_from_this<PlisgoFSRoot>
 {
+	friend class PlisgoFSFolderReg;
 public:
-
-	PlisgoFSRoot(const std::wstring& rsPath);
 	~PlisgoFSRoot();
 
 	ULONG64				GetTimeSinceLastUse();
@@ -40,6 +39,7 @@ public:
 	LPCWSTR				GetFSName() const								{ return m_sFSName.c_str(); }
 	ULONG				GetFSVersion() const							{ return m_nFSVersion; }
 	const std::wstring& GetPath() const									{ return m_sPath; }
+	const std::wstring& GetPlisgoPath() const							{ return m_sPlisgoPath; }
 
 	enum ColumnAlignment
 	{
@@ -85,6 +85,13 @@ public:
 
 	bool				GetFileOverlay(	const std::wstring& rsPath,
 										IconLocation&		rIconLocation) const;
+
+protected:
+
+	PlisgoFSRoot();
+
+	void				Init(const std::wstring& rsPath);
+
 private:
 
 	bool				GetPathColumnEntryPath(std::wstring& rsOutPath, const std::wstring& rsInPath, int nIndex) const;
@@ -113,6 +120,7 @@ private:
 	std::wstring							m_sFSName;
 	int										m_nFSVersion;
 	std::wstring							m_sPath;
+	std::wstring							m_sPlisgoPath;
 	bool									m_DisabledStandardColumn[8];
 
 	struct ColumnDef

@@ -39,11 +39,12 @@ private:
 	PlisgoFSFolderReg();
 
 	IPtrPlisgoFSRoot			CreateRoot(const std::wstring& rsRoot);
+	IPtrPlisgoFSRoot			GetPlisgoFSRoot_Locked(const std::wstring& rsPath, const std::wstring& rsSection);
 
 	bool						IsRootValidForPath(IPtrPlisgoFSRoot root, const std::wstring& rsPath) const;
 
 
-	typedef boost::unordered_map<std::wstring, IPtrPlisgoFSRoot>	RootCacheMap;
+	typedef boost::unordered_map<std::wstring, IPtrPlisgoFSRoot>	RootCacheMap;			
 
 	RootCacheMap					m_RootCache;
 

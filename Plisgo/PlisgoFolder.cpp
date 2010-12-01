@@ -35,7 +35,7 @@ const CLSID	CLSID_PlisgoFolder		= {0xADA19F85,0xEEB6,0x46F2,{0xB8,0xB2,0x2B,0xD9
 
 const IID	IID_IShellFolderView	= {0x37A378C0,0xF82D,0x11CE,{0xAE,0x65,0x08,0x00,0x2B,0x2E,0x12,0x62}};
 
-
+#define MAX_STD_COLUMN 8
 
 
 CPlisgoFolder::CPlisgoFolder()
@@ -43,8 +43,6 @@ CPlisgoFolder::CPlisgoFolder()
 	m_pIDL = NULL;
 
 	m_pCurrent = NULL;
-
-	m_pDefaultSFVCB = NULL;
 }
 
 CPlisgoFolder::~CPlisgoFolder()
@@ -57,9 +55,6 @@ CPlisgoFolder::~CPlisgoFolder()
 
 	m_pCurrent = NULL;
 	m_pIDL = NULL;
-
-	if (m_pDefaultSFVCB != NULL)
-		m_pDefaultSFVCB->Release();
 }
 
 
@@ -230,6 +225,11 @@ HRESULT	CPlisgoFolder::MessageSFVCB(UINT	uMsg,
 
 		return S_OK;
 	}
+	else if (uMsg == SFVM_COLUMNCLICK )
+	{
+		//SHShellFolderView_Message(_hwnd, SFVM_REARRANGE, wParam)
+		return S_FALSE;
+	}
 
 	/*if (m_pDefaultSFVCB != NULL)
 		return m_pDefaultSFVCB->MessageSFVCB(uMsg, wParam, lParam);
@@ -248,53 +248,6 @@ STDMETHODIMP CPlisgoFolder::CreateViewObject(HWND hWnd, REFIID rIID, void** ppRe
 		rIID == IID_IShellView2 ||
 		rIID == IID_HACK_IShellView3)
 	{
-		/*SFV_CREATE csfv = {0};
-		
-		csfv.cbSize = sizeof(csfv);
-
-		QueryInterface(IID_IShellFolder, (void**)&csfv.pshf);
-
-		HRESULT hr =  SHCreateShellFolderView(&csfv, (LPSHELLVIEW*)ppResult);
-
-		if (FAILED(hr))
-			return hr;
-
-		IShellFolderView *pSFV;
-
-		if (SUCCEEDED(((IShellView*)*ppResult)->QueryInterface( IID_IShellFolderView, (LPVOID*)&pSFV)))
-		{
-			if (m_pDefaultSFVCB == NULL)
-			{
-				pSFV->SetCallback(this, &m_pDefaultSFVCB);
-			}
-
-			pSFV->Release();
-		}
-
-		if (csfv.pshf != NULL)
-			csfv.pshf->Release();
-
-		return S_OK;*/
-/*
-		HRESULT hr = m_pCurrent->CreateViewObject(hWnd, IID_IShellView, ppResult);
-
-		if (FAILED(hr))
-			return hr;
-
-		IShellFolderView *pSFV;
-
-		if (SUCCEEDED(((IShellView*)*ppResult)->QueryInterface( IID_IShellFolderView, (LPVOID*)&pSFV)))
-		{
-			if (m_pDefaultSFVCB == NULL)
-			{
-				pSFV->SetCallback(this, &m_pDefaultSFVCB);
-			}
-
-			pSFV->Release();
-		}
-
-		return S_OK;*/
-
 		SFV_CREATE csfv = {0};
 		
 		csfv.cbSize = sizeof(csfv);
@@ -424,6 +377,40 @@ STDMETHODIMP CPlisgoFolder::BindToStorage(LPCITEMIDLIST pIDL, LPBC pBC, REFIID r
 		return hr;
 
 	return m_pCurrent->BindToStorage(pIDL, pBC, rIID, ppResult);
+}
+
+
+STDMETHODIMP CPlisgoFolder::CompareIDs(LPARAM lParam, LPCITEMIDLIST pIDL1, LPCITEMIDLIST pIDL2)
+{
+	if (m_PlisgoFSFolder.get() == NULL || lParam < MAX_STD_COLUMN)
+		return m_pCurrent->CompareIDs(lParam, pIDL1, pIDL2);
+
+	int nPlisgoColumnIndex = (int)lParam-MAX_STD_COLUMN;
+
+	if (nPlisgoColumnIndex >= (int)m_PlisgoFSFolder->GetColumnNum())
+		return m_pCurrent->CompareIDs(lParam, pIDL1, pIDL2);
+
+	std::wstring sPath;
+
+	HRESULT hResult = GetPathOf(sPath, pIDL1);
+
+	if (FAILED(hResult))
+		return hResult;
+
+	std::wstring sColumn1;
+
+	m_PlisgoFSFolder->GetPathColumnTextEntry(sColumn1, sPath, nPlisgoColumnIndex);
+
+	hResult = GetPathOf(sPath, pIDL2);
+
+	if (FAILED(hResult))
+		return hResult;
+
+	std::wstring sColumn2;
+
+	m_PlisgoFSFolder->GetPathColumnTextEntry(sColumn2, sPath, nPlisgoColumnIndex);
+
+	return  MAKE_HRESULT(SEVERITY_SUCCESS, 0, (USHORT)((sColumn1 == sColumn2 ? 0 : (sColumn1 > sColumn2 ? 1 : -1))));
 }
 
 
@@ -623,7 +610,7 @@ HRESULT			CPlisgoFolder::GetDefaultColumn(DWORD dwReserved, ULONG *pSort, ULONG 
 
 }
 
-#define MAX_STD_COLUMN 8
+
 
 
 HRESULT			CPlisgoFolder::GetDefaultColumnState(UINT iColumn, SHCOLSTATEF *pcsFlags)

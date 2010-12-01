@@ -119,10 +119,7 @@ public:
 
 	STDMETHOD(BindToStorage) (LPCITEMIDLIST pIDL, LPBC pBC, REFIID rIID, void** ppResult);
 
-    STDMETHOD(CompareIDs) (LPARAM lParam, LPCITEMIDLIST pIDL1, LPCITEMIDLIST pIDL2)
-	{
-		return m_pCurrent->CompareIDs(lParam, pIDL1, pIDL2);
-	}
+    STDMETHOD(CompareIDs) (LPARAM lParam, LPCITEMIDLIST pIDL1, LPCITEMIDLIST pIDL2);
 
     STDMETHOD(CreateViewObject) (HWND hWnd, REFIID rIID, void** ppResult);
 
@@ -233,6 +230,4 @@ private:
 	IPtrPlisgoFSRoot		m_PlisgoFSFolder;
 	IShellFolder2*			m_pCurrent;
 	LPITEMIDLIST			m_pIDL;
-
-	IShellFolderViewCB*		m_pDefaultSFVCB;
 };

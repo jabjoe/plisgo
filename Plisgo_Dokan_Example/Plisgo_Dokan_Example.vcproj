@@ -62,7 +62,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="dokan.lib PlisgoFSLib.lib gdiplus.lib Psapi.lib"
+				AdditionalDependencies="dokan.lib PlisgoFSLib.lib gdiplus.lib Psapi.lib version.lib"
 				LinkIncremental="2"
 				AdditionalLibraryDirectories="&quot;C:\Program Files\Dokan\DokanLibrary&quot;;&quot;../PlisgoFSLib/$(ConfigurationName)/&quot;"
 				GenerateDebugInformation="true"
@@ -136,7 +136,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="dokan.lib PlisgoFSLib.lib gdiplus.lib Psapi.lib"
+				AdditionalDependencies="dokan.lib PlisgoFSLib.lib gdiplus.lib Psapi.lib version.lib"
 				LinkIncremental="1"
 				AdditionalLibraryDirectories="&quot;C:\Program Files\Dokan\DokanLibrary&quot;;&quot;../PlisgoFSLib/$(ConfigurationName)/&quot;"
 				GenerateDebugInformation="true"

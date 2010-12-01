@@ -279,10 +279,35 @@ static bool		GetShortcutIconLocation(std::wstring& rsIconPath, int& rnIndex, LPC
 
 	hr = pSL->GetIconLocation(sBuffer, MAX_PATH, &rnIndex);
 
-	if (FAILED(hr))
-		return false;
+	if (FAILED(hr) || sBuffer[0] == L'\0')
+	{
+		WIN32_FIND_DATA data = {0};
 
-	rsIconPath = sBuffer;
+		hr = pSL->GetPath(sBuffer, MAX_PATH, &data, SLGP_SHORTPATH);
+
+		if (FAILED(hr))
+			return false;
+
+		if (data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+		{
+			rsIconPath = L"shell32.dll";
+			rnIndex = -4;
+
+			EnsureFullPath(rsIconPath);
+		}
+		else
+		{
+			LPCWSTR sExt = wcsrchr(sBuffer, L'.');
+
+			if (sExt == NULL)
+			{
+				rsIconPath = L"shell32.dll";
+				rnIndex = -1;
+			}
+			else ExtractIconInfoForExt(rsIconPath, rnIndex, sExt);
+		}
+	}
+	else rsIconPath = sBuffer;
 
 	return true;
 }

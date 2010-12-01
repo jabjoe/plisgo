@@ -343,3 +343,40 @@ bool	ReadDoubleFromFile(double& rnResult, LPCWSTR sFile)
 
 	return true;
 }
+
+
+bool	GetFileVersion(	LPCWSTR sFile,
+						WORD& rnMajor, WORD& rnMinor, 
+						WORD& rnBugfix, WORD& rnBuild)
+{
+	LPBYTE	lpVersionInfo = NULL;
+	bool	bResult = false;
+	DWORD	dwDummy;
+	DWORD	dwFVISize = GetFileVersionInfoSize( sFile , &dwDummy );
+
+	if (dwFVISize == 0)
+		return false;
+	
+	lpVersionInfo = (LPBYTE)malloc(dwFVISize);
+
+	if (lpVersionInfo == NULL)
+		return false;
+		
+	if (GetFileVersionInfo( sFile , 0 , dwFVISize , lpVersionInfo ))
+	{
+		UINT uLen;
+		VS_FIXEDFILEINFO *lpFfi;
+		VerQueryValue( lpVersionInfo , L"\\" , (LPVOID *)&lpFfi , &uLen );
+
+		rnMajor = HIWORD(lpFfi->dwFileVersionMS);
+		rnMinor = LOWORD(lpFfi->dwFileVersionMS);
+		rnBugfix = HIWORD(lpFfi->dwFileVersionLS);
+		rnBuild	= LOWORD(lpFfi->dwFileVersionLS);
+
+		bResult = true;
+	}
+
+	free(lpVersionInfo);
+
+	return bResult;
+}

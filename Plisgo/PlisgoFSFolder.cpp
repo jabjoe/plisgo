@@ -122,7 +122,13 @@ static ULONG64	GetLastWriteTime(LPCWSTR sFile)
 static int		NotAlphaNumeric(WCHAR c)	{ return !isalnum(c); }
 
 
-PlisgoFSRoot::PlisgoFSRoot(const std::wstring& rsPath)
+PlisgoFSRoot::PlisgoFSRoot()
+{
+	m_NameTime = 0;
+}
+
+
+void PlisgoFSRoot::Init(const std::wstring& rsPath)
 {	
 	m_sPath = rsPath;
 
@@ -131,14 +137,14 @@ PlisgoFSRoot::PlisgoFSRoot(const std::wstring& rsPath)
 	if (*(m_sPath.end()-1) != L'\\')
 		m_sPath += L'\\';
 
-	std::wstring sPath = m_sPath + L".plisgofs\\";
+	m_sPlisgoPath = m_sPath + L".plisgofs\\";
 
 	m_nFSVersion = -1;
 
-	std::wstring sNameFile = sPath + L".fsname";
+	std::wstring sNameFile = m_sPlisgoPath + L".fsname";
 
 	if (!ReadTextFromFile(m_sFSName, sNameFile.c_str()) ||
-		!ReadIntFromFile(m_nFSVersion, (sPath + L".version").c_str()) || m_nFSVersion < 2) //v1 is no longer supported
+		!ReadIntFromFile(m_nFSVersion, (m_sPlisgoPath + L".version").c_str()) || m_nFSVersion < 2) //v1 is no longer supported
 	{
 		m_sFSName.resize(0);
 
@@ -160,11 +166,11 @@ PlisgoFSRoot::PlisgoFSRoot(const std::wstring& rsPath)
 	//Ensure it could be used as a filename
 	m_sFSName.erase(std::remove_if(m_sFSName.begin(), m_sFSName.end(), NotAlphaNumeric), m_sFSName.end());
 
-	m_IconRegistry = FSIconRegistriesManager::GetSingleton()->GetFSIconRegistry(m_sFSName.c_str(), m_nFSVersion, sPath);
+	m_IconRegistry = FSIconRegistriesManager::GetSingleton()->GetFSIconRegistry(m_sFSName.c_str(), m_nFSVersion, shared_from_this());
 
 	assert(m_IconRegistry.get() != NULL);
 
-	std::wstring sTemp(sPath + L".column_header_*");
+	std::wstring sTemp(m_sPlisgoPath + L".column_header_*");
 
 	WIN32_FIND_DATA findData;
 
@@ -176,7 +182,7 @@ PlisgoFSRoot::PlisgoFSRoot(const std::wstring& rsPath)
 		{
 			std::wstring sHeader;
 			
-			ReadTextFromFile(sHeader, (sPath + findData.cFileName).c_str());
+			ReadTextFromFile(sHeader, (m_sPlisgoPath + findData.cFileName).c_str());
 
 			int nIndex = _wtoi(findData.cFileName + 15);//".column_header_"
 
@@ -193,7 +199,7 @@ PlisgoFSRoot::PlisgoFSRoot(const std::wstring& rsPath)
 
 			wsprintf(sBuffer, L".column_alignment_%i", nIndex);
 
-			ReadTextFromFile(sTemp, (sPath + sBuffer).c_str());
+			ReadTextFromFile(sTemp, (m_sPlisgoPath + sBuffer).c_str());
 
 			if (sTemp.length())
 			{
@@ -209,7 +215,7 @@ PlisgoFSRoot::PlisgoFSRoot(const std::wstring& rsPath)
 
 			wsprintf(sBuffer, L".column_type_%i", nIndex);
 
-			ReadTextFromFile(sTemp, (sPath + sBuffer).c_str());
+			ReadTextFromFile(sTemp, (m_sPlisgoPath + sBuffer).c_str());
 
 			if (sTemp.length())
 			{
@@ -230,7 +236,7 @@ PlisgoFSRoot::PlisgoFSRoot(const std::wstring& rsPath)
 
 			wsprintf(sBuffer, L".column_width_%i", nIndex);
 
-			ReadIntFromFile(rColumnDef.nWidth, (sPath + sBuffer).c_str());
+			ReadIntFromFile(rColumnDef.nWidth, (m_sPlisgoPath + sBuffer).c_str());
 		}
 		while(FindNextFileW(hFind, &findData) != 0);
 
@@ -241,7 +247,7 @@ PlisgoFSRoot::PlisgoFSRoot(const std::wstring& rsPath)
 
 	std::wstring sDisabledStandardColumns;
 	
-	ReadTextFromFile(sDisabledStandardColumns, (sPath + L".disable_std_columns").c_str());
+	ReadTextFromFile(sDisabledStandardColumns, (m_sPlisgoPath + L".disable_std_columns").c_str());
 
 	if (sDisabledStandardColumns.length())
 	{
@@ -267,25 +273,21 @@ PlisgoFSRoot::PlisgoFSRoot(const std::wstring& rsPath)
 
 PlisgoFSRoot::~PlisgoFSRoot()
 {
-	std::wstring sPath = m_sPath + L".plisgofs\\";
-
-	if (m_IconRegistry.get() != NULL)
-		FSIconRegistriesManager::GetSingleton()->ReleaseFSIconRegistry(m_IconRegistry, sPath);
 }
 
 
 void	PlisgoFSRoot::GetMenuItems(IPtrPlisgoFSMenuList& rMenus, const WStringList& rSelection)
 {
-	PlisgoFSMenu::LoadMenus(rMenus, m_IconRegistry, m_sPath + L".plisgofs\\", rSelection);
+	PlisgoFSMenu::LoadMenus(rMenus, m_IconRegistry, m_sPlisgoPath, rSelection);
 }
 
 
 bool	PlisgoFSRoot::GetFolderIcon(IconLocation& rIconLocation, bool bOpen ) const
 {
 	if (bOpen)
-		return m_IconRegistry->ReadIconLocation(rIconLocation, (m_sPath + L".plisgofs\\.type_icons\\.folder_icon_open").c_str());
+		return m_IconRegistry->ReadIconLocation(rIconLocation, (m_sPlisgoPath + L".type_icons\\.folder_icon_open").c_str());
 	else
-		return m_IconRegistry->ReadIconLocation(rIconLocation, (m_sPath + L".plisgofs\\.type_icons\\.folder_icon_closed").c_str());
+		return m_IconRegistry->ReadIconLocation(rIconLocation, (m_sPlisgoPath + L".type_icons\\.folder_icon_closed").c_str());
 }
 
 
@@ -486,7 +488,7 @@ bool	PlisgoFSRoot::GetPathIconLocation(IconLocation& rIconLocation, const std::w
 	std::wstring sName;
 	std::wstring sShellInfoFolder;
 
-	IconRegistry* pIconRegistry = m_IconRegistry->GetMainIconRegistry();
+	IconRegistry* pIconRegistry = FSIconRegistriesManager::GetSingleton()->GetIconRegistry();
 
 	if (!GetShellInfoFolder(sName, sShellInfoFolder, rsPath))
 	{
@@ -571,14 +573,12 @@ bool	PlisgoFSRoot::GetPathIconLocation(IconLocation& rIconLocation, const std::w
 
 bool	PlisgoFSRoot::IsValid() const
 {
-	std::wstring sPath = m_sPath + L".plisgofs\\";
-
-	const DWORD nAttr = GetFileAttributes(sPath.c_str());
+	const DWORD nAttr = GetFileAttributes(m_sPlisgoPath.c_str());
 
 	if (nAttr == INVALID_FILE_ATTRIBUTES || !(nAttr & FILE_ATTRIBUTE_DIRECTORY))
 		return false;
 
-	std::wstring sNameFile = sPath + L".fsname";
+	std::wstring sNameFile = m_sPlisgoPath + L".fsname";
 
 	WIN32_FILE_ATTRIBUTE_DATA data = {0};
 
@@ -593,7 +593,7 @@ bool	PlisgoFSRoot::IsValid() const
 	std::wstring sName;
 
 	if (!ReadTextFromFile(sName, sNameFile.c_str()) ||
-		!ReadIntFromFile(nVersion, (sPath + L".version").c_str()))
+		!ReadIntFromFile(nVersion, (m_sPlisgoPath + L".version").c_str()))
 	{
 		return false;
 	}

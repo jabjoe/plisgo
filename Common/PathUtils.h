@@ -45,4 +45,8 @@ extern bool			ReadTextFromFile(std::wstring& rsResult, LPCWSTR sFile);
 extern bool			ReadIntFromFile(int& rnResult, LPCWSTR sFile);
 extern bool			ReadDoubleFromFile(double& rnResult, LPCWSTR sFile);
 
+extern bool			GetFileVersion(	LPCWSTR sFile,
+									WORD& rnMajor, WORD& rnMinor, 
+									WORD& rnBugfix, WORD& rnBuild);
+
 extern HRESULT		GetWStringPathFromIDL(std::wstring& rResult, LPCITEMIDLIST pIDL);

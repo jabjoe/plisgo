@@ -49,34 +49,27 @@ public:
 	FSIconRegistry(	LPCWSTR				sFSName,
 					int					nVersion,
 					IconRegistry*		pMain,
-					const std::wstring& rsRootPath);
+					IPtrPlisgoFSRoot&	rRoot);
 
 	~FSIconRegistry();
-
-	IconRegistry*			GetMainIconRegistry() const		{ return m_pMain; }
-
 
 	const std::wstring&		GetFSName() const				{ return m_sFSName; }
 	int						GetFSVersion() const			{ return m_nVersion; }
 
 	bool					ReadIconLocation(IconLocation& rIconLocation, const std::wstring& rsPath) const;
 
-	bool					HasInstancePath();
-
 protected:
 	
-	void					AddInstancePath(std::wstring sRootPath);
-	void					RemoveInstancePath(std::wstring sRootPath);
+	void					AddReference(IPtrPlisgoFSRoot& rRoot);
+
+	bool					HasInstancePath();
 
 private:
 
-	bool					GetInstancePath(std::wstring& rsResult);
+	bool					GetInstancePath_Locked(std::wstring& rsResult);
 
 	bool					GetIconLocation(IconLocation& rIconLocation, UINT nList, UINT nIndex) const;
 	bool					GetIconLocation_Locked(IconLocation& rIconLocation, UINT nList, UINT nIndex);
-
-	//bool					GetInstancePath(std::wstring& rsResult, boost::upgrade_lock<boost::shared_mutex>& rLock) const;
-
 
 	class LoadedImageList
 	{
@@ -127,9 +120,7 @@ private:
 	std::wstring							m_sFSName;
 	int										m_nVersion;
 
-
-	typedef std::vector<std::pair<std::wstring, int> >				References;
-
+	typedef std::vector<boost::weak_ptr<PlisgoFSRoot> >		References;
 
 	References								m_References;
 
@@ -191,8 +182,8 @@ public:
 	static FSIconRegistriesManager*	GetSingleton();
 
 
-	IPtrFSIconRegistry		GetFSIconRegistry(LPCWSTR sFS, int nVersion, const std::wstring& rsInstancePath) const;
-	void					ReleaseFSIconRegistry(IPtrFSIconRegistry& rFSIconRegistry, const std::wstring& rsInstancePath); 
+	IPtrFSIconRegistry		GetFSIconRegistry(LPCWSTR sFS, int nVersion, IPtrPlisgoFSRoot& rRoot) const;
+	void					ReleaseFSIconRegistry(IPtrFSIconRegistry& rFSIconRegistry, IPtrPlisgoFSRoot& rRoot); 
 
 	IconRegistry*			GetIconRegistry() 	{ return &m_IconRegistry; }
 
@@ -200,9 +191,9 @@ private:
 
 	FSIconRegistriesManager()	{}
 
-	IPtrFSIconRegistry		GetFSIconRegistry_Locked(const std::wstring& rsKey, LPCWSTR sFS, int nVersion, const std::wstring& rsInstancePath);
+	IPtrFSIconRegistry		GetFSIconRegistry_Locked(const std::wstring& rsKey, LPCWSTR sFS, int nVersion, IPtrPlisgoFSRoot& rRoot);
 
-	typedef boost::unordered_map<std::wstring, IPtrFSIconRegistry >	FSIconRegistries;
+	typedef boost::unordered_map<std::wstring, boost::weak_ptr<FSIconRegistry> >	FSIconRegistries;
 
 	FSIconRegistries				m_FSIconRegistries;
 	IconRegistry					m_IconRegistry;

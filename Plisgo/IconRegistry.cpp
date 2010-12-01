@@ -347,7 +347,7 @@ bool	FSIconRegistry::CombiImageListIcon::Init(const WStringList& rFiles)
 {
 	bool bLoaded = false;
 
-	for(std::vector<std::wstring>::const_iterator it = rFiles.begin(); it != rFiles.end(); ++it)
+	for(WStringList::const_iterator it = rFiles.begin(); it != rFiles.end(); ++it)
 	{
 		UINT nHeight;
 
@@ -520,7 +520,7 @@ bool	FSIconRegistry::CombiImageListIcon::CreateIconLocation(IconLocation& rIconL
 FSIconRegistry::FSIconRegistry( LPCWSTR				sFSName,
 								int					nVersion,
 								IconRegistry*		pMain,
-								const std::wstring& rsRootPath)
+								IPtrPlisgoFSRoot&	rRoot)
 {
 	assert(pMain != NULL);
 
@@ -528,12 +528,7 @@ FSIconRegistry::FSIconRegistry( LPCWSTR				sFSName,
 	m_pMain		= pMain;
 	m_nVersion	= nVersion;
 
-	std::wstring sPath = rsRootPath;
-
-	if (sPath.length() && *(sPath.end()-1) != L'\\')
-		sPath += L'\\';
-
-	AddInstancePath(sPath);
+	AddReference(rRoot);
 }
 
 
@@ -596,28 +591,13 @@ bool	FSIconRegistry::GetIconLocation(IconLocation& rIconLocation, UINT nList, UI
 }
 
 
-bool	FSIconRegistry::GetInstancePath(std::wstring& rsResult)
-{
-	for(References::iterator it = m_References.begin(); it != m_References.end();)
-		if (GetFileAttributes(it->first.c_str()) != INVALID_FILE_ATTRIBUTES)
-		{
-			rsResult = it->first;
-
-			return true;
-		}
-		else it = m_References.erase(it);
-
-	return false;
-}
-
-
 bool	FSIconRegistry::GetIconLocation_Locked(IconLocation& rIconLocation, UINT nList, UINT nIndex)
 {
 	std::wstring sBaseName = (boost::wformat(L".icons_%1%*") %nList).str();
 
 	std::wstring sInstancePath;
 
-	if (!GetInstancePath(sInstancePath))
+	if (!GetInstancePath_Locked(sInstancePath))
 		return false;
 
 	std::wstring sTemp = sInstancePath + sBaseName;
@@ -631,7 +611,7 @@ bool	FSIconRegistry::GetIconLocation_Locked(IconLocation& rIconLocation, UINT nL
 
 	bool bDone = false;
 
-	std::vector<std::wstring> files;
+	WStringList files;
 
 	ULONG nBaseEnd = (ULONG)sBaseName.length()-3;
 
@@ -746,56 +726,35 @@ bool	FSIconRegistry::ReadIconLocation(IconLocation& rIconLocation, const std::ws
 }
 
 
-void	FSIconRegistry::AddInstancePath(std::wstring sRootPath)
+bool	FSIconRegistry::GetInstancePath_Locked(std::wstring& rsResult)
 {
-	boost::unique_lock<boost::shared_mutex> lock(m_Mutex);
-
-	bool bFound = false;
-
-	std::transform(sRootPath.begin(),sRootPath.end(),sRootPath.begin(), tolower);
-
-	if (sRootPath.length() && *(sRootPath.end()-1) != L'\\')
-		sRootPath += L'\\';
-
-	//Trim dead paths
 	for(References::iterator it = m_References.begin(); it != m_References.end();)
-		if (GetFileAttributes(it->first.c_str()) != INVALID_FILE_ATTRIBUTES)
+	{
+		IPtrPlisgoFSRoot reference = it->lock();
+
+		if (reference.get() != NULL)
 		{
-			if (it->first == sRootPath)
-			{
-				++(it->second);
-				bFound = true;
-			}
 			++it;
+
+			if (reference->IsValid())
+			{
+				rsResult = reference->GetPlisgoPath();
+
+				return true;
+			}
 		}
 		else it = m_References.erase(it);
+	}
 
-	if (!bFound)
-		m_References.push_back(std::pair<std::wstring, int>(sRootPath, 1));
+	return false;
 }
 
 
-void	FSIconRegistry::RemoveInstancePath(std::wstring sRootPath)
+void	FSIconRegistry::AddReference(IPtrPlisgoFSRoot& rRoot)
 {
 	boost::unique_lock<boost::shared_mutex> lock(m_Mutex);
 
-	std::transform(sRootPath.begin(),sRootPath.end(),sRootPath.begin(), tolower);
-
-	if (sRootPath.length() && *(sRootPath.end()-1) != L'\\')
-		sRootPath += L'\\';
-
-	//Trim dead paths
-	for(References::iterator it = m_References.begin(); it != m_References.end();)
-		if (GetFileAttributes(it->first.c_str()) != INVALID_FILE_ATTRIBUTES)
-		{
-			if (it->first == sRootPath)
-			{
-				if (--it->second == 0)
-					it = m_References.erase(it);
-			}
-			else ++it;
-		}
-		else it = m_References.erase(it);
+	m_References.push_back(rRoot);
 }
 
 
@@ -803,9 +762,13 @@ bool	FSIconRegistry::HasInstancePath()
 {
 	boost::shared_lock<boost::shared_mutex> lock(m_Mutex);
 
-	for(References::const_iterator it = m_References.begin(); it != m_References.end();)
-		if (GetFileAttributes(it->first.c_str()) != INVALID_FILE_ATTRIBUTES)
+	for(References::iterator it = m_References.begin(); it != m_References.end(); ++it)
+	{
+		IPtrPlisgoFSRoot reference = it->lock();
+
+		if (reference.get() != NULL && reference->IsValid())
 			return true;
+	}
 
 	return false;
 }
@@ -1077,9 +1040,9 @@ bool			IconRegistry::GetWindowsIconLocation(IconLocation& rIconLocation, const I
 }
 
 
-bool					IconRegistry::MakeOverlaid(	IconLocation&		rDst,
-													const IconLocation& rFirst,	
-													const IconLocation& rSecond) const
+bool			IconRegistry::MakeOverlaid(	IconLocation&		rDst,
+											const IconLocation& rFirst,	
+											const IconLocation& rSecond) const
 {
 	std::vector<IconSource> srcs;
 
@@ -1104,10 +1067,13 @@ bool					IconRegistry::MakeOverlaid(	IconLocation&		rDst,
 	return BurnIconsTogether(rDst.sPath.c_str(), rFirst.sPath.c_str(), rFirst.nIndex, rSecond.sPath.c_str(), rSecond.nIndex);
 }
 
+/*
+*************************************************************************
+						FSIconRegistriesManager
+*************************************************************************
+*/
 
-
-
-IPtrFSIconRegistry	FSIconRegistriesManager::GetFSIconRegistry(LPCWSTR sFS, int nVersion, const std::wstring& rsInstancePath) const
+IPtrFSIconRegistry	FSIconRegistriesManager::GetFSIconRegistry(LPCWSTR sFS, int nVersion, IPtrPlisgoFSRoot& rRoot) const
 {
 	IPtrFSIconRegistry result;
 
@@ -1125,22 +1091,25 @@ IPtrFSIconRegistry	FSIconRegistriesManager::GetFSIconRegistry(LPCWSTR sFS, int n
 
 		if (it != m_FSIconRegistries.end())
 		{
-			result = it->second;
-			
-			result->AddInstancePath(rsInstancePath);
+			result = it->second.lock();
 
-			return result;
+			if (result.get() != NULL)
+			{
+				result->AddReference(rRoot);
+
+				return result;
+			}
 		}
 	}
 
 	boost::upgrade_to_unique_lock<boost::shared_mutex> rwLock(lock);
 
-	return const_cast<FSIconRegistriesManager*>(this)->GetFSIconRegistry_Locked(sKey, sFS, nVersion, rsInstancePath);
+	return const_cast<FSIconRegistriesManager*>(this)->GetFSIconRegistry_Locked(sKey, sFS, nVersion, rRoot);
 }
 
 
 
-IPtrFSIconRegistry	FSIconRegistriesManager::GetFSIconRegistry_Locked(const std::wstring& rsKey, LPCWSTR sFS, int nVersion, const std::wstring& rsInstancePath)
+IPtrFSIconRegistry	FSIconRegistriesManager::GetFSIconRegistry_Locked(const std::wstring& rsKey, LPCWSTR sFS, int nVersion, IPtrPlisgoFSRoot& rRoot)
 {
 	IPtrFSIconRegistry result;
 
@@ -1148,49 +1117,22 @@ IPtrFSIconRegistry	FSIconRegistriesManager::GetFSIconRegistry_Locked(const std::
 
 	if (it != m_FSIconRegistries.end())
 	{
-		result = it->second;
-		
-		result->AddInstancePath(rsInstancePath);
+		result = it->second.lock();
 
-		return result;
+		if (result.get() != NULL)
+		{
+			result->AddReference(rRoot);
+
+			return result;
+		}
 	}
 
-	result.reset(new FSIconRegistry(sFS, nVersion, &m_IconRegistry, rsInstancePath));
+	result.reset(new FSIconRegistry(sFS, nVersion, &m_IconRegistry, rRoot));
 	
 	m_FSIconRegistries[rsKey] = result;
 
 	return result;
 }
-
-
-void				FSIconRegistriesManager::ReleaseFSIconRegistry(IPtrFSIconRegistry& rFSIconRegistry,
-																	const std::wstring& rsInstancePath)
-{
-	assert(rFSIconRegistry.get() != NULL);
-
-	std::wstring sKey = (boost::wformat(L"%1%:%2%") %rFSIconRegistry->GetFSName() %rFSIconRegistry->GetFSVersion()).str();
-
-	std::transform(sKey.begin(),sKey.end(),sKey.begin(), tolower);
-
-	boost::unique_lock<boost::shared_mutex> lock(m_Mutex);
-
-	rFSIconRegistry->RemoveInstancePath(rsInstancePath);
-
-	if (m_FSIconRegistries.size() && (m_FSIconRegistries.find(sKey) != m_FSIconRegistries.end()))
-	{
-		if (!rFSIconRegistry->HasInstancePath())
-		{
-			//No instance paths left, remove from map
-
-			m_FSIconRegistries.erase(sKey);
-		}
-	}
-	else
-	{
-		//It has already been removed. TODO
-	}
-}
-
 
 
 FSIconRegistriesManager*	FSIconRegistriesManager::GetSingleton()

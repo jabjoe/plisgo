@@ -54,6 +54,7 @@
 #include <assert.h>
 #include <boost/thread/mutex.hpp>
 #include <boost/thread/shared_mutex.hpp>
+#include <boost/enable_shared_from_this.hpp>
 #include <boost/thread/locks.hpp>
 #include <boost/algorithm/string.hpp>
 #include <boost/interprocess/sync/file_lock.hpp>

@@ -50,7 +50,7 @@ void				PlisgoFSFolderReg::RunRootCacheClean()
 		for(RootCacheMap::const_iterator it = m_RootCache.begin();
 			it != m_RootCache.end(); ++it)
 		{
-			if(!it->second->IsValid())
+			if(!it->second->IsValid() || !IsRootValidForPath(it->second, it->first))
 			{
 				bCleaningToBeDone = true;
 				break;
@@ -65,7 +65,7 @@ void				PlisgoFSFolderReg::RunRootCacheClean()
 		for(RootCacheMap::const_iterator it = m_RootCache.begin();
 			it != m_RootCache.end();)
 		{
-			if(!it->second->IsValid())
+			if(!it->second->IsValid() || !IsRootValidForPath(it->second, it->first))
 				it = m_RootCache.erase(it);
 			else
 				++it;
@@ -106,12 +106,12 @@ bool	PlisgoFSFolderReg::IsRootValidForPath(IPtrPlisgoFSRoot root, const std::wst
 
 IPtrPlisgoFSRoot	PlisgoFSFolderReg::GetPlisgoFSRoot(LPCWSTR sPathUnprocessed) const
 {
-	static ULONG nCleanCountDown = 100; //Not concurrent cache safe, but doesn't matter
+	static ULONG nCleanCountDown = 20; //Not concurrent cache safe, but doesn't matter
 
 	if (--nCleanCountDown == 0)
 	{
 		const_cast<PlisgoFSFolderReg*>(this)->RunRootCacheClean();
-		nCleanCountDown = 100;
+		nCleanCountDown = 20;
 	}
 
 	assert(sPathUnprocessed != NULL);
@@ -146,7 +146,19 @@ IPtrPlisgoFSRoot	PlisgoFSFolderReg::GetPlisgoFSRoot(LPCWSTR sPathUnprocessed) co
 
 		if (it != m_RootCache.end())
 			if (it->second->IsValid() && IsRootValidForPath(it->second, sPath))
-				return it->second;
+			{
+				if (sSection.length() != sPath.length())
+				{
+					IPtrPlisgoFSRoot root = it->second;
+
+					boost::upgrade_to_unique_lock<boost::shared_mutex> rwLock(lock);
+
+					const_cast<PlisgoFSFolderReg*>(this)->m_RootCache[sPath] = root;
+
+					return root;
+				}
+				else return it->second;
+			}
 				
 		const DWORD nAttr = GetFileAttributes((sSection + L"\\.plisgofs").c_str());
 		
@@ -154,16 +166,7 @@ IPtrPlisgoFSRoot	PlisgoFSFolderReg::GetPlisgoFSRoot(LPCWSTR sPathUnprocessed) co
 		{
 			boost::upgrade_to_unique_lock<boost::shared_mutex> rwLock(lock);
 
-			it = m_RootCache.find(sSection);
-
-			if (it != m_RootCache.end())
-				if (it->second->IsValid() && IsRootValidForPath(it->second, sPath))
-					return it->second;
-
-			IPtrPlisgoFSRoot root = const_cast<PlisgoFSFolderReg*>(this)->CreateRoot(sSection);
-
-			if (root.get() != NULL && IsRootValidForPath(root, sPath))
-				return root;
+			return const_cast<PlisgoFSFolderReg*>(this)->GetPlisgoFSRoot_Locked(sPath, sSection);
 		}
 
 		nSlash = sPath.rfind(L'\\', nSlash-1);
@@ -173,19 +176,52 @@ IPtrPlisgoFSRoot	PlisgoFSFolderReg::GetPlisgoFSRoot(LPCWSTR sPathUnprocessed) co
 }
 
 
+IPtrPlisgoFSRoot	PlisgoFSFolderReg::GetPlisgoFSRoot_Locked(const std::wstring& rsPath, const std::wstring& rsSection)
+{
+	RootCacheMap::const_iterator it = m_RootCache.find(rsSection);
+
+	if (it != m_RootCache.end())
+		if (it->second->IsValid() && IsRootValidForPath(it->second, rsPath))
+		{
+			m_RootCache[rsPath] = it->second;
+
+			return it->second;
+		}
+
+	IPtrPlisgoFSRoot root = const_cast<PlisgoFSFolderReg*>(this)->CreateRoot(rsSection);
+
+	if (root.get() != NULL && IsRootValidForPath(root, rsPath))
+	{
+		m_RootCache[rsPath] = root;
+		m_RootCache[rsSection] = root;
+	}
+	else root.reset();
+		
+	return root;
+}
+
+
 IPtrPlisgoFSRoot	PlisgoFSFolderReg::CreateRoot(const std::wstring& rsRoot)
 {
 	IPtrPlisgoFSRoot result;
 
-	PlisgoFSRoot* pNewRoot = new PlisgoFSRoot(rsRoot);
+	PlisgoFSRoot* pNewRoot = new PlisgoFSRoot;
+
+	assert(pNewRoot != NULL);
+
+	result.reset(pNewRoot);
+
+	pNewRoot->Init(rsRoot);
 
 	if (pNewRoot->GetFSName()[0] != L'\0')
 	{
-		result.reset(pNewRoot);
-
 		m_RootCache[rsRoot] = result;
 	}
-	else delete pNewRoot;
+	else
+	{
+		delete pNewRoot;
+		result.reset();
+	}
 
 	return result;
 }

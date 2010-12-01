@@ -68,36 +68,5 @@ STDMETHODIMP CPlisgoExtractIcon::GetIconLocation( UINT uFlags, LPWSTR szIconFile
 STDMETHODIMP CPlisgoExtractIcon::Extract(	LPCTSTR pszFile, UINT nIconIndex, HICON* pHiconLarge,
 											HICON* pHiconSmall, UINT /*nIconSize*/ )
 {
-	return S_FALSE; //Get Windows to do it!
-
-	/*if (!m_bExtract)
-		return S_FALSE;
-
-	IconLocation Location;
-
-	if (!m_PlisgoFSFolder->GetPathIconLocation(Location, m_sPath, m_bOpen))
-		return E_FAIL;
-
-	if (pHiconLarge == NULL && pHiconSmall == NULL)
-		return S_OK; //Nothing to do
-
-	HICON hIcon = ExtractIcon(g_hInstance, Location.sPath.c_str(), Location.nIndex);
-
-	if (pHiconLarge != NULL && pHiconSmall != NULL)
-	{
-		*pHiconLarge = hIcon;
-		*pHiconSmall = ExtractIcon(g_hInstance, Location.sPath.c_str(), Location.nIndex);
-	}
-	else if (pHiconSmall != NULL)
-	{
-		*pHiconSmall = hIcon;
-	}
-	else if (pHiconLarge != NULL)
-	{
-		*pHiconLarge = hIcon;
-	}
-
-	return S_OK;*/
-
-
+	return S_FALSE;
 }
