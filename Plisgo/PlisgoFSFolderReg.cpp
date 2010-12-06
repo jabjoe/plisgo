@@ -214,14 +214,9 @@ IPtrPlisgoFSRoot	PlisgoFSFolderReg::CreateRoot(const std::wstring& rsRoot)
 	pNewRoot->Init(rsRoot);
 
 	if (pNewRoot->GetFSName()[0] != L'\0')
-	{
 		m_RootCache[rsRoot] = result;
-	}
 	else
-	{
-		delete pNewRoot;
 		result.reset();
-	}
 
 	return result;
 }
