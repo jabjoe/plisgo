@@ -55,6 +55,8 @@
 #include <boost/thread/mutex.hpp>
 #include <boost/thread/shared_mutex.hpp>
 #include <boost/enable_shared_from_this.hpp>
+#include <boost/pool/object_pool.hpp>
+#include <boost/pool/pool_alloc.hpp>
 #include <boost/thread/locks.hpp>
 #include <boost/algorithm/string.hpp>
 #include <boost/interprocess/sync/file_lock.hpp>

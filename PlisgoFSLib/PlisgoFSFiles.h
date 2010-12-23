@@ -78,7 +78,7 @@ public:
 
 	virtual int					Close(ULONGLONG* pInstanceData);
 
-	virtual int					GetDeleteError(ULONGLONG* pInstanceData) const	{ return -ERROR_ACCESS_DENIED; }
+	virtual int					GetDeleteError(ULONGLONG* /*pInstanceData*/) const	{ return -ERROR_ACCESS_DENIED; }
 
 	virtual int					SetFileTimes(	const FILETIME* pCreation,
 												const FILETIME* pLastAccess,
@@ -142,14 +142,14 @@ public:
 	virtual int					GetChildren(ChildNames& rChildren) const = 0;
 	virtual IPtrPlisgoFSFile	GetChild(LPCWSTR sName) const = 0;
 
-	virtual int					AddChild(LPCWSTR sName, IPtrPlisgoFSFile file)	{ return -ERROR_ACCESS_DENIED; }
+	virtual int					AddChild(LPCWSTR /*sName*/, IPtrPlisgoFSFile /*file*/)	{ return -ERROR_ACCESS_DENIED; }
 
-	virtual int					CreateChild(IPtrPlisgoFSFile& rChild, LPCWSTR sName, DWORD nAttr, ULONGLONG* pInstanceData)	{ return -ERROR_ACCESS_DENIED; }
+	virtual int					CreateChild(IPtrPlisgoFSFile& /*rChild*/, LPCWSTR /*sName*/, DWORD /*nAttr*/, ULONGLONG* /*pInstanceData*/)	{ return -ERROR_ACCESS_DENIED; }
 
 	virtual int					Repath(LPCWSTR sOldName, LPCWSTR sNewName, bool bReplaceExisting, PlisgoFSFolder* pNewParent);
 
-	virtual int					GetRemoveChildError(LPCWSTR sName) const		{ return -ERROR_ACCESS_DENIED; }
-	virtual int					RemoveChild(LPCWSTR sName)						{ return -ERROR_ACCESS_DENIED; }
+	virtual int					GetRemoveChildError(LPCWSTR /*sName*/) const	{ return -ERROR_ACCESS_DENIED; }
+	virtual int					RemoveChild(LPCWSTR /*sName*/)					{ return -ERROR_ACCESS_DENIED; }
 
 	PlisgoFSFolder*				GetAsFolder() const								{ return const_cast<PlisgoFSFolder*>(this); }
 };
@@ -230,7 +230,7 @@ public:
 
 	virtual int					CreateChild(IPtrPlisgoFSFile& rChild, LPCWSTR sName, DWORD nAttr, ULONGLONG* pInstanceData);
 
-	virtual int					GetRemoveChildError(LPCWSTR sName) const		{ return 0; }
+	virtual int					GetRemoveChildError(LPCWSTR /*sName*/) const		{ return 0; }
 	virtual int					RemoveChild(LPCWSTR sName)						{ m_childList.RemoveFile(sName); return 0; }
 
 protected:
@@ -536,7 +536,7 @@ public:
 
 	virtual int				SetEndOfFile(LONGLONG nEndPos, ULONGLONG* pInstanceData);
 
-	virtual int				GetDeleteError(ULONGLONG* pInstanceData) const	{ return 0; }
+	virtual int				GetDeleteError(ULONGLONG* /*pInstanceData*/) const	{ return 0; }
 
 	virtual int				Close(ULONGLONG* pInstanceData);
 
@@ -696,8 +696,8 @@ public:
 
 	//This dual method system is so if your don't need the path, you don't have it. This saves changes
 	//existing code whilest still allowing new code that want the path to have it.
-	virtual bool Do(IPtrPlisgoFSFile& rFile, const std::wstring& rsPath)	{ return Do(rFile); }
-	virtual bool Do(IPtrPlisgoFSFile& rFile)								{ return true; }
+	virtual bool Do(IPtrPlisgoFSFile& rFile, const std::wstring& /*rsPath*/)	{ return Do(rFile); }
+	virtual bool Do(IPtrPlisgoFSFile& /*rFile*/)								{ return true; }
 
 };
 

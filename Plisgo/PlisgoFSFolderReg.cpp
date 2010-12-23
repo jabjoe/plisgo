@@ -23,7 +23,8 @@
 #include "stdafx.h"
 #include "PlisgoFSFolderReg.h"
 
-
+#define MAXROOTCHECKGAP		NTSECOND*2
+#define MAXPATHROOTCHECKGAP	NTSECOND*2
 
 
 
@@ -37,50 +38,71 @@ PlisgoFSFolderReg*	PlisgoFSFolderReg::GetSingleton()
 
 PlisgoFSFolderReg::PlisgoFSFolderReg()
 {
+	m_pOldestRootHolder = NULL;
+	m_pNewestRootHolder = NULL;
 }
 
 
 void				PlisgoFSFolderReg::RunRootCacheClean()
 {
-	bool bCleaningToBeDone = false;
+	ULONG64 nNow;
 
+	GetSystemTimeAsFileTime((FILETIME*)&nNow);
+
+	if (m_pOldestRootHolder != NULL && (nNow - m_pOldestRootHolder->nLastCheckTime) > MAXROOTCHECKGAP)
 	{
-		boost::shared_lock<boost::shared_mutex> lock(m_Mutex);
-
-		for(RootCacheMap::const_iterator it = m_RootCache.begin();
-			it != m_RootCache.end(); ++it)
+		if (m_pOldestRootHolder->root->IsValid())
 		{
-			if(!it->second->IsValid() || !IsRootValidForPath(it->second, it->first))
+			//You pass, move to the back
+			
+			m_pOldestRootHolder->nLastCheckTime = nNow;
+
+			RootHolder* pEntry = m_pOldestRootHolder->pNext;
+
+			if (pEntry != NULL)
 			{
-				bCleaningToBeDone = true;
-				break;
+				m_pOldestRootHolder->pPrev = m_pNewestRootHolder;
+				m_pOldestRootHolder->pNext = NULL;
+				
+				m_pNewestRootHolder->pNext = m_pOldestRootHolder;
+
+				pEntry->pPrev = NULL;
+
+				m_pNewestRootHolder = m_pOldestRootHolder;
+				m_pOldestRootHolder = pEntry;
 			}
+			//else it's alone!
 		}
-	}
-
-	if (bCleaningToBeDone)
-	{
-		boost::unique_lock<boost::shared_mutex> lock(m_Mutex);
-
-		for(RootCacheMap::const_iterator it = m_RootCache.begin();
-			it != m_RootCache.end();)
+		else
 		{
-			if(!it->second->IsValid() || !IsRootValidForPath(it->second, it->first))
-				it = m_RootCache.erase(it);
-			else
-				++it;
+			RootHolder* pOldEntry = m_pOldestRootHolder;
+
+			if (m_pOldestRootHolder != m_pNewestRootHolder)
+			{
+				RootHolder* pEntry = m_pOldestRootHolder->pNext;
+
+				pEntry->pPrev = NULL;
+				m_pOldestRootHolder = pEntry;
+			}
+			else m_pOldestRootHolder = m_pNewestRootHolder = NULL;
+
+			m_RootHolderPool.destroy(pOldEntry);
+
+
+			for(RootCacheMap::iterator it = m_RootCache.begin(); it != m_RootCache.end();)
+			{
+				if (it->second.root.expired())
+					it = m_RootCache.erase(it);
+				else
+					++it;
+			}
 		}
 	}
 }
 
 
-bool	PlisgoFSFolderReg::IsRootValidForPath(IPtrPlisgoFSRoot root, const std::wstring& rsPath) const
+bool	PlisgoFSFolderReg::IsRootValidForPath(const std::wstring& rsRootPath, const std::wstring& rsPath) const
 {
-	if (root.get() == NULL)
-		return false;
-
-	const std::wstring& rsRootPath = root->GetPath();
-
 	if (rsRootPath.length() == rsPath.length()+1) //+1 because of slash
 		return true;
 
@@ -91,27 +113,45 @@ bool	PlisgoFSFolderReg::IsRootValidForPath(IPtrPlisgoFSRoot root, const std::wst
 
 	sPath += L".plisgofs\\.shellinfo\\";
 
-	size_t nSlash = rsPath.rfind(L'\\');
+	const DWORD nAttr = GetFileAttributes(rsPath.c_str());
 
-	if (nSlash == rsRootPath.length()-1)
-		return true;
-	
-	assert(nSlash > rsRootPath.length());
+	if (nAttr == INVALID_FILE_ATTRIBUTES)
+		return false;
 
-	sPath.append(rsPath.begin() + rsRootPath.length(), rsPath.begin()+nSlash);
+	if (nAttr & FILE_ATTRIBUTE_DIRECTORY)
+	{
+		sPath.append(rsPath.begin() + rsRootPath.length(), rsPath.end());
+	}
+	else
+	{
+		size_t nSlash = rsPath.rfind(L'\\');
+
+		if (nSlash == rsRootPath.length()-1)
+			return true;
+		
+		assert(nSlash > rsRootPath.length());
+
+		sPath.append(rsPath.begin() + rsRootPath.length(), rsPath.begin()+nSlash);
+	}
 
 	return (GetFileAttributes(sPath.c_str()) != INVALID_FILE_ATTRIBUTES);
+	
 }
 
 
 IPtrPlisgoFSRoot	PlisgoFSFolderReg::GetPlisgoFSRoot(LPCWSTR sPathUnprocessed) const
 {
-	static ULONG nCleanCountDown = 20; //Not concurrent cache safe, but doesn't matter
+	boost::upgrade_lock<boost::shared_mutex> lock(m_Mutex);
 
-	if (--nCleanCountDown == 0)
+	ULONG64 nNow;
+
+	GetSystemTimeAsFileTime((FILETIME*)&nNow);
+
+	if (m_pOldestRootHolder != NULL && (nNow - m_pOldestRootHolder->nLastCheckTime) > NTSECOND*30)
 	{
+		boost::upgrade_to_unique_lock<boost::shared_mutex> rwLock(lock);
+
 		const_cast<PlisgoFSFolderReg*>(this)->RunRootCacheClean();
-		nCleanCountDown = 20;
 	}
 
 	assert(sPathUnprocessed != NULL);
@@ -132,11 +172,11 @@ IPtrPlisgoFSRoot	PlisgoFSFolderReg::GetPlisgoFSRoot(LPCWSTR sPathUnprocessed) co
 	
 	boost::trim_right_if(sPath, boost::is_any_of(L"\\"));
 
-	boost::upgrade_lock<boost::shared_mutex> lock(m_Mutex);
-
 	size_t nSlash = sPath.length();
 
 	std::wstring sSection = sPath;
+
+	GetSystemTimeAsFileTime((FILETIME*)&nNow); //Get again, as above might have waited for write lock
 
 	while(nSlash != -1)
 	{
@@ -145,28 +185,40 @@ IPtrPlisgoFSRoot	PlisgoFSFolderReg::GetPlisgoFSRoot(LPCWSTR sPathUnprocessed) co
 		RootCacheMap::const_iterator it = m_RootCache.find(sSection);
 
 		if (it != m_RootCache.end())
-			if (it->second->IsValid() && IsRootValidForPath(it->second, sPath))
-			{
-				if (sSection.length() != sPath.length())
-				{
-					IPtrPlisgoFSRoot root = it->second;
+		{
+			IPtrPlisgoFSRoot root = it->second.root.lock();
 
+			if (root.get() != NULL)
+			{
+				if (sSection.length() == sPath.length()) //Shortcut
+					if (nNow - it->second.nLastCheckTime < MAXPATHROOTCHECKGAP)
+						return root;
+
+				if (root->IsValid() && IsRootValidForPath(root->GetPath(), sPath))
+				{
 					boost::upgrade_to_unique_lock<boost::shared_mutex> rwLock(lock);
 
-					const_cast<PlisgoFSFolderReg*>(this)->m_RootCache[sPath] = root;
+					PathRootCacheEntry& rEntry = const_cast<PlisgoFSFolderReg*>(this)->m_RootCache[sPath];
+
+					rEntry.root = root;
+
+					GetSystemTimeAsFileTime((FILETIME*)&rEntry.nLastCheckTime); //Again, check it, there is a write lock, thus wait
 
 					return root;
 				}
-				else return it->second;
 			}
+		}
 				
 		const DWORD nAttr = GetFileAttributes((sSection + L"\\.plisgofs").c_str());
 		
 		if (nAttr != INVALID_FILE_ATTRIBUTES && (nAttr & FILE_ATTRIBUTE_DIRECTORY))
 		{
-			boost::upgrade_to_unique_lock<boost::shared_mutex> rwLock(lock);
+			if (IsRootValidForPath(sSection + L"\\", sPath))
+			{
+				boost::upgrade_to_unique_lock<boost::shared_mutex> rwLock(lock);
 
-			return const_cast<PlisgoFSFolderReg*>(this)->GetPlisgoFSRoot_Locked(sPath, sSection);
+				return const_cast<PlisgoFSFolderReg*>(this)->GetPlisgoFSRoot_Locked(sPath, sSection);
+			}
 		}
 
 		nSlash = sPath.rfind(L'\\', nSlash-1);
@@ -178,24 +230,51 @@ IPtrPlisgoFSRoot	PlisgoFSFolderReg::GetPlisgoFSRoot(LPCWSTR sPathUnprocessed) co
 
 IPtrPlisgoFSRoot	PlisgoFSFolderReg::GetPlisgoFSRoot_Locked(const std::wstring& rsPath, const std::wstring& rsSection)
 {
+	// we know IsRootValidForPath is true for the rsPath+rsSection or we won't be here.
 	RootCacheMap::const_iterator it = m_RootCache.find(rsSection);
 
+	ULONG64 nNow;
+
+	GetSystemTimeAsFileTime((FILETIME*)&nNow);
+
+	IPtrPlisgoFSRoot root;
+
 	if (it != m_RootCache.end())
-		if (it->second->IsValid() && IsRootValidForPath(it->second, rsPath))
-		{
-			m_RootCache[rsPath] = it->second;
-
-			return it->second;
-		}
-
-	IPtrPlisgoFSRoot root = const_cast<PlisgoFSFolderReg*>(this)->CreateRoot(rsSection);
-
-	if (root.get() != NULL && IsRootValidForPath(root, rsPath))
 	{
-		m_RootCache[rsPath] = root;
-		m_RootCache[rsSection] = root;
+		root = it->second.root.lock();
+
+		if (root.get() != NULL)
+		{
+			if (rsSection.length() == rsPath.length()) //Shortcut
+				if (nNow - it->second.nLastCheckTime < MAXPATHROOTCHECKGAP)
+					return root;
+
+			if (root->IsValid() && IsRootValidForPath(root->GetPath(), rsPath))
+			{
+				PathRootCacheEntry& rEntry = m_RootCache[rsPath];
+
+				rEntry.root = root;
+				rEntry.nLastCheckTime = nNow;
+
+				return root;
+			}
+		}
 	}
-	else root.reset();
+
+	root = CreateRoot(rsSection);
+
+	if (root.get() != NULL)
+	{
+		PathRootCacheEntry& rEntry = m_RootCache[rsPath];
+
+		rEntry.root = root;
+		rEntry.nLastCheckTime = nNow;
+
+		PathRootCacheEntry& rRootEntry = m_RootCache[rsSection];
+
+		rRootEntry.root = root;
+		rRootEntry.nLastCheckTime = nNow;
+	}
 		
 	return root;
 }
@@ -214,9 +293,33 @@ IPtrPlisgoFSRoot	PlisgoFSFolderReg::CreateRoot(const std::wstring& rsRoot)
 	pNewRoot->Init(rsRoot);
 
 	if (pNewRoot->GetFSName()[0] != L'\0')
-		m_RootCache[rsRoot] = result;
-	else
-		result.reset();
+	{
+		RootHolder* pNewHolder = m_RootHolderPool.construct();
+
+		pNewHolder->root = result;
+		GetSystemTimeAsFileTime((FILETIME*)&pNewHolder->nLastCheckTime);
+
+		if (m_pOldestRootHolder != NULL)
+		{
+			assert(m_pNewestRootHolder != NULL);
+
+			m_pNewestRootHolder->pNext = pNewHolder;
+			pNewHolder->pPrev = m_pNewestRootHolder;
+			pNewHolder->pNext = NULL;
+
+			m_pNewestRootHolder = pNewHolder;
+		}
+		else
+		{
+			assert(m_pNewestRootHolder == NULL);
+
+			pNewHolder->pPrev = NULL;
+			pNewHolder->pNext = NULL;
+
+			m_pNewestRootHolder = m_pOldestRootHolder = pNewHolder;
+		}
+	}
+	else result.reset();
 
 	return result;
 }

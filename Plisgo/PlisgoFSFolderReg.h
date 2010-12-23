@@ -41,12 +41,37 @@ private:
 	IPtrPlisgoFSRoot			CreateRoot(const std::wstring& rsRoot);
 	IPtrPlisgoFSRoot			GetPlisgoFSRoot_Locked(const std::wstring& rsPath, const std::wstring& rsSection);
 
-	bool						IsRootValidForPath(IPtrPlisgoFSRoot root, const std::wstring& rsPath) const;
+	bool						IsRootValidForPath(const std::wstring& rsRootPath, const std::wstring& rsPath) const;
 
+	struct RootHolder
+	{
+		IPtrPlisgoFSRoot	root;
+		RootHolder			*pNext;
+		RootHolder			*pPrev;
+		ULONG64				nLastCheckTime; //Last time the root was checked
+	};
 
-	typedef boost::unordered_map<std::wstring, IPtrPlisgoFSRoot>	RootCacheMap;			
+	struct PathRootCacheEntry
+	{
+		boost::weak_ptr<PlisgoFSRoot>	root;
+		ULONG64							nLastCheckTime; //Last time the path was checked again the root
+	};
+
+	typedef std::pair<std::wstring, PathRootCacheEntry>				RootCacheMapEntry;
+	typedef boost::fast_pool_allocator< RootCacheMapEntry >			RootCacheMapEntryPool;
+	typedef boost::unordered_map<std::wstring,
+								PathRootCacheEntry,
+								boost::hash<std::wstring>,
+								std::equal_to<std::wstring>,
+								RootCacheMapEntryPool >				RootCacheMap;
+
+	typedef boost::object_pool< RootHolder >				RootHolderPool;
 
 	RootCacheMap					m_RootCache;
+
+	RootHolder*						m_pOldestRootHolder;
+	RootHolder*						m_pNewestRootHolder;
+	RootHolderPool					m_RootHolderPool;
 
 	mutable boost::shared_mutex		m_Mutex;
 };
