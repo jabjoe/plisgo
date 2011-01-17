@@ -67,7 +67,7 @@ Requiments to run Plisgo_Dokan_Example
 * Dokan Installed
 (http://dokan-dev.net/en/download/)
 
-* Visual Studio 2008 runtimes installed from http://www.microsoft.com/DOWNLOADS/details.aspx?FamilyID=9b2da534-3e03-4391-8a4d-074b9f2bc1bf)
+* Visual Studio 2008 runtimes installed from http://www.microsoft.com/DOWNLOADS/details.aspx?FamilyID=9b2da534-3e03-4391-8a4d-074b9f2bc1bf
 On 64bit Windows, also the 64bit Visual Studio 2008 runtimes from http://www.microsoft.com/downloads/en/details.aspx?FamilyID=BD2A6171-E2D6-4230-B809-9A8D7548C1B6
 
 
