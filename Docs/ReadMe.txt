@@ -12,12 +12,11 @@ Plisgo is an Explorer namespace which creates custom overlays, icons, thumbnails
 
 The reason why you would do this are many, but here are a few.
 
-Each Explorer namespace can and will be loaded by any process that calls up a open/save dialog and the user browses into the namespace. This has two big consequences. First, a namespace should be lightweight. Second, partly related to the first, a namespace should not be written in .NET. Only a single .NET runtime can be loaded for a process, some .NET runtimes have compatible bytecodes, but which .NET runtime is loaded first cannot be controlled. MS themselves advise against writing any shell extensions in .NET for this reason. With Plisgo, everything is redirected to the filesystem. This keeps the namespace small, and means, as the filesystem can be written in anything, the developer is free to work in whatever language suits them.
+Each Explorer namespace can and will be loaded by any process that calls up a open/save dialog and the user browses into the namespace. This has two big consequences. First, a namespace should be lightweight. Second, partly related to the first, a namespace should not be written in .NET. Only a single .NET runtime can be loaded for a process, some .NET runtimes have compatible bytecodes, but which .NET runtime is loaded first cannot be controlled. MS themselves advise against writing any shell extensions in .NET for this reason (though they still do it from time to time).
+
+With Plisgo, everything is redirected to the filesystem. This keeps the namespace small, and means, as the filesystem can be written in anything, the developer is free to work in whatever language suits them.
 
 Writing an Explorer namespace is well known to be a minefield, with Plisgo, you have a (hopefully) simple API to do your shell UI.
-
-
-It has been mainly developed and tested on XP sp2, but has also been limitedly tested on Windows 7.
 
 
 
@@ -75,7 +74,8 @@ Requiments to run Plisgo_Dokan_Example
 Install Plisgo
 ==============
 
-From the command prompt, browse to where you have unzipped this folder and do "regsvr32 plisgo.dll".
+From the command prompt, browse to where you have unzipped this folder and do "regsvr32 bin\Win32\plisgo.dll".
+On a 64bit Windows install also do "regsvr32 bin\x64\plisgo.dll". (You need both unless you really aren't running any 32bit applications (but you will be))
 
 
 
