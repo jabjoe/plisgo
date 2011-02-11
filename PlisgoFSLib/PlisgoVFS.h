@@ -141,52 +141,43 @@ private:
 		IPtrPlisgoFSFile	File;
 		ULONG64				nData;
 		ULONG32				nFlags;
-		volatile LONG		nUseRef;
-
-		OpenFileData*		pNext;
-		OpenFileData*		pPrev;
 	};
 
-protected:
+	typedef boost::shared_ptr<OpenFileData>	OpenFileDataSP;
 
-	void						DecrementOpenDataRef(OpenFileData* pOpenFileData);
+	bool						GetOpenFileData(OpenFileDataSP& rResult, const PlisgoFileHandle& rHandle) const;
 
-private:
-
-	class OpenFileDataSP
+	class	OpenFileDataFactory
 	{
 	public:
 
-		OpenFileDataSP(const PlisgoVFS* pPlisgoVFS)	{ m_pPlisgoVFS = (PlisgoVFS*)pPlisgoVFS; m_pData = NULL; }
-		~OpenFileDataSP()	{ m_pPlisgoVFS->DecrementOpenDataRef(m_pData); }
+		OpenFileDataFactory()	{ m_nOpenUnique = 1; }
+		~OpenFileDataFactory();
 
-		OpenFileData* operator->()	{ return m_pData; }
-		OpenFileData* operator*()	{ return m_pData; }
+		PlisgoFileHandle	CreateNew(	const std::wstring&	rsPath,
+										IPtrPlisgoFSFile	file,
+										ULONG64				nData,
+										ULONG32				nFlags);
 
-		void	operator = (OpenFileData* pData)
-		{
-			m_pPlisgoVFS->DecrementOpenDataRef(m_pData);
+		OpenFileDataSP	GetOpenFile(const PlisgoFileHandle& rHandle) const;
 
-			m_pData = pData;
+		void			FreeOpenFile(const PlisgoFileHandle& rHandle);
 
-			if (m_pData != NULL)
-				InterlockedIncrement(&m_pData->nUseRef);
-		}
+		void			CloseAll(PlisgoVFSOpenLog* pLog);
 
 	private:
-		OpenFileData*	m_pData;
-		PlisgoVFS*		m_pPlisgoVFS;
+		std::vector<OpenFileDataSP>							m_Files;
+		std::vector<int>									m_FreeFiles;
+		std::map<ULONG64, int>								m_OpenMap;
+		ULONG64												m_nOpenUnique;
 	};
-
-	bool				GetOpenFileData(OpenFileDataSP& rResult, const PlisgoFileHandle&	rHandle) const;
 
 
 	IPtrPlisgoFSFolder									m_Root;
 
-	mutable boost::shared_mutex							m_OpenFilePoolMutex;
-	boost::object_pool<OpenFileData>					m_OpenFilePool;
-	volatile LONG										m_OpenFileNum;
-	OpenFileData*										m_pLatestOpen;
+	mutable boost::shared_mutex							m_OpenFileMutex;
+	OpenFileDataFactory									m_OpenFileFactory;
+
 	mutable boost::unordered_map<std::wstring, bool>	m_PendingDeletes;
 
 	struct Cached
