@@ -1519,7 +1519,10 @@ int					PlisgoFSRealFolder::CreateChild(IPtrPlisgoFSFile& rChild, LPCWSTR sName,
 		if (hHandle == NULL || hHandle == INVALID_HANDLE_VALUE)
 			return -(int)GetLastError();
 
-		*pInstanceData = (ULONGLONG)hHandle;
+		if (pInstanceData != NULL)
+			*pInstanceData = (ULONGLONG)hHandle;
+		else
+			CloseHandle(hHandle);
 
 		rChild.reset(new PlisgoFSRealFile(sPath));
 	}
