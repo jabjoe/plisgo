@@ -97,17 +97,14 @@ int	PlisgoFSFile::GetHandleInfo(LPBY_HANDLE_FILE_INFORMATION pInfo, ULONGLONG* )
 */
 
 
-int				PlisgoFSFolder::Open(	DWORD	nDesiredAccess,
+int				PlisgoFSFolder::Open(	DWORD	,
 										DWORD	,
 										DWORD	nCreationDisposition,
 										DWORD	,
 										ULONGLONG*)
 {
-	if (nCreationDisposition == CREATE_NEW || nCreationDisposition == TRUNCATE_EXISTING)
+	if (nCreationDisposition == CREATE_NEW)
 		return -ERROR_ALREADY_EXISTS;
-
-	if (nDesiredAccess&(GENERIC_WRITE|FILE_WRITE_DATA|FILE_APPEND_DATA|FILE_WRITE_EA))
-		return -ERROR_ACCESS_DENIED;
 
 	return 0;
 }
@@ -1519,10 +1516,7 @@ int					PlisgoFSRealFolder::CreateChild(IPtrPlisgoFSFile& rChild, LPCWSTR sName,
 		if (hHandle == NULL || hHandle == INVALID_HANDLE_VALUE)
 			return -(int)GetLastError();
 
-		if (pInstanceData != NULL)
-			*pInstanceData = (ULONGLONG)hHandle;
-		else
-			CloseHandle(hHandle);
+		CloseHandle(hHandle);
 
 		rChild.reset(new PlisgoFSRealFile(sPath));
 	}

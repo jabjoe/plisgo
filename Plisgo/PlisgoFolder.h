@@ -158,7 +158,15 @@ public:
 
     STDMETHOD(SetNameOf) (HWND hWnd, LPCITEMIDLIST pIDL, LPCOLESTR name, DWORD nFlags, LPITEMIDLIST* ppidlOut)
 	{
-		return m_pCurrent->SetNameOf(hWnd, pIDL, name, nFlags, ppidlOut);
+		HRESULT hr = m_pCurrent->SetNameOf(hWnd, pIDL, name, nFlags, ppidlOut);
+
+		if (SUCCEEDED(hr))
+		{
+			//We shouldn't have to do this, but for now we do and it doesn't even seam to cause a full folder update......
+			SHChangeNotify(SHCNE_UPDATEDIR, SHCNF_IDLIST|SHCNF_FLUSH, m_pIDL, NULL);
+		}
+
+		return hr;
 	}
 
 

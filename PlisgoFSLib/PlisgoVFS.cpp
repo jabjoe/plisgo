@@ -561,9 +561,14 @@ int					PlisgoVFS::Open(	PlisgoFileHandle&	rHandle,
 					assert(file.get() != NULL);
 
 					if (nCreationDisposition == CREATE_NEW)
-						nCreationDisposition = TRUNCATE_EXISTING; //It exists now, but should be 0
+						nCreationDisposition = CREATE_ALWAYS; //Will exist now, so CREATE_NEW is wrong
+
+					if (nFlagsAndAttributes | FILE_ATTRIBUTE_DIRECTORY)
+						nCreationDisposition = OPEN_EXISTING;
 
 					AddToCache(sPathLowerCase, file);
+
+					nError = file->Open(nDesiredAccess, nShareMode, nCreationDisposition, nFlagsAndAttributes, &nOpenInstaceData);
 				}
 				else nError = -ERROR_PATH_NOT_FOUND; //wtf, silly user
 			}
