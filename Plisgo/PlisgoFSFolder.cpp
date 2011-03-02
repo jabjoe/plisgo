@@ -150,6 +150,8 @@ void PlisgoFSRoot::Init(const std::wstring& rsPath)
 
 		return;
 	}
+	
+	boost::algorithm::trim_if(m_sFSName, boost::is_cntrl());
 
 	WIN32_FILE_ATTRIBUTE_DATA data = {0};
 
@@ -600,6 +602,8 @@ bool	PlisgoFSRoot::IsValid() const
 
 	if (nVersion != m_nFSVersion)
 		return false;
+
+	boost::algorithm::trim_if(sName, boost::is_cntrl());
 
 	if (!boost::algorithm::iequals(sName, m_sFSName))
 		return false;

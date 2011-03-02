@@ -270,17 +270,13 @@ bool	ReadTextFromFile(std::wstring& rsResult, LPCWSTR sFile)
 
 		while(ReadFile(hFile, buffer, MAX_PATH-1, &nRead, NULL) && nRead > 0)
 		{
-			buffer[nRead] = 0;
-
 			DWORD nWRead = MultiByteToWideChar(CP_UTF8, 0, buffer, (int)nRead, NULL, 0);
 
 			WCHAR* wBuffer = (WCHAR*)_malloca(sizeof(WCHAR)*(nWRead+1));
 
 			nWRead = MultiByteToWideChar(CP_UTF8, 0, buffer, (int)nRead, wBuffer, nWRead);
 
-			wBuffer[nWRead] = 0;
-
-			rsResult += wBuffer;
+			rsResult.append(wBuffer, nWRead);
 			bResult = true;
 
 			_freea(wBuffer);
