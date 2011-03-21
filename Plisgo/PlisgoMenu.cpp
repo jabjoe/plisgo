@@ -198,16 +198,16 @@ static HTREEITEM	GetChildByName(LPCWSTR sName, HWND hWnd, HTREEITEM hItem, size_
 
 static HTREEITEM	FollowRelativePath(std::wstring::const_iterator itPath, HWND hWnd, HTREEITEM hItem)
 {
-	if (itPath._Myptr[0] == L'\0')
+	if (&itPath[0] == L'\0')
 		return hItem;
 
-	while(itPath._Myptr[0] != L'\0' && *itPath == L'\\')
+	while(&itPath[0] != L'\0' && *itPath == L'\\')
 		++itPath;
 
-	if (itPath._Myptr[0] == L'\0')
+	if (&itPath[0] == L'\0')
 		return hItem;
 
-	LPCWSTR sPathPos = itPath._Myptr;//&(*itPath);
+	LPCWSTR sPathPos = &(*itPath);
 
 	LPCWSTR sSlash = wcschr(sPathPos, L'\\');
 	
