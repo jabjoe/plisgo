@@ -108,6 +108,16 @@ int __stdcall	PlisgoExampleOpenDirectory(	LPCWSTR					sFileName,
 									pDokanFileInfo);
 }
 
+/*
+	DOKAN does not hide the Cleanup/Close system in Windows.
+	Briefly:
+	Cleanup is when all the applications (user land) has finished with the file.
+	Close is when the OS has finished with the file. In the time between the OS might do reads or writes.
+	You can fudge it and use just one or the other, but it will catch you.
+	Read up on IRP_MJ_CLEANUP and IRP_MJ_CLOSE go into the MS screaming room.
+
+	In this case PlisgoExampleCloseFile is used for both, the consequence is in PlisgoExampleReadFile and PlisgoExampleWriteFile
+*/
 
 int __stdcall	PlisgoExampleCloseFile(	LPCWSTR					sFileName,
 										PDOKAN_FILE_INFO		pDokanFileInfo)
@@ -123,8 +133,19 @@ int __stdcall	PlisgoExampleReadFile(	LPCWSTR				sFileName,
 										LONGLONG			nOffset,
 										PDOKAN_FILE_INFO	pDokanFileInfo)
 {
-	return GetPlisgoVFS(pDokanFileInfo)->Read((PlisgoVFS::PlisgoFileHandle&)pDokanFileInfo->Context,
-								pBuffer, nBufferLength, pnReadLength, nOffset);
+	PlisgoVFS::PlisgoFileHandle&	rHandle	= (PlisgoVFS::PlisgoFileHandle&)pDokanFileInfo->Context;
+	PlisgoVFS*						pVFS	= GetPlisgoVFS(pDokanFileInfo);
+
+	if (rHandle == 0)
+	{
+		//Ok so this has come in after cleanup and before close. We need to reopen it
+		int nError = pVFS->Open(rHandle, sFileName, GENERIC_READ, FILE_SHARE_READ, OPEN_EXISTING, 0);
+
+		if (nError != 0)
+			return nError;
+	}
+
+	return pVFS->Read(rHandle, pBuffer, nBufferLength, pnReadLength, nOffset);
 }
 
 
@@ -135,8 +156,40 @@ int __stdcall	PlisgoExampleWriteFile(	LPCWSTR				sFileName,
 										LONGLONG			nOffset,
 										PDOKAN_FILE_INFO	pDokanFileInfo)
 {
-	return GetPlisgoVFS(pDokanFileInfo)->Write((PlisgoVFS::PlisgoFileHandle&)pDokanFileInfo->Context,
-								pBuffer, nNumberOfBytesToWrite, pnNumberOfBytesWritten, nOffset);
+	PlisgoVFS::PlisgoFileHandle&	rHandle	= (PlisgoVFS::PlisgoFileHandle&)pDokanFileInfo->Context;
+	PlisgoVFS*						pVFS	= GetPlisgoVFS(pDokanFileInfo);
+
+	if (rHandle == 0)
+	{
+		//Ok so this has come in after cleanup and before close. We need to reopen it..
+		int nError = pVFS->Open(rHandle, sFileName, GENERIC_WRITE, FILE_SHARE_WRITE, OPEN_EXISTING, 0);
+
+		if (nError != 0)
+			return nError;
+	}
+
+	if (pDokanFileInfo->WriteToEndOfFile)
+	{
+		IPtrPlisgoFSFile file = pVFS->GetPlisgoFSFile(rHandle);
+
+		if (file.get() == NULL)
+			return -ERROR_INVALID_HANDLE;
+
+		BY_HANDLE_FILE_INFORMATION info;
+
+		if (pVFS->GetHandleInfo(rHandle, &info) == 0)
+		{
+			LARGE_INTEGER temp;
+
+			temp.HighPart = info.nFileIndexHigh;
+			temp.LowPart = info.nFileSizeLow;
+
+			nOffset = temp.QuadPart;
+		}
+		else nOffset = file->GetSize();
+	}
+
+	return pVFS->Write(rHandle, pBuffer, nNumberOfBytesToWrite, pnNumberOfBytesWritten, nOffset);
 }
 
 
@@ -372,8 +425,8 @@ main(ULONG argc, PCHAR argv[])
 	DOKAN_OPERATIONS	dokanOperations = {	PlisgoExampleCreateFile,
 											PlisgoExampleOpenDirectory,
 											PlisgoExampleCreateDirectory,
-											NULL,
 											PlisgoExampleCloseFile,
+											PlisgoExampleCloseFile,  //read comment above PlisgoExampleCloseFile
 											PlisgoExampleReadFile,
 											PlisgoExampleWriteFile,
 											PlisgoExampleFlushFileBuffers,
@@ -397,7 +450,7 @@ main(ULONG argc, PCHAR argv[])
 
 	ZeroMemory(&dokanOptions, sizeof(DOKAN_OPTIONS));
 
-	dokanOptions.DriveLetter = L'X';
+	dokanOptions.DriveLetter = L'Q';
 	dokanOptions.GlobalContext = (ULONG64)vfs.get();
 	dokanOptions.Options = DOKAN_OPTION_REMOVABLE;
 
