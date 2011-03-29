@@ -263,6 +263,27 @@ int						PlisgoFSFolder::Repath(LPCWSTR sOldName, LPCWSTR sNewName,
 ****************************************************************************
 */
 
+int			PlisgoFSFileMap::GetFileNames(PlisgoFSFolder::ChildNames& rFileNames) const
+{
+	for(PlisgoFSFileMap::const_iterator it = begin(); it != end(); ++it)
+		rFileNames.push_back(it->first);
+
+	return 0;
+}
+
+IPtrPlisgoFSFile PlisgoFSFileMap::GetFile(LPCWSTR sName) const
+{
+	PlisgoFSFileMap::const_iterator it = find(sName);
+	
+	if (it != end())
+		return it->second;
+
+	return IPtrPlisgoFSFile();
+}
+/*
+****************************************************************************
+*/
+
 void				PlisgoFSFileList::AddFile(LPCWSTR sName, IPtrPlisgoFSFile file)
 {
 	boost::unique_lock<boost::shared_mutex> lock(m_Mutex);
@@ -283,10 +304,7 @@ int				PlisgoFSFileList::GetFileNames(PlisgoFSFolder::ChildNames& rFileNames) co
 {
 	boost::shared_lock<boost::shared_mutex> lock(m_Mutex);
 
-	for(PlisgoFSFileMap::const_iterator it = m_Files.begin(); it != m_Files.end(); ++it)
-		rFileNames.push_back(it->first);
-
-	return 0;
+	return m_Files.GetFileNames(rFileNames);
 }
 
 
@@ -294,12 +312,7 @@ IPtrPlisgoFSFile	PlisgoFSFileList::GetFile(LPCWSTR sName) const
 {
 	boost::shared_lock<boost::shared_mutex> lock(m_Mutex);
 
-	PlisgoFSFileMap::const_iterator it = m_Files.find(sName);
-	
-	if (it != m_Files.end())
-		return it->second;
-
-	return IPtrPlisgoFSFile();
+	return m_Files.GetFile(sName);
 }
 
 
@@ -372,20 +385,12 @@ PlisgoFSReadOnlyStorageFolder::PlisgoFSReadOnlyStorageFolder(const PlisgoFSFileM
 
 int				PlisgoFSReadOnlyStorageFolder::GetChildren(ChildNames& rChildren) const
 {
-	for(PlisgoFSFileMap::const_iterator it = m_Files.begin(); it != m_Files.end(); ++it)
-		rChildren.push_back(it->first);
-
-	return 0;
+	return m_Files.GetFileNames(rChildren);
 }
 
 IPtrPlisgoFSFile	PlisgoFSReadOnlyStorageFolder::GetChild(LPCWSTR sName) const
 {
-	PlisgoFSFileMap::const_iterator it = m_Files.find(sName);
-	
-	if (it != m_Files.end())
-		return it->second;
-
-	return IPtrPlisgoFSFile();
+	return m_Files.GetFile(sName);
 }
 /*
 ****************************************************************************

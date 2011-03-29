@@ -183,8 +183,17 @@ struct ihash : std::unary_function<std::wstring, std::size_t>
     }
 };
 
-typedef boost::unordered_map<std::wstring, IPtrPlisgoFSFile, ihash, iequal_to>	PlisgoFSFileMap;
+
+class PlisgoFSFileMap : public boost::unordered_map<std::wstring, IPtrPlisgoFSFile, ihash, iequal_to>
+{
+public:
+	
+	int					GetFileNames(PlisgoFSFolder::ChildNames& rFileNames) const;
+	IPtrPlisgoFSFile	GetFile(LPCWSTR sName) const;
+};
+
 typedef std::vector<IPtrPlisgoFSFile>											PlisgoFSFileArray;
+
 
 class PlisgoFSFileList
 {

@@ -32,31 +32,141 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <shlobj.h>
+#include <Ntsecapi.h>
 #include "../PlisgoFSLib/PlisgoFSHiddenFolders.h"
 #include "resource.h"
 #include "ProcessesFolder.h"
 #include "Psapi.h"
 
 
-class ProcessFile : public PlisgoFSStringReadOnly
+class ProcessFolder : public PlisgoFSFolder
 {
 public:
-	ProcessFile(const PROCESSENTRY32& rPE) : PlisgoFSStringReadOnly(rPE.szExeFile)
-	{
-		SetVolatile(true);
-		m_PE = rPE;
-	}
+	ProcessFolder(const PROCESSENTRY32& rPE);
 
-	virtual bool			IsValid() const				{ return false; } //Force it not to use cached
+	virtual bool				IsValid() const				{ return false; } //Force it not to use cached
 
-	virtual DWORD			GetAttributes() const		{ return FILE_ATTRIBUTE_READONLY|FILE_ATTRIBUTE_OFFLINE; }
+	virtual DWORD				GetAttributes() const		{ return FILE_ATTRIBUTE_READONLY|FILE_ATTRIBUTE_DIRECTORY; }
 
-	const PROCESSENTRY32&	GetProcessEntry32() const	{ return m_PE;}
+	const PROCESSENTRY32&		GetProcessEntry32() const	{ return m_PE;}
+
+	virtual int					GetChildren(ChildNames& rChildren) const	{ return m_ProcessInfoFile.GetFileNames(rChildren); }
+	virtual IPtrPlisgoFSFile	GetChild(LPCWSTR sName) const				{ return m_ProcessInfoFile.GetFile(sName); }
 
 private:
-	PROCESSENTRY32 m_PE;
+
+	PROCESSENTRY32					m_PE;
+	
+	mutable boost::shared_mutex		m_Mutex;
+	PlisgoFSFileMap					m_ProcessInfoFile;
+
 };
 
+
+typedef NTSTATUS (WINAPI *NtQueryInformationProcessCB)(
+  __in       HANDLE ProcessHandle,
+  __in       PBYTE ProcessInformationClass,
+  __out      PVOID ProcessInformation,
+  __in       ULONG ProcessInformationLength,
+  __out_opt  PULONG ReturnLength
+);
+
+NtQueryInformationProcessCB NtQueryInformationProcess = NULL;
+
+HMODULE	hNTDLL_Lib = NULL;
+
+typedef struct _PROCESS_BASIC_INFORMATION {
+    PVOID Reserved1;
+    PBYTE PebBaseAddress;
+    PVOID Reserved2[2];
+    ULONG_PTR UniqueProcessId;
+    PVOID Reserved3;
+} PROCESS_BASIC_INFORMATION;
+
+
+#define PROC_PARAMS_OFFSET		16
+#define	CMDLINE_LENGTH_OFFSET	64
+
+
+IPtrPlisgoFSFile	CreateArgsFile(HANDLE hProcess)
+{
+	if (NtQueryInformationProcess == NULL)
+		return IPtrPlisgoFSFile();
+			
+	IPtrPlisgoFSFile result;
+
+	PROCESS_BASIC_INFORMATION info;
+
+	if (SUCCEEDED(NtQueryInformationProcess(hProcess, 0/*ProcessBasicInformation*/, &info, sizeof(PROCESS_BASIC_INFORMATION), NULL)))
+	{
+		ULONG32 nPorcessParamaters;
+
+		//Get address of ProcessParameters of PEB structure
+		if (ReadProcessMemory(hProcess, (LPVOID)(info.PebBaseAddress + PROC_PARAMS_OFFSET), &nPorcessParamaters, sizeof(ULONG32), NULL))
+		{
+			UNICODE_STRING cmdLine;
+
+			if (ReadProcessMemory(hProcess, (LPVOID)(nPorcessParamaters + CMDLINE_LENGTH_OFFSET), &cmdLine, sizeof(UNICODE_STRING), NULL))
+			{
+				WCHAR* pszCmdLine = new WCHAR[cmdLine.MaximumLength];
+
+				assert(pszCmdLine != NULL);
+
+				if (ReadProcessMemory(hProcess, (LPVOID)cmdLine.Buffer, pszCmdLine, cmdLine.MaximumLength, NULL))
+					result = IPtrPlisgoFSFile(new PlisgoFSStringReadOnly(pszCmdLine));
+
+				delete[] pszCmdLine;
+			}
+		}
+	}
+
+	return result;
+}
+
+
+
+void				InitAddProcessFiles(PlisgoFSFileMap& rFiles, DWORD nPID)
+{
+	HANDLE hModuleSnap = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, nPID);
+
+	MODULEENTRY32 me32;
+
+	me32.dwSize = sizeof( MODULEENTRY32 );
+
+	if( Module32First( hModuleSnap, &me32 ) )
+	{
+		rFiles[L"exe"] = IPtrPlisgoFSFile(new PlisgoFSStringReadOnly(me32.szExePath));
+
+		CloseHandle(hModuleSnap);
+	}
+	else rFiles[L"exe"] = IPtrPlisgoFSFile(new PlisgoFSStringReadOnly(L"access_denied"));
+
+
+	HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION|PROCESS_VM_READ, FALSE, nPID);
+
+	if (hProcess != NULL || hProcess != INVALID_HANDLE_VALUE)
+	{
+		rFiles[L"args"] = CreateArgsFile(hProcess);
+
+		CloseHandle(hProcess);
+	}
+	else
+	{
+		rFiles[L"args"] = IPtrPlisgoFSFile(new PlisgoFSStringReadOnly(L"access_denied"));
+	}	
+}
+
+
+
+
+
+
+ProcessFolder::ProcessFolder(const PROCESSENTRY32& rPE)
+{
+	m_PE = rPE;
+
+	InitAddProcessFiles(m_ProcessInfoFile, rPE.th32ProcessID);
+}
 
 
 
@@ -127,12 +237,12 @@ public:
 		if (rFile.get() == NULL)
 			return true;
 
-		ProcessFile* pProcessFile = dynamic_cast<ProcessFile*>(rFile.get());
+		ProcessFolder* pProcessFolder = dynamic_cast<ProcessFolder*>(rFile.get());
 
-		if (pProcessFile == NULL)
+		if (pProcessFolder == NULL)
 			return true;
 
-		DWORD nProcess = pProcessFile->GetProcessEntry32().th32ProcessID;
+		DWORD nProcess = pProcessFolder->GetProcessEntry32().th32ProcessID;
 
 		ProcessTerminator(nProcess);
 
@@ -154,12 +264,12 @@ public:
 		if (rFile.get() == NULL)
 			return true;
 
-		ProcessFile* pProcessFile = dynamic_cast<ProcessFile*>(rFile.get());
+		ProcessFolder* pProcessFolder = dynamic_cast<ProcessFolder*>(rFile.get());
 
-		if (pProcessFile == NULL)
+		if (pProcessFolder == NULL)
 			return true;
 
-		DWORD nProcess = pProcessFile->GetProcessEntry32().th32ProcessID;
+		DWORD nProcess = pProcessFolder->GetProcessEntry32().th32ProcessID;
 
 		return CanTerminateProcess(nProcess);
 	}
@@ -198,12 +308,12 @@ public:
 		if (rFile.get() == NULL)
 			return true;
 
-		ProcessFile* pProcessFile = dynamic_cast<ProcessFile*>(rFile.get());
+		ProcessFolder* pProcessFolder = dynamic_cast<ProcessFolder*>(rFile.get());
 
-		if (pProcessFile == NULL)
+		if (pProcessFolder == NULL)
 			return true;
 
-		DWORD nProcess = pProcessFile->GetProcessEntry32().th32ProcessID;
+		DWORD nProcess = pProcessFolder->GetProcessEntry32().th32ProcessID;
 
 		HWND hWnd = GetProcessWindow(nProcess);
 
@@ -236,12 +346,12 @@ public:
 		if (rFile.get() == NULL)
 			return true;
 
-		ProcessFile* pProcessFile = dynamic_cast<ProcessFile*>(rFile.get());
+		ProcessFolder* pProcessFolder = dynamic_cast<ProcessFolder*>(rFile.get());
 
-		if (pProcessFile == NULL)
+		if (pProcessFolder == NULL)
 			return true;
 
-		return (GetProcessWindow(pProcessFile->GetProcessEntry32().th32ProcessID) != NULL);
+		return (GetProcessWindow(pProcessFolder->GetProcessEntry32().th32ProcessID) != NULL);
 	}
 };
 
@@ -356,12 +466,12 @@ bool	ProcessesFolderShellInterface::IsShelled(IPtrPlisgoFSFile& rFile) const
 
 bool	ProcessesFolderShellInterface::GetColumnEntry(IPtrPlisgoFSFile& rFile, const int nColumnIndex, std::wstring& rsResult) const
 {
-	ProcessFile* pProcessFile = dynamic_cast<ProcessFile*>(rFile.get());
+	ProcessFolder* pProcessFolder = dynamic_cast<ProcessFolder*>(rFile.get());
 
-	if (pProcessFile == NULL)
+	if (pProcessFolder == NULL)
 		return false;
 
-	const PROCESSENTRY32& rEntry = pProcessFile->GetProcessEntry32();
+	const PROCESSENTRY32& rEntry = pProcessFolder->GetProcessEntry32();
 
 	switch(nColumnIndex)
 	{
@@ -399,12 +509,12 @@ bool	ProcessesFolderShellInterface::GetColumnEntry(IPtrPlisgoFSFile& rFile, cons
 
 bool	ProcessesFolderShellInterface::GetOverlayIcon(IPtrPlisgoFSFile& rFile, IconLocation& rResult) const
 {
-	ProcessFile* pProcessFile = dynamic_cast<ProcessFile*>(rFile.get());
+	ProcessFolder* pProcessFolder = dynamic_cast<ProcessFolder*>(rFile.get());
 
-	if (pProcessFile == NULL)
+	if (pProcessFolder == NULL)
 		return false;
 
-	if (CanTerminateProcess(pProcessFile->GetProcessEntry32().th32ProcessID))
+	if (CanTerminateProcess(pProcessFolder->GetProcessEntry32().th32ProcessID))
 		return false;
 
 	rResult.Set(1,0);
@@ -423,12 +533,12 @@ static BOOL CALLBACK	FoundCB(  HMODULE , LPCTSTR , LPTSTR , LONG_PTR lParam)
 
 bool	ProcessesFolderShellInterface::GetCustomIcon(IPtrPlisgoFSFile& rFile, IconLocation& rResult) const
 {
-	ProcessFile* pProcessFile = dynamic_cast<ProcessFile*>(rFile.get());
+	ProcessFolder* pProcessFolder = dynamic_cast<ProcessFolder*>(rFile.get());
 
-	if (pProcessFile == NULL)
+	if (pProcessFolder == NULL)
 		return false;
 
-	const DWORD nProcessID = pProcessFile->GetProcessEntry32().th32ProcessID;
+	const DWORD nProcessID = pProcessFolder->GetProcessEntry32().th32ProcessID;
 
 	HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION, 0, nProcessID); 
 
@@ -495,7 +605,7 @@ bool	ProcessesFolderShellInterface::GetThumbnail(IPtrPlisgoFSFile& rFile, std::w
 	if (m_ThumbnailPlaceHolder.get() == NULL)
 		return false;
 
-	if (dynamic_cast<ProcessFile*>(rFile.get()) == NULL)
+	if (dynamic_cast<ProcessFolder*>(rFile.get()) == NULL)
 		return false;
 
 	rsExt = L".jpg";
@@ -515,6 +625,20 @@ ProcessesFolder::ProcessesFolder()
 	//Add stubs for mounting of Plisgo GUI files
 	m_Extras.AddFile(L".plisgofs", IPtrPlisgoFSFile(new PlisgoFSStringReadOnly()));
 	m_Extras.AddFile(L"Desktop.ini", IPtrPlisgoFSFile(new PlisgoFSStringReadOnly()));
+
+	hNTDLL_Lib = LoadLibrary(L"Ntdll.dll");
+
+	if (hNTDLL_Lib != NULL && hNTDLL_Lib != INVALID_HANDLE_VALUE)
+		NtQueryInformationProcess = (NtQueryInformationProcessCB)GetProcAddress(hNTDLL_Lib, "NtQueryInformationProcess");
+}
+
+ProcessesFolder::~ProcessesFolder()
+{
+	if (hNTDLL_Lib != NULL && hNTDLL_Lib != INVALID_HANDLE_VALUE)
+	{
+		FreeLibrary(hNTDLL_Lib);
+		hNTDLL_Lib = NULL;
+	}
 }
 
 
@@ -585,7 +709,7 @@ IPtrPlisgoFSFile	ProcessesFolder::GetChild(LPCWSTR sName) const
 			{
 				if (pe.th32ProcessID == nProcessID)
 				{
-					result = boost::make_shared<ProcessFile>(pe);
+					result = boost::make_shared<ProcessFolder>(pe);
 
 					break;
 				}

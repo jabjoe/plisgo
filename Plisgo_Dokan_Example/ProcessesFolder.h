@@ -60,6 +60,7 @@ class ProcessesFolder : public PlisgoFSFolder
 public:
 
 	ProcessesFolder();
+	~ProcessesFolder();
 
 	virtual DWORD				GetAttributes() const	{ return FILE_ATTRIBUTE_DIRECTORY|FILE_ATTRIBUTE_READONLY; }
 
