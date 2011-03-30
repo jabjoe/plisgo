@@ -40,7 +40,7 @@ public:
 
 	virtual LPCWSTR	GetFFSName() const		{ return L"ProcessFS"; }
 
-	virtual bool IsShelled(IPtrPlisgoFSFile& rFile) const;
+	virtual bool IsShelled(IPtrPlisgoFSFile& rFile) const	{ return true; }
 
 	virtual bool GetColumnEntry(IPtrPlisgoFSFile& rFile, const int nColumnIndex, std::wstring& rsResult) const;
 	virtual bool GetOverlayIcon(IPtrPlisgoFSFile& rFile, IconLocation& rResult) const;

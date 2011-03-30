@@ -431,6 +431,7 @@ IPtrRootPlisgoFSFolder ProcessesFolderShellInterface::CreatePlisgoFolder(IPtrPli
 	plisgoRoot->SetColumnDefaultWidth(3, 20);
 
 	plisgoRoot->AddCustomDefaultIcon(0, 0);
+	plisgoRoot->AddCustomFolderIcon(0, 0, 0, 0);
 
 	HINSTANCE hHandle = GetModuleHandle(NULL);
 
@@ -455,12 +456,6 @@ IPtrRootPlisgoFSFolder ProcessesFolderShellInterface::CreatePlisgoFolder(IPtrPli
 	plisgoRoot->AddMenu(L"Switch to", IPtrFileEvent(new SwitchToMenuItemClick()), nMenu, 0, 0, IPtrFileEvent(new SwitchToMenuItemEnable()));
 
 	return plisgoRoot;
-}
-
-
-bool	ProcessesFolderShellInterface::IsShelled(IPtrPlisgoFSFile& rFile) const
-{
-	return (dynamic_cast<ProcessesFolder*>(rFile.get()) != NULL);
 }
 
 
@@ -512,7 +507,15 @@ bool	ProcessesFolderShellInterface::GetOverlayIcon(IPtrPlisgoFSFile& rFile, Icon
 	ProcessFolder* pProcessFolder = dynamic_cast<ProcessFolder*>(rFile.get());
 
 	if (pProcessFolder == NULL)
+	{
+		if (dynamic_cast<PlisgoFSStringReadOnly*>(rFile.get()) != NULL)
+		{
+			rResult.Set(1,0);
+			return true;
+		}	
+
 		return false;
+	}
 
 	if (CanTerminateProcess(pProcessFolder->GetProcessEntry32().th32ProcessID))
 		return false;
