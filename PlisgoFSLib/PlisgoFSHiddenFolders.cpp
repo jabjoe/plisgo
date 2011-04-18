@@ -70,15 +70,15 @@ void	IShellInfoFetcher::DoMounts(IPtrRootPlisgoFSFolder plisgoFS, IPtrPlisgoVFS&
 
 	if (mount.get() == NULL)
 	{
-		ULONGLONG nInstanceData = 0;
+		IPtrPlisgoFSData data;
 
-		pFolder->CreateChild(mount, L".plisgofs", FILE_ATTRIBUTE_READONLY, &nInstanceData);
+		pFolder->CreateChild(mount, L".plisgofs", FILE_ATTRIBUTE_READONLY, data);
 
 		if (mount.get() == NULL)
 			return; //Er wtf, it isn't there, and you won't let me put it there?
 
-		mount->Close(&nInstanceData);
-		mount->SetAttributes(FILE_ATTRIBUTE_HIDDEN|FILE_ATTRIBUTE_SYSTEM, &nInstanceData);
+		mount->SetAttributes(FILE_ATTRIBUTE_HIDDEN|FILE_ATTRIBUTE_SYSTEM, data);
+		mount->Close(data);
 	}
 
 
@@ -88,9 +88,9 @@ void	IShellInfoFetcher::DoMounts(IPtrRootPlisgoFSFolder plisgoFS, IPtrPlisgoVFS&
 
 	if (mount.get() == NULL)
 	{
-		ULONGLONG nInstanceData = 0;
+		IPtrPlisgoFSData data;
 
-		pFolder->CreateChild(mount, L"Desktop.ini", FILE_ATTRIBUTE_READONLY, &nInstanceData);
+		pFolder->CreateChild(mount, L"Desktop.ini", FILE_ATTRIBUTE_READONLY, data);
 
 		if (mount.get() == NULL)
 		{
@@ -99,8 +99,8 @@ void	IShellInfoFetcher::DoMounts(IPtrRootPlisgoFSFolder plisgoFS, IPtrPlisgoVFS&
 			return; //Er wtf, it isn't there, and you won't let me put it there?
 		}
 
-		mount->Close(&nInstanceData);
-		mount->SetAttributes(FILE_ATTRIBUTE_HIDDEN|FILE_ATTRIBUTE_SYSTEM, &nInstanceData);
+		mount->SetAttributes(FILE_ATTRIBUTE_HIDDEN|FILE_ATTRIBUTE_SYSTEM, data);
+		mount->Close(data);
 	}
 
 	rVFS->AddMount((rsPath + L"\\Desktop.ini").c_str() , GetPlisgoDesktopIniFile());

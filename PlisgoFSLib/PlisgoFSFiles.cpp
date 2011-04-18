@@ -31,7 +31,7 @@ int				PlisgoFSFile::Open(DWORD	nDesiredAccess,
 									DWORD	,
 									DWORD	nCreationDisposition,
 									DWORD	,
-									ULONGLONG*)
+									IPtrPlisgoFSData&)
 {
 	if (nCreationDisposition == CREATE_NEW)
 		return -ERROR_ALREADY_EXISTS;
@@ -49,43 +49,43 @@ int				PlisgoFSFile::Open(DWORD	nDesiredAccess,
 }
 
 
-int				PlisgoFSFile::Read(	LPVOID		/*pBuffer*/,
-										DWORD		/*nNumberOfBytesToRead*/,
-										LPDWORD		/*pnNumberOfBytesRead*/,
-										LONGLONG	/*nOffset*/	,
-										ULONGLONG*	/*pInstanceData*/)							{ return -ERROR_ACCESS_DENIED; }
+int				PlisgoFSFile::Read(	LPVOID				/*pBuffer*/,
+									DWORD				/*nNumberOfBytesToRead*/,
+									LPDWORD				/*pnNumberOfBytesRead*/,
+									LONGLONG			/*nOffset*/	,
+									IPtrPlisgoFSData&	/*rData*/)								{ return -ERROR_ACCESS_DENIED; }
 
-int				PlisgoFSFile::Write(	LPCVOID		/*pBuffer*/,
-										DWORD		/*nNumberOfBytesToWrite*/,
-										LPDWORD		/*pnNumberOfBytesWritten*/,
-										LONGLONG	/*nOffset*/,
-										ULONGLONG*	/*pInstanceData*/)							{ return -ERROR_ACCESS_DENIED; }
+int				PlisgoFSFile::Write(	LPCVOID				/*pBuffer*/,
+										DWORD				/*nNumberOfBytesToWrite*/,
+										LPDWORD				/*pnNumberOfBytesWritten*/,
+										LONGLONG			/*nOffset*/,
+										IPtrPlisgoFSData&	/*rData*/)							{ return -ERROR_ACCESS_DENIED; }
 
-int				PlisgoFSFile::LockFile(	LONGLONG	,//nByteOffset,
-											LONGLONG	,//nByteLength,
-											ULONGLONG*	/*pInstanceData*/)						{ return -ERROR_INVALID_FUNCTION; };
+int				PlisgoFSFile::LockFile(	LONGLONG			,//nByteOffset,
+										LONGLONG			,//nByteLength,
+										IPtrPlisgoFSData&	/*rData*/)							{ return -ERROR_INVALID_FUNCTION; };
 
-int				PlisgoFSFile::UnlockFile(	LONGLONG	,//nByteOffset,
-											LONGLONG	,//nByteLength,
-											ULONGLONG*	/*pInstanceData*/)						{ return -ERROR_INVALID_FUNCTION; };
+int				PlisgoFSFile::UnlockFile(	LONGLONG			,//nByteOffset,
+											LONGLONG			,//nByteLength,
+											IPtrPlisgoFSData&	/*rData*/)						{ return -ERROR_INVALID_FUNCTION; };
 
-int				PlisgoFSFile::FlushBuffers(ULONGLONG* /*pInstanceData*/)						{ return 0; }
+int				PlisgoFSFile::FlushBuffers(IPtrPlisgoFSData&	/*rData*/)						{ return 0; }
 
-int				PlisgoFSFile::SetEndOfFile(LONGLONG /*nEndPos*/, ULONGLONG* /*pInstanceData*/){ return -ERROR_ACCESS_DENIED; }
+int				PlisgoFSFile::SetEndOfFile(LONGLONG /*nEndPos*/, IPtrPlisgoFSData&	/*rData*/)	{ return -ERROR_ACCESS_DENIED; }
 
-int				PlisgoFSFile::Close(ULONGLONG* /*pInstanceData*/)								{ return 0; }
+int				PlisgoFSFile::Close(IPtrPlisgoFSData&	/*rData*/)								{ return 0; }
 
-int				PlisgoFSFile::SetFileTimes(	const FILETIME* ,//pCreation,
-												const FILETIME* ,//pLastAccess,
-												const FILETIME* ,//pLastWrite
-												ULONGLONG*		/*pInstanceData*/)					{ return -ERROR_INVALID_FUNCTION; }
+int				PlisgoFSFile::SetFileTimes(	const FILETIME*		,//pCreation,
+											const FILETIME*		,//pLastAccess,
+											const FILETIME*		,//pLastWrite
+											IPtrPlisgoFSData&	/*rData*/)						{ return -ERROR_INVALID_FUNCTION; }
 
-int				PlisgoFSFile::SetAttributes(	DWORD		,//nFileAttributes,
-												ULONGLONG*	/*pInstanceData*/)					{ return -ERROR_INVALID_FUNCTION; }
+int				PlisgoFSFile::SetAttributes(	DWORD				,//nFileAttributes,
+												IPtrPlisgoFSData&	/*rData*/)					{ return -ERROR_INVALID_FUNCTION; }
 
 
 
-int	PlisgoFSFile::GetHandleInfo(LPBY_HANDLE_FILE_INFORMATION pInfo, ULONGLONG* )
+int	PlisgoFSFile::GetHandleInfo(LPBY_HANDLE_FILE_INFORMATION pInfo, IPtrPlisgoFSData& )
 {
 	GetFileInfo(pInfo);
 
@@ -97,11 +97,11 @@ int	PlisgoFSFile::GetHandleInfo(LPBY_HANDLE_FILE_INFORMATION pInfo, ULONGLONG* )
 */
 
 
-int				PlisgoFSFolder::Open(	DWORD	,
-										DWORD	,
-										DWORD	nCreationDisposition,
-										DWORD	,
-										ULONGLONG*)
+int				PlisgoFSFolder::Open(	DWORD			,
+										DWORD			,
+										DWORD			nCreationDisposition,
+										DWORD			,
+										IPtrPlisgoFSData&)
 {
 	if (nCreationDisposition == CREATE_NEW)
 		return -ERROR_ALREADY_EXISTS;
@@ -109,26 +109,26 @@ int				PlisgoFSFolder::Open(	DWORD	,
 	return 0;
 }
 
-static int				CopyPlisgoFile(IPtrPlisgoFSFile& rSrcFile, IPtrPlisgoFSFile& rDstFile, ULONGLONG* pnDstInstanceData);
+static int				CopyPlisgoFile(IPtrPlisgoFSFile& rSrcFile, IPtrPlisgoFSFile& rDstFile, IPtrPlisgoFSData& rDstData);
 
 static int				CopyPlisgoChild(PlisgoFSFolder* pDstFolder, LPCWSTR sName, IPtrPlisgoFSFile& rSrcFile)
 {
 	IPtrPlisgoFSFile dstFile;
 
-	ULONGLONG nInstanceData = 0;
+	IPtrPlisgoFSData dstData;
 
-	int nError = pDstFolder->CreateChild(dstFile, sName, rSrcFile->GetAttributes(), &nInstanceData);
+	int nError = pDstFolder->CreateChild(dstFile, sName, rSrcFile->GetAttributes(), dstData);
 
 	if (nError != 0)
 		return nError;
 
-	nError = CopyPlisgoFile(rSrcFile, dstFile, &nInstanceData);
+	nError = CopyPlisgoFile(rSrcFile, dstFile, dstData);
 
-	return dstFile->Close(&nInstanceData);
+	return dstFile->Close(dstData);
 }
 
 
-static int				CopyPlisgoFile(IPtrPlisgoFSFile& rSrcFile, IPtrPlisgoFSFile& rDstFile, ULONGLONG* pnDstInstanceData)
+static int				CopyPlisgoFile(IPtrPlisgoFSFile& rSrcFile, IPtrPlisgoFSFile& rDstFile, IPtrPlisgoFSData& rDstData)
 {
 	if (rSrcFile->GetAttributes()&FILE_ATTRIBUTE_DIRECTORY)
 	{
@@ -163,9 +163,9 @@ static int				CopyPlisgoFile(IPtrPlisgoFSFile& rSrcFile, IPtrPlisgoFSFile& rDstF
 	}
 	else
 	{
-		ULONG64 nSrcChildData = 0;
+		IPtrPlisgoFSData srcData;
 
-		int nError = rSrcFile->Open(GENERIC_READ, 0, OPEN_EXISTING, 0, &nSrcChildData);
+		int nError = rSrcFile->Open(GENERIC_READ, 0, OPEN_EXISTING, 0, srcData);
 
 		if (nError != 0)
 			return nError;
@@ -178,14 +178,14 @@ static int				CopyPlisgoFile(IPtrPlisgoFSFile& rSrcFile, IPtrPlisgoFSFile& rDstF
 
 		do
 		{
-			nError = rSrcFile->Read(sBuffer, 1024*4, &nRead, nPos, &nSrcChildData);
+			nError = rSrcFile->Read(sBuffer, 1024*4, &nRead, nPos, srcData);
 			
 			if (nRead == 0)
 				break;
 
 			DWORD nWritten;
 
-			nError = rDstFile->Write(sBuffer, nRead, &nWritten, nPos, pnDstInstanceData);
+			nError = rDstFile->Write(sBuffer, nRead, &nWritten, nPos, rDstData);
 
 			if (nWritten != nRead)
 			{
@@ -202,8 +202,8 @@ static int				CopyPlisgoFile(IPtrPlisgoFSFile& rSrcFile, IPtrPlisgoFSFile& rDstF
 		if (nError == ERROR_HANDLE_EOF)
 			nError = 0;
 
-		rDstFile->SetEndOfFile(nPos, pnDstInstanceData);
-		rSrcFile->Close(&nSrcChildData);
+		rDstFile->SetEndOfFile(nPos, rDstData);
+		rSrcFile->Close(srcData);
 
 		return nError;
 	}
@@ -350,7 +350,7 @@ void				PlisgoFSFileList::Clear()
 /*
 ****************************************************************************
 */
-int		PlisgoFSStorageFolder::CreateChild(IPtrPlisgoFSFile& rChild, LPCWSTR sName, DWORD nAttr, ULONGLONG* pInstanceData)
+int		PlisgoFSStorageFolder::CreateChild(IPtrPlisgoFSFile& rChild, LPCWSTR sName, DWORD nAttr, IPtrPlisgoFSData&	rData)
 {
 	if (sName == NULL)
 		return -ERROR_INVALID_NAME;
@@ -365,7 +365,7 @@ int		PlisgoFSStorageFolder::CreateChild(IPtrPlisgoFSFile& rChild, LPCWSTR sName,
 
 		rChild.reset(pChild);
 
-		int nError = pChild->Open(GENERIC_ALL, FILE_SHARE_READ|FILE_SHARE_WRITE, OPEN_EXISTING, nAttr, pInstanceData);
+		int nError = pChild->Open(GENERIC_ALL, FILE_SHARE_READ|FILE_SHARE_WRITE, OPEN_EXISTING, nAttr, rData);
 
 		if (nError != 0)
 			return nError;
@@ -396,6 +396,59 @@ IPtrPlisgoFSFile	PlisgoFSReadOnlyStorageFolder::GetChild(LPCWSTR sName) const
 ****************************************************************************
 */
 
+
+IPtrPlisgoFSUserData	PlisgoFSUserDataFile::CreateData()
+{
+	IPtrPlisgoFSUserData result = boost::make_shared<PlisgoFSUserData>();
+
+	assert(result.get() != NULL);
+
+	return result;
+}
+
+
+ULONG64&				PlisgoFSUserDataFile::GetPrivate(IPtrPlisgoFSData& rData)
+{
+	assert(rData.get() != NULL);
+
+	PlisgoFSUserData* pData = dynamic_cast<PlisgoFSUserData*>(rData.get());
+
+	assert(pData != NULL);
+
+	return pData->m_nPrivate;
+}
+/*
+****************************************************************************
+*/
+
+class PlisgoFSDataRW : public PlisgoFSUserData
+{
+public:
+
+	virtual ~PlisgoFSDataRW() {}
+
+	static bool		IsWrite(IPtrPlisgoFSData& rData)	{ return GetData(rData)->IsWrite(); }
+	static void		CloseWrite(IPtrPlisgoFSData& rData)	{ GetData(rData)->CloseWrite(); }
+
+protected:
+	
+	static PlisgoFSDataRW* GetData(IPtrPlisgoFSData& rData)
+	{
+		assert(rData.get() != NULL);
+
+		PlisgoFSDataRW* pRW = dynamic_cast<PlisgoFSDataRW*>(rData.get());
+
+		assert(pRW != NULL);
+
+		return pRW;
+	}
+
+	bool			IsWrite() const { return (m_nPrivate&GENERIC_WRITE) == GENERIC_WRITE; }
+	void			CloseWrite()	{ m_nPrivate&=~GENERIC_WRITE; }
+};
+/*
+****************************************************************************
+*/
 PlisgoFSDataFileReadOnly::PlisgoFSDataFileReadOnly(	void*	pData,
 													size_t	nDataSize,
 													bool	bOwnMemory,
@@ -420,12 +473,11 @@ PlisgoFSDataFileReadOnly::~PlisgoFSDataFileReadOnly()
 }
 
 
-
-int		PlisgoFSDataFileReadOnly::Open(	DWORD		nDesiredAccess,
-										DWORD		nShareMode,
-										DWORD		nCreationDisposition,
-										DWORD		nFlagsAndAttributes,
-										ULONGLONG*	pInstanceData)
+int		PlisgoFSDataFileReadOnly::Open(	DWORD				nDesiredAccess,
+										DWORD				nShareMode,
+										DWORD				nCreationDisposition,
+										DWORD				nFlagsAndAttributes,
+										IPtrPlisgoFSData&	rData)
 {
 	if (nFlagsAndAttributes & FILE_ATTRIBUTE_DIRECTORY)
 		return -ERROR_ACCESS_DENIED;
@@ -434,7 +486,7 @@ int		PlisgoFSDataFileReadOnly::Open(	DWORD		nDesiredAccess,
 										nShareMode,
 										nCreationDisposition,
 										nFlagsAndAttributes,
-										pInstanceData);
+										rData);
 	if (nError != 0)
 		return nError;
 
@@ -443,15 +495,17 @@ int		PlisgoFSDataFileReadOnly::Open(	DWORD		nDesiredAccess,
 	if (bWrite)
 		return -ERROR_ACCESS_DENIED;
 
+	rData = CreateData();
+
 	return 0;
 }
 
 
-int		PlisgoFSDataFileReadOnly::Read(	LPVOID		pBuffer,
-										DWORD		nNumberOfBytesToRead,
-										LPDWORD		pnNumberOfBytesRead,
-										LONGLONG	nOffset,
-										ULONGLONG*	)
+int		PlisgoFSDataFileReadOnly::Read(	LPVOID				pBuffer,
+										DWORD				nNumberOfBytesToRead,
+										LPDWORD				pnNumberOfBytesRead,
+										LONGLONG			nOffset,
+										IPtrPlisgoFSData&	)
 {
 	if (m_pData != NULL && nOffset < (LONGLONG)m_nDataSize)
 	{
@@ -466,7 +520,6 @@ int		PlisgoFSDataFileReadOnly::Read(	LPVOID		pBuffer,
 
 	return 0;
 }
-
 /*
 ****************************************************************************
 */
@@ -517,6 +570,16 @@ PlisgoFSDataFile::~PlisgoFSDataFile()
 }
 
 
+IPtrPlisgoFSUserData	PlisgoFSDataFile::CreateData()
+{
+	IPtrPlisgoFSUserData result = boost::make_shared<PlisgoFSDataRW>();
+
+	assert(result.get() != NULL);
+
+	return result;
+}
+
+
 bool	PlisgoFSDataFile::GetFileTimes(FILETIME& rCreation, FILETIME& rLastAccess, FILETIME& rLastWrite) const
 {
 	rCreation = m_CreatedTime;
@@ -561,10 +624,8 @@ int		PlisgoFSDataFile::Open(	DWORD		nDesiredAccess,
 								DWORD		nShareMode,
 								DWORD		nCreationDisposition,
 								DWORD		nFlagsAndAttributes,
-								ULONGLONG*	pInstanceData)
+								IPtrPlisgoFSData&	rData)
 {
-	assert(pInstanceData != NULL);
-
 	if (nFlagsAndAttributes & FILE_ATTRIBUTE_DIRECTORY)
 		return -ERROR_ACCESS_DENIED;
 
@@ -572,7 +633,7 @@ int		PlisgoFSDataFile::Open(	DWORD		nDesiredAccess,
 										nShareMode,
 										nCreationDisposition,
 										nFlagsAndAttributes,
-										pInstanceData);
+										rData);
 	if (nError != 0)
 		return nError;
 
@@ -612,19 +673,20 @@ int		PlisgoFSDataFile::Open(	DWORD		nDesiredAccess,
 		else if (!m_bOwnMemory)
 			CreateOwnCopy(m_pData, m_nDataUsedSize);
 
-		*pInstanceData = GENERIC_WRITE;
+		rData = CreateData();
+
+		GetPrivate(rData) = GENERIC_WRITE;
 	}
-	else *pInstanceData = GENERIC_READ;
+	else rData = CreateData();
 
 	return 0;
 }
 
 
-int		PlisgoFSDataFile::SetEndOfFile(LONGLONG nEndPos, ULONGLONG* pInstanceData)
+int		PlisgoFSDataFile::SetEndOfFile(LONGLONG nEndPos, IPtrPlisgoFSData&	rData)
 {
-	assert(pInstanceData != NULL);
-
-	assert(*pInstanceData == GENERIC_WRITE);
+	if (!PlisgoFSDataRW::IsWrite(rData))
+		return -ERROR_ACCESS_DENIED;
 
 	boost::unique_lock<boost::shared_mutex> lock(m_Mutex);
 
@@ -636,20 +698,18 @@ int		PlisgoFSDataFile::SetEndOfFile(LONGLONG nEndPos, ULONGLONG* pInstanceData)
 }
 
 
-int		PlisgoFSDataFile::Close(ULONGLONG* pInstanceData)
+int		PlisgoFSDataFile::Close(IPtrPlisgoFSData&	rData)
 {
-	assert(pInstanceData != NULL);
-
-	if (*pInstanceData == GENERIC_WRITE)
+	if (PlisgoFSDataRW::IsWrite(rData))
 	{
 		boost::unique_lock<boost::shared_mutex> lock(m_Mutex);
 
 		GetSystemTimeAsFileTime(&m_LastWrite);
 
 		m_bWriteOpen = false;
-	}
 
-	*pInstanceData = 0;
+		PlisgoFSDataRW::CloseWrite(rData);
+	}
 
 	return 0;
 }
@@ -657,10 +717,10 @@ int		PlisgoFSDataFile::Close(ULONGLONG* pInstanceData)
 
 
 int		PlisgoFSDataFile::Read(	LPVOID		pBuffer,
-							DWORD		nNumberOfBytesToRead,
-							LPDWORD		pnNumberOfBytesRead,
-							LONGLONG	nOffset,
-							ULONGLONG*	)
+								DWORD		nNumberOfBytesToRead,
+								LPDWORD		pnNumberOfBytesRead,
+								LONGLONG	nOffset,
+								IPtrPlisgoFSData&	)
 {
 	boost::shared_lock<boost::shared_mutex> lock(m_Mutex);
 
@@ -709,14 +769,12 @@ void	PlisgoFSDataFile::GrowToSize(size_t nDataSize)
 
 
 int		PlisgoFSDataFile::Write(	LPCVOID		pBuffer,
-							DWORD		nNumberOfBytesToWrite,
-							LPDWORD		pnNumberOfBytesWritten,
-							LONGLONG	nOffset,
-							ULONGLONG*	pInstanceData)
+									DWORD		nNumberOfBytesToWrite,
+									LPDWORD		pnNumberOfBytesWritten,
+									LONGLONG	nOffset,
+									IPtrPlisgoFSData&	rData)
 {
-	assert(pInstanceData != NULL);
-
-	if (!(*pInstanceData & GENERIC_WRITE))
+	if (!PlisgoFSDataRW::IsWrite(rData))
 		return -ERROR_ACCESS_DENIED;
 
 	assert(pBuffer != NULL);
@@ -767,15 +825,22 @@ PlisgoFSStringReadOnly::PlisgoFSStringReadOnly(	const std::string& sData)
 }
 
 
-
-int				PlisgoFSStringReadOnly::Open(	DWORD		nDesiredAccess,
-												DWORD		nShareMode,
-												DWORD		nCreationDisposition,
-												DWORD		nFlagsAndAttributes,
-												ULONGLONG*	pInstanceData)
+IPtrPlisgoFSUserData	PlisgoFSStringReadOnly::CreateData()
 {
-	assert(pInstanceData != NULL);
+	IPtrPlisgoFSUserData result = boost::make_shared<PlisgoFSDataRW>();
 
+	assert(result.get() != NULL);
+
+	return result;
+}
+
+
+int				PlisgoFSStringReadOnly::Open(	DWORD				nDesiredAccess,
+												DWORD				nShareMode,
+												DWORD				nCreationDisposition,
+												DWORD				nFlagsAndAttributes,
+												IPtrPlisgoFSData&	rData)
+{
 	if (nFlagsAndAttributes & FILE_ATTRIBUTE_DIRECTORY)
 		return -ERROR_ACCESS_DENIED;
 
@@ -783,7 +848,7 @@ int				PlisgoFSStringReadOnly::Open(	DWORD		nDesiredAccess,
 										nShareMode,
 										nCreationDisposition,
 										nFlagsAndAttributes,
-										pInstanceData);
+										rData);
 	if (nError != 0)
 		return nError;
 
@@ -792,7 +857,7 @@ int				PlisgoFSStringReadOnly::Open(	DWORD		nDesiredAccess,
 	if (bWrite)
 		return -ERROR_ACCESS_DENIED;
 
-	*pInstanceData = GENERIC_READ;
+	rData = CreateData();
 
 	return 0;
 }
@@ -802,7 +867,7 @@ int				PlisgoFSStringReadOnly::Read(	LPVOID		pBuffer,
 												DWORD		nNumberOfBytesToRead,
 												LPDWORD		pnNumberOfBytesRead,
 												LONGLONG	nOffset,
-												ULONGLONG*	)
+												IPtrPlisgoFSData&	)
 {
 	if (nOffset < (LONGLONG)m_sData.length())
 	{
@@ -814,16 +879,6 @@ int				PlisgoFSStringReadOnly::Read(	LPVOID		pBuffer,
 		*pnNumberOfBytesRead = nCopySize;
 	}
 	else *pnNumberOfBytesRead = 0;
-
-	return 0;
-}
-
-
-int				PlisgoFSStringReadOnly::Close(ULONGLONG* pInstanceData)
-{
-	assert(pInstanceData != NULL);
-
-	*pInstanceData = 0;
 
 	return 0;
 }
@@ -914,14 +969,12 @@ void			PlisgoFSStringFile::GetWideString(std::wstring& rResult)
 }
 
 
-int				PlisgoFSStringFile::Open(	DWORD		nDesiredAccess,
-											DWORD		nShareMode,
-											DWORD		nCreationDisposition,
-											DWORD		nFlagsAndAttributes,
-											ULONGLONG*	pInstanceData)
+int				PlisgoFSStringFile::Open(	DWORD				nDesiredAccess,
+											DWORD				nShareMode,
+											DWORD				nCreationDisposition,
+											DWORD				nFlagsAndAttributes,
+											IPtrPlisgoFSData&	rData)
 {
-	assert(pInstanceData != NULL);
-
 	if (nFlagsAndAttributes & FILE_ATTRIBUTE_DIRECTORY)
 		return -ERROR_ACCESS_DENIED;
 
@@ -929,7 +982,7 @@ int				PlisgoFSStringFile::Open(	DWORD		nDesiredAccess,
 										nShareMode,
 										nCreationDisposition,
 										nFlagsAndAttributes,
-										pInstanceData);
+										rData);
 	if (nError != 0)
 		return nError;
 
@@ -955,19 +1008,20 @@ int				PlisgoFSStringFile::Open(	DWORD		nDesiredAccess,
 		if (nCreationDisposition == TRUNCATE_EXISTING || nCreationDisposition == CREATE_ALWAYS)
 			m_sData.resize(0);
 
-		*pInstanceData = GENERIC_WRITE;
+		rData = CreateData();
+
+		GetPrivate(rData) = GENERIC_WRITE;
 	}
-	else *pInstanceData = GENERIC_READ;
+	else rData = CreateData();
 
 	return 0;
 }
 
 
-int				PlisgoFSStringFile::SetEndOfFile(LONGLONG nEndPos, ULONGLONG* pInstanceData)
+int				PlisgoFSStringFile::SetEndOfFile(LONGLONG nEndPos, IPtrPlisgoFSData& rData)
 {
-	assert(pInstanceData != NULL);
-
-	assert(*pInstanceData & GENERIC_WRITE);
+	if (!PlisgoFSDataRW::IsWrite(rData))
+		return -ERROR_ACCESS_DENIED;
 
 	boost::unique_lock<boost::shared_mutex> lock(m_Mutex);
 
@@ -979,44 +1033,40 @@ int				PlisgoFSStringFile::SetEndOfFile(LONGLONG nEndPos, ULONGLONG* pInstanceDa
 }
 
 
-int				PlisgoFSStringFile::Close(ULONGLONG* pInstanceData)
+int				PlisgoFSStringFile::Close(IPtrPlisgoFSData& rData)
 {
-	assert(pInstanceData != NULL);
-
-	if (*pInstanceData & GENERIC_WRITE)
+	if (PlisgoFSDataRW::IsWrite(rData))
 	{
 		boost::unique_lock<boost::shared_mutex> lock(m_Mutex);
 
 		m_bWriteOpen = false;
-	}
 
-	*pInstanceData = 0;
+		PlisgoFSDataRW::CloseWrite(rData);
+	}
 
 	return 0;
 }
 
 
-int				PlisgoFSStringFile::Read(LPVOID		pBuffer,
-									DWORD		nNumberOfBytesToRead,
-									LPDWORD		pnNumberOfBytesRead,
-									LONGLONG	nOffset,
-									ULONGLONG*	pInstanceData)
+int				PlisgoFSStringFile::Read(LPVOID				pBuffer,
+										 DWORD				nNumberOfBytesToRead,
+										 LPDWORD			pnNumberOfBytesRead,
+										 LONGLONG			nOffset,
+										 IPtrPlisgoFSData&	rData)
 {
 	boost::shared_lock<boost::shared_mutex> lock(m_Mutex);
 
-	return PlisgoFSStringReadOnly::Read(pBuffer, nNumberOfBytesToRead, pnNumberOfBytesRead, nOffset, pInstanceData);
+	return PlisgoFSStringReadOnly::Read(pBuffer, nNumberOfBytesToRead, pnNumberOfBytesRead, nOffset, rData);
 }
 
 
-int				PlisgoFSStringFile::Write(LPCVOID		pBuffer,
-									DWORD		nNumberOfBytesToWrite,
-									LPDWORD		pnNumberOfBytesWritten,
-									LONGLONG	nOffset,
-									ULONGLONG*	pInstanceData)
+int				PlisgoFSStringFile::Write(	LPCVOID				pBuffer,
+											DWORD				nNumberOfBytesToWrite,
+											LPDWORD				pnNumberOfBytesWritten,
+											LONGLONG			nOffset,
+											IPtrPlisgoFSData&	rData)
 {
-	assert(pInstanceData != NULL);
-
-	if (!(*pInstanceData & GENERIC_WRITE))
+	if (!PlisgoFSDataRW::IsWrite(rData))
 		return -ERROR_ACCESS_DENIED;
 
 	assert(pBuffer != NULL);
@@ -1044,9 +1094,9 @@ int				PlisgoFSStringFile::Write(LPCVOID		pBuffer,
 
 
 
-int				PlisgoFSStringFile::LockFile(LONGLONG	,//nByteOffset,
-										LONGLONG	,//nByteLength,
-										ULONGLONG*	/*pInstanceData*/)
+int				PlisgoFSStringFile::LockFile(	LONGLONG	,
+												LONGLONG	,
+												IPtrPlisgoFSData&)
 {
 	boost::unique_lock<boost::shared_mutex> lock(m_Mutex);
 
@@ -1057,9 +1107,9 @@ int				PlisgoFSStringFile::LockFile(LONGLONG	,//nByteOffset,
 }
 
 
-int				PlisgoFSStringFile::UnlockFile(	LONGLONG	,//nByteOffset,
-											LONGLONG	,//nByteLength,
-											ULONGLONG*	/*pInstanceData*/)
+int				PlisgoFSStringFile::UnlockFile(	LONGLONG	,
+												LONGLONG	,
+												IPtrPlisgoFSData&)
 {
 
 	boost::unique_lock<boost::shared_mutex> lock(m_Mutex);
@@ -1097,6 +1147,46 @@ bool			PlisgoFSStringFile::GetFileTimes(FILETIME& rCreation, FILETIME& rLastAcce
 	return true;
 }
 
+
+/*
+****************************************************************************
+*/
+
+class PlisgoFSHandleData : public PlisgoFSUserData
+{
+public:
+	PlisgoFSHandleData(HANDLE hHandle)	{ m_nPrivate = (ULONG64)hHandle; }
+	~PlisgoFSHandleData()				{ assert(m_nPrivate == 0); }
+
+
+	static HANDLE	GetHandle(IPtrPlisgoFSData& rData)	{ return GetData(rData)->GetHandle(); }
+	static int		Close(IPtrPlisgoFSData& rData)		{ return GetData(rData)->Close(); }
+
+protected:
+
+	static PlisgoFSHandleData*	GetData(IPtrPlisgoFSData& rData)
+	{
+		assert(rData.get() != NULL);
+
+		PlisgoFSHandleData* pHandle  = dynamic_cast<PlisgoFSHandleData*>(rData.get());
+
+		assert(pHandle != NULL);
+
+		return pHandle;
+	}
+
+	int				Close()
+	{
+		if (!CloseHandle(GetHandle()))
+			return -(int)GetLastError();
+
+		m_nPrivate = 0;
+
+		return 0;
+	}
+
+	HANDLE			GetHandle() { return (HANDLE)m_nPrivate; }
+};
 
 /*
 ****************************************************************************
@@ -1151,11 +1241,9 @@ bool			PlisgoFSRealFile::GetFileTimes(FILETIME& rCreation, FILETIME& rLastAccess
 }
 
 
-int				PlisgoFSRealFile::GetHandleInfo(LPBY_HANDLE_FILE_INFORMATION pInfo, ULONGLONG* pInstanceData)
+int				PlisgoFSRealFile::GetHandleInfo(LPBY_HANDLE_FILE_INFORMATION pInfo, IPtrPlisgoFSData& rData)
 {
-	assert(pInstanceData != NULL);
-
-	HANDLE hFile = *(HANDLE*)pInstanceData;
+	HANDLE hFile = PlisgoFSHandleData::GetHandle(rData);
 
 	if(!GetFileInformationByHandle(hFile, pInfo))
 		return -(int)GetLastError();
@@ -1163,14 +1251,12 @@ int				PlisgoFSRealFile::GetHandleInfo(LPBY_HANDLE_FILE_INFORMATION pInfo, ULONG
 	return 0;
 }
 
-int				PlisgoFSRealFile::Open(	DWORD		nDesiredAccess,
-												DWORD		nShareMode,
-												DWORD		nCreationDisposition,
-												DWORD		nFlagsAndAttributes,
-												ULONGLONG*	pInstanceData)
+int				PlisgoFSRealFile::Open(	DWORD				nDesiredAccess,
+										DWORD				nShareMode,
+										DWORD				nCreationDisposition,
+										DWORD				nFlagsAndAttributes,
+										IPtrPlisgoFSData&	rData)
 {
-	assert(pInstanceData != NULL);
-
 	const DWORD nAttr = GetFileAttributesW(m_sRealFile.c_str());
 
 	if (nAttr != INVALID_FILE_ATTRIBUTES  && nAttr & FILE_ATTRIBUTE_DIRECTORY)
@@ -1185,9 +1271,14 @@ int				PlisgoFSRealFile::Open(	DWORD		nDesiredAccess,
 
 	if (hFile != NULL && hFile != INVALID_HANDLE_VALUE)
 	{
-		*(HANDLE*)pInstanceData = hFile;
+		rData = boost::make_shared<PlisgoFSHandleData>(hFile);
 
-		return 0;
+		if (rData.get() != NULL)
+			return 0;
+
+		CloseHandle(hFile);
+
+		return -ERROR_NOT_ENOUGH_MEMORY;
 	}
 	else return -(int)GetLastError();
 }
@@ -1203,15 +1294,13 @@ static bool		SetFilePosition(HANDLE hFile, LONGLONG	nOffset)
 }
 
 
-int				PlisgoFSRealFile::Read(LPVOID		pBuffer,
-										DWORD		nNumberOfBytesToRead,
-										LPDWORD		pnNumberOfBytesRead,
-										LONGLONG	nOffset,
-										ULONGLONG*	pInstanceData)
+int				PlisgoFSRealFile::Read(LPVOID				pBuffer,
+										DWORD				nNumberOfBytesToRead,
+										LPDWORD				pnNumberOfBytesRead,
+										LONGLONG			nOffset,
+										IPtrPlisgoFSData&	rData)
 {
-	assert(pInstanceData != NULL);
-
-	HANDLE hFile = *(HANDLE*)pInstanceData;
+	HANDLE hFile = PlisgoFSHandleData::GetHandle(rData);
 
 	if (!SetFilePosition(hFile, nOffset))
 		return -(int)GetLastError();
@@ -1223,15 +1312,13 @@ int				PlisgoFSRealFile::Read(LPVOID		pBuffer,
 }
 
 
-int				PlisgoFSRealFile::Write(	LPCVOID		pBuffer,
-											DWORD		nNumberOfBytesToWrite,
-											LPDWORD		pnNumberOfBytesWritten,
-											LONGLONG	nOffset,
-											ULONGLONG*	pInstanceData)
+int				PlisgoFSRealFile::Write(LPCVOID				pBuffer,
+										DWORD				nNumberOfBytesToWrite,
+										LPDWORD				pnNumberOfBytesWritten,
+										LONGLONG			nOffset,
+										IPtrPlisgoFSData&	rData)
 {
-	assert(pInstanceData != NULL);
-
-	HANDLE hFile = *(HANDLE*)pInstanceData;
+	HANDLE hFile = PlisgoFSHandleData::GetHandle(rData);
 
 	if (!SetFilePosition(hFile, nOffset))
 		return -(int)GetLastError();
@@ -1243,11 +1330,9 @@ int				PlisgoFSRealFile::Write(	LPCVOID		pBuffer,
 }
 
 
-int				PlisgoFSRealFile::FlushBuffers(ULONGLONG* pInstanceData)
+int				PlisgoFSRealFile::FlushBuffers(IPtrPlisgoFSData& rData)
 {
-	assert(pInstanceData != NULL);
-
-	HANDLE hFile = *(HANDLE*)pInstanceData;
+	HANDLE hFile = PlisgoFSHandleData::GetHandle(rData);
 
 	if (FlushFileBuffers(hFile))
 		return 0;
@@ -1256,11 +1341,9 @@ int				PlisgoFSRealFile::FlushBuffers(ULONGLONG* pInstanceData)
 }
 
 
-int				PlisgoFSRealFile::SetEndOfFile(LONGLONG nEndPos, ULONGLONG* pInstanceData)
+int				PlisgoFSRealFile::SetEndOfFile(LONGLONG nEndPos, IPtrPlisgoFSData& rData)
 {
-	assert(pInstanceData != NULL);
-
-	HANDLE hFile = *(HANDLE*)pInstanceData;
+	HANDLE hFile = PlisgoFSHandleData::GetHandle(rData);
 
 	if (!SetFilePosition(hFile, nEndPos))
 		return -(int)GetLastError();
@@ -1272,26 +1355,19 @@ int				PlisgoFSRealFile::SetEndOfFile(LONGLONG nEndPos, ULONGLONG* pInstanceData
 }
 
 
-int				PlisgoFSRealFile::Close(ULONGLONG* pInstanceData)
+int				PlisgoFSRealFile::Close(IPtrPlisgoFSData& rData)
 {
-	assert(pInstanceData != NULL);
-
-	HANDLE hFile = *(HANDLE*)pInstanceData;
-
-	if (CloseHandle(hFile))
-		return 0;
-	else
-		return -(int)GetLastError();
+	return PlisgoFSHandleData::Close(rData);
 }
 
 
 
 
-int				PlisgoFSRealFile::LockFile(LONGLONG	nByteOffset,
-											LONGLONG	nByteLength,
-											ULONGLONG*	pInstanceData)
+int				PlisgoFSRealFile::LockFile(	LONGLONG			nByteOffset,
+											LONGLONG			nByteLength,
+											IPtrPlisgoFSData&	rData)
 {
-	HANDLE hFile = *(HANDLE*)pInstanceData;
+	HANDLE hFile = PlisgoFSHandleData::GetHandle(rData);
 
 	LARGE_INTEGER fileOffset, fileLength;
 
@@ -1305,11 +1381,11 @@ int				PlisgoFSRealFile::LockFile(LONGLONG	nByteOffset,
 }
 
 
-int				PlisgoFSRealFile::UnlockFile(	LONGLONG	nByteOffset,
-												LONGLONG	nByteLength,
-												ULONGLONG*	pInstanceData)
+int				PlisgoFSRealFile::UnlockFile(	LONGLONG			nByteOffset,
+												LONGLONG			nByteLength,
+												IPtrPlisgoFSData&	rData)
 {
-	HANDLE hFile = *(HANDLE*)pInstanceData;
+	HANDLE hFile = PlisgoFSHandleData::GetHandle(rData);
 
 	LARGE_INTEGER fileOffset, fileLength;
 
@@ -1323,12 +1399,12 @@ int				PlisgoFSRealFile::UnlockFile(	LONGLONG	nByteOffset,
 }
 
 
-int				PlisgoFSRealFile::SetFileTimes(const FILETIME* pCreation,
-												const FILETIME* pLastAccess,
-												const FILETIME* pLastWrite,
-												ULONGLONG*		pInstanceData)
+int				PlisgoFSRealFile::SetFileTimes(	const FILETIME*		pCreation,
+												const FILETIME*		pLastAccess,
+												const FILETIME*		pLastWrite,
+												IPtrPlisgoFSData&	rData)
 {
-	HANDLE hFile = *(HANDLE*)pInstanceData;
+	HANDLE hFile = PlisgoFSHandleData::GetHandle(rData);
 
 	if(!::SetFileTime(hFile, pCreation, pLastAccess, pLastWrite))
 		return -(int)GetLastError();
@@ -1337,7 +1413,7 @@ int				PlisgoFSRealFile::SetFileTimes(const FILETIME* pCreation,
 }
 
 
-int				PlisgoFSRealFile::SetAttributes(DWORD	nFileAttributes, ULONGLONG* )
+int				PlisgoFSRealFile::SetAttributes(DWORD	nFileAttributes, IPtrPlisgoFSData& )
 {
 	if (!::SetFileAttributesW(m_sRealFile.c_str(), nFileAttributes))
 		return -(int)GetLastError();
@@ -1385,10 +1461,10 @@ bool			PlisgoFSRealFolder::GetFileTimes(FILETIME& rCreation, FILETIME& rLastAcce
 }
 
 
-int				PlisgoFSRealFolder::SetFileTimes(const FILETIME* pCreation,
-												const FILETIME* pLastAccess,
-												const FILETIME* pLastWrite,
-												ULONGLONG*		pInstanceData)
+int				PlisgoFSRealFolder::SetFileTimes(	const FILETIME*	pCreation,
+													const FILETIME*	pLastAccess,
+													const FILETIME*	pLastWrite,
+													IPtrPlisgoFSData&)
 {
 	HANDLE hHandle = CreateFileW(	m_sRealPath.c_str(),
 									GENERIC_WRITE, FILE_SHARE_READ|FILE_SHARE_WRITE,
@@ -1409,7 +1485,7 @@ int				PlisgoFSRealFolder::SetFileTimes(const FILETIME* pCreation,
 }
 
 
-int					PlisgoFSRealFolder::SetAttributes(DWORD	nFileAttributes, ULONGLONG* )
+int					PlisgoFSRealFolder::SetAttributes(DWORD	nFileAttributes, IPtrPlisgoFSData& )
 {
 	if (!::SetFileAttributesW(m_sRealPath.c_str(), nFileAttributes))
 		return -(int)GetLastError();
@@ -1485,7 +1561,7 @@ int					PlisgoFSRealFolder::AddChild(LPCWSTR sName, IPtrPlisgoFSFile file)
 }
 
 
-int					PlisgoFSRealFolder::CreateChild(IPtrPlisgoFSFile& rChild, LPCWSTR sName, DWORD nAttr, ULONGLONG* pInstanceData)
+int					PlisgoFSRealFolder::CreateChild(IPtrPlisgoFSFile& rChild, LPCWSTR sName, DWORD nAttr, IPtrPlisgoFSData&)
 {
 	std::wstring sPath = m_sRealPath;
 	sPath += L"\\";
@@ -1563,7 +1639,7 @@ static int			GetDeleteFolderError(const std::wstring& rsFolder)
 }
 
 
-int					PlisgoFSRealFolder::GetDeleteError(ULONGLONG* pInstanceData) const
+int					PlisgoFSRealFolder::GetDeleteError(IPtrPlisgoFSData&) const
 {
 	return GetDeleteFolderError(m_sRealPath);
 }

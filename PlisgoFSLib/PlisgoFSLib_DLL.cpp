@@ -703,9 +703,9 @@ int		PlisgoVirtualGetFileInfo(PlisgoVirtualFile* pFile, PlisgoFileInfo* pInfo)
 
 	pInfo->nAttr		= info.dwFileAttributes;
 
-	pInfo->nCreation	= *(ULONGLONG*)&info.ftCreationTime;
-	pInfo->nLastAccess	= *(ULONGLONG*)&info.ftLastAccessTime;
-	pInfo->nLastWrite	= *(ULONGLONG*)&info.ftLastWriteTime;
+	pInfo->nCreation	= info.ftCreationTime;
+	pInfo->nLastAccess	= info.ftLastAccessTime;
+	pInfo->nLastWrite	= info.ftLastWriteTime;
 
 	wcscpy_s(pInfo->sName, MAX_PATH, GetNameFromPath(pFile->sPath));
 
@@ -831,9 +831,9 @@ int		PlisgoVirtualFileForEachChild(PlisgoVirtualFile* pFile, PlisgoVirtualFileFo
 
 			child->GetFileTimes(Creation, LastAccess, LastWrite);
 
-			info.nCreation		= *(ULONGLONG*)&Creation;
-			info.nLastAccess	= *(ULONGLONG*)&LastAccess;
-			info.nLastWrite		= *(ULONGLONG*)&LastWrite;
+			info.nCreation		= Creation;
+			info.nLastAccess	= LastAccess;
+			info.nLastWrite		= LastWrite;
 
 			wcscpy_s(info.sName, MAX_PATH, it->c_str());
 			info.nAttr			= child->GetAttributes();

@@ -37,11 +37,11 @@ public:
 	EnabledFile(boost::shared_ptr<SelectionFile>	selectionFile,
 				IPtrFileEvent						enabledEvent);
 
-	virtual int		Open(	DWORD		nDesiredAccess,
-							DWORD		nShareMode,
-							DWORD		nCreationDisposition,
-							DWORD		nFlagsAndAttributes,
-							ULONGLONG*	pInstanceData);
+	virtual int		Open(	DWORD				nDesiredAccess,
+							DWORD				nShareMode,
+							DWORD				nCreationDisposition,
+							DWORD				nFlagsAndAttributes,
+							IPtrPlisgoFSData&	rData);
 private:
 	IPtrFileEvent						m_EnabledEvent;
 	boost::shared_ptr<SelectionFile>	m_selectionFile;
@@ -64,53 +64,75 @@ private:
 };
 
 
+class PlisgoMiscClickData : public PlisgoFSUserData
+{
+public:
+
+	PlisgoMiscClickData() { m_bPendingClick = false; }
+
+	static PlisgoMiscClickData*	Get(IPtrPlisgoFSData& rData)
+	{
+		PlisgoMiscClickData* pClick = dynamic_cast<PlisgoMiscClickData*>(rData.get());
+
+		assert(pClick != NULL);
+
+		return pClick;
+	}
+
+	bool m_bPendingClick;
+};
 
 
-int	PlisgoMiscClickFile::Write(	LPCVOID		pBuffer,
-								DWORD		nNumberOfBytesToWrite,
-								LPDWORD		pnNumberOfBytesWritten,
-								LONGLONG	nOffset,
-								ULONGLONG*	pInstanceData)
+
+IPtrPlisgoFSUserData	PlisgoMiscClickFile::CreateData()
+{
+	IPtrPlisgoFSUserData result = boost::make_shared<PlisgoMiscClickData>();
+
+	assert(result.get() != NULL);
+
+	return result;
+}
+
+
+int	PlisgoMiscClickFile::Write(	LPCVOID				pBuffer,
+								DWORD				nNumberOfBytesToWrite,
+								LPDWORD				pnNumberOfBytesWritten,
+								LONGLONG			nOffset,
+								IPtrPlisgoFSData&	rData)
 {
 	int nResult = PlisgoFSStringFile::Write(	pBuffer,
-										nNumberOfBytesToWrite,
-										pnNumberOfBytesWritten,
-										nOffset,
-										pInstanceData);
+												nNumberOfBytesToWrite,
+												pnNumberOfBytesWritten,
+												nOffset,
+												rData);
 	if (nResult == 0)
-	{
-		std::string sText;
-
-		GetString(sText);
-
-		*pInstanceData |= (atoi(sText.c_str()))?SYNCHRONIZE:0;
-	}
+		PlisgoMiscClickData::Get(rData)->m_bPendingClick = true;
 
 	return nResult;
 }
 
 
-int	PlisgoMiscClickFile::FlushBuffers(ULONGLONG* pInstanceData)
+int	PlisgoMiscClickFile::FlushBuffers(IPtrPlisgoFSData&	rData)
 {
-	assert(pInstanceData != NULL);
+	PlisgoMiscClickData* pData = PlisgoMiscClickData::Get(rData);
 
-	bool bClick = (*pInstanceData & SYNCHRONIZE)?true:false;
-
-	*pInstanceData &=~SYNCHRONIZE; //Remove 'click' flag
-
-	if (bClick)
+	if (pData->m_bPendingClick)
+	{
 		Triggered();
 
-	return PlisgoFSStringFile::FlushBuffers(pInstanceData);
+		pData->m_bPendingClick = false;
+	}
+
+	return PlisgoFSStringFile::FlushBuffers(rData);
 }
 
 
-int	PlisgoMiscClickFile::Close(ULONGLONG* pInstanceData)
+int	PlisgoMiscClickFile::Close(IPtrPlisgoFSData& rData)
 {
-	if (*pInstanceData & SYNCHRONIZE)
-		FlushBuffers(pInstanceData);
+	if (PlisgoMiscClickData::Get(rData)->m_bPendingClick)
+		FlushBuffers(rData);
 
-	return PlisgoFSStringFile::Close(pInstanceData);
+	return PlisgoFSStringFile::Close(rData);
 }
 
 
@@ -155,18 +177,18 @@ EnabledFile::EnabledFile(	boost::shared_ptr<SelectionFile>	selectionFile,
 }
 
 
-int		EnabledFile::Open(	DWORD		nDesiredAccess,
-							DWORD		nShareMode,
-							DWORD		nCreationDisposition,
-							DWORD		nFlagsAndAttributes,
-							ULONGLONG*	pInstanceData)
+int		EnabledFile::Open(	DWORD				nDesiredAccess,
+							DWORD				nShareMode,
+							DWORD				nCreationDisposition,
+							DWORD				nFlagsAndAttributes,
+							IPtrPlisgoFSData&	rData)
 {
 	if (m_EnabledEvent.get() == NULL || m_selectionFile->CallPerPath(*m_EnabledEvent))
 		SetString("1");
 	else
 		SetString("0");
 
-	return PlisgoFSStringFile::Open(nDesiredAccess, nShareMode, nCreationDisposition, nFlagsAndAttributes, pInstanceData);
+	return PlisgoFSStringFile::Open(nDesiredAccess, nShareMode, nCreationDisposition, nFlagsAndAttributes, rData);
 }
 
 

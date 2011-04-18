@@ -153,10 +153,9 @@ struct PlisgoFileInfo
 	WCHAR		sName[MAX_PATH];
 	DWORD		nAttr;
 	ULONGLONG	nSize;
-	//ULONGLONG is 64bit and is the value of a NTFS FILETIME
-	ULONGLONG	nCreation;
-	ULONGLONG	nLastAccess;
-	ULONGLONG	nLastWrite;
+	FILETIME	nCreation;
+	FILETIME	nLastAccess;
+	FILETIME	nLastWrite;
 };
 typedef struct PlisgoFileInfo PlisgoFileInfo;
 

@@ -27,6 +27,16 @@
 
 class PlisgoFSFolder;
 
+
+class PlisgoFSData
+{
+public:
+	virtual ~PlisgoFSData() {}
+};
+
+typedef boost::shared_ptr<PlisgoFSData>	IPtrPlisgoFSData;
+
+
 class PlisgoFSFile
 {
 public:
@@ -46,49 +56,49 @@ public:
 
 	virtual LONGLONG			GetSize() const = 0;
 
-	virtual int					Open(	DWORD		nDesiredAccess,
-										DWORD		nShareMode,
-										DWORD		nCreationDisposition,
-										DWORD		nFlagsAndAttributes,
-										ULONGLONG*	pInstanceData);
+	virtual int					Open(	DWORD				nDesiredAccess,
+										DWORD				nShareMode,
+										DWORD				nCreationDisposition,
+										DWORD				nFlagsAndAttributes,
+										IPtrPlisgoFSData&	rData);
 
-	virtual int					Read(	LPVOID		pBuffer,
-										DWORD		nNumberOfBytesToRead,
-										LPDWORD		pnNumberOfBytesRead,
-										LONGLONG	nOffset,
-										ULONGLONG*	pInstanceData);
+	virtual int					Read(	LPVOID				pBuffer,
+										DWORD				nNumberOfBytesToRead,
+										LPDWORD				pnNumberOfBytesRead,
+										LONGLONG			nOffset,
+										IPtrPlisgoFSData&	rData);
 
-	virtual int					Write(	LPCVOID		pBuffer,
-										DWORD		nNumberOfBytesToWrite,
-										LPDWORD		pnNumberOfBytesWritten,
-										LONGLONG	nOffset,
-										ULONGLONG*	pInstanceData);
+	virtual int					Write(	LPCVOID				pBuffer,
+										DWORD				nNumberOfBytesToWrite,
+										LPDWORD				pnNumberOfBytesWritten,
+										LONGLONG			nOffset,
+										IPtrPlisgoFSData&	rData);
 
-	virtual int					LockFile(	LONGLONG	nByteOffset,
-											LONGLONG	nByteLength,
-											ULONGLONG*	pInstanceData);
+	virtual int					LockFile(	LONGLONG			nByteOffset,
+											LONGLONG			nByteLength,
+											IPtrPlisgoFSData&	rData);
 
-	virtual int					UnlockFile(	LONGLONG	nByteOffset,
-											LONGLONG	nByteLength,
-											ULONGLONG*	pInstanceData);
+	virtual int					UnlockFile(	LONGLONG			nByteOffset,
+											LONGLONG			nByteLength,
+											IPtrPlisgoFSData&	rData);
 
-	virtual int					FlushBuffers(ULONGLONG* pInstanceData);
+	virtual int					FlushBuffers(IPtrPlisgoFSData&	rData);
 
-	virtual int					SetEndOfFile(LONGLONG nEndPos, ULONGLONG* pInstanceData);
+	virtual int					SetEndOfFile(LONGLONG nEndPos, IPtrPlisgoFSData&	rData);
 
-	virtual int					Close(ULONGLONG* pInstanceData);
+	virtual int					Close(IPtrPlisgoFSData&	rData);
 
-	virtual int					GetDeleteError(ULONGLONG* /*pInstanceData*/) const	{ return -ERROR_ACCESS_DENIED; }
+	virtual int					GetDeleteError(IPtrPlisgoFSData& /*rData*/) const	{ return -ERROR_ACCESS_DENIED; }
 
-	virtual int					SetFileTimes(	const FILETIME* pCreation,
-												const FILETIME* pLastAccess,
-												const FILETIME* pLastWrite,
-												ULONGLONG*		pInstanceData);
+	virtual int					SetFileTimes(	const FILETIME*		pCreation,
+												const FILETIME*		pLastAccess,
+												const FILETIME*		pLastWrite,
+												IPtrPlisgoFSData&	rData);
 
 	virtual int					SetAttributes(	DWORD		nFileAttributes,
-												ULONGLONG*	pInstanceData);
+												IPtrPlisgoFSData&	rData);
 
-	virtual int					GetHandleInfo(LPBY_HANDLE_FILE_INFORMATION pInfo, ULONGLONG* pInstanceData);
+	virtual int					GetHandleInfo(LPBY_HANDLE_FILE_INFORMATION pInfo, IPtrPlisgoFSData&	rData);
 
 	virtual PlisgoFSFolder*		GetAsFolder() const							{ return NULL; }
 	template<typename T>
@@ -131,11 +141,11 @@ public:
 	virtual DWORD				GetAttributes() const						{ return FILE_ATTRIBUTE_DIRECTORY|FILE_ATTRIBUTE_READONLY; }
 	virtual LONGLONG			GetSize() const								{ return 0; }
 
-	virtual int					Open(	DWORD		nDesiredAccess,
-										DWORD		nShareMode,
-										DWORD		nCreationDisposition,
-										DWORD		nFlagsAndAttributes,
-										ULONGLONG*	pInstanceData);
+	virtual int					Open(	DWORD				nDesiredAccess,
+										DWORD				nShareMode,
+										DWORD				nCreationDisposition,
+										DWORD				nFlagsAndAttributes,
+										IPtrPlisgoFSData&	rData);
 
 	typedef std::vector<std::wstring>	ChildNames;
 
@@ -144,7 +154,7 @@ public:
 
 	virtual int					AddChild(LPCWSTR /*sName*/, IPtrPlisgoFSFile /*file*/)	{ return -ERROR_ACCESS_DENIED; }
 
-	virtual int					CreateChild(IPtrPlisgoFSFile& /*rChild*/, LPCWSTR /*sName*/, DWORD /*nAttr*/, ULONGLONG* /*pInstanceData*/)	{ return -ERROR_ACCESS_DENIED; }
+	virtual int					CreateChild(IPtrPlisgoFSFile& /*rChild*/, LPCWSTR /*sName*/, DWORD /*nAttr*/, IPtrPlisgoFSData&	/*rData*/)	{ return -ERROR_ACCESS_DENIED; }
 
 	virtual int					Repath(LPCWSTR sOldName, LPCWSTR sNewName, bool bReplaceExisting, PlisgoFSFolder* pNewParent);
 
@@ -237,7 +247,7 @@ public:
 		return 0;
 	}
 
-	virtual int					CreateChild(IPtrPlisgoFSFile& rChild, LPCWSTR sName, DWORD nAttr, ULONGLONG* pInstanceData);
+	virtual int					CreateChild(IPtrPlisgoFSFile& rChild, LPCWSTR sName, DWORD nAttr, IPtrPlisgoFSData&	rData);
 
 	virtual int					GetRemoveChildError(LPCWSTR /*sName*/) const		{ return 0; }
 	virtual int					RemoveChild(LPCWSTR sName)						{ m_childList.RemoveFile(sName); return 0; }
@@ -256,10 +266,10 @@ public:
 	virtual int 				GetChildren(ChildNames& rChildren) const;
 	virtual IPtrPlisgoFSFile	GetChild(LPCWSTR sName) const;
 
-	virtual int					AddChild(LPCWSTR , IPtrPlisgoFSFile )							{ return -ERROR_ACCESS_DENIED; }
-	virtual int					CreateChild(IPtrPlisgoFSFile& , LPCWSTR , DWORD, ULONGLONG*)	{ return -ERROR_ACCESS_DENIED; }
-	virtual int					GetRemoveChildError(LPCWSTR ) const								{ return -ERROR_ACCESS_DENIED; }
-	virtual int					RemoveChild(LPCWSTR )											{ return -ERROR_ACCESS_DENIED; }
+	virtual int					AddChild(LPCWSTR , IPtrPlisgoFSFile )								{ return -ERROR_ACCESS_DENIED; }
+	virtual int					CreateChild(IPtrPlisgoFSFile& , LPCWSTR , DWORD, IPtrPlisgoFSData&)	{ return -ERROR_ACCESS_DENIED; }
+	virtual int					GetRemoveChildError(LPCWSTR ) const									{ return -ERROR_ACCESS_DENIED; }
+	virtual int					RemoveChild(LPCWSTR )												{ return -ERROR_ACCESS_DENIED; }
 
 private:
 
@@ -267,7 +277,28 @@ private:
 };
 
 
-class PlisgoFSDataFileReadOnly : public PlisgoFSFile
+
+class PlisgoFSUserData : public PlisgoFSData
+{
+	friend class PlisgoFSUserDataFile;
+public:
+	PlisgoFSUserData() { m_nPrivate = 0; }
+protected:
+	ULONG64		m_nPrivate;
+};
+
+typedef boost::shared_ptr<PlisgoFSUserData> IPtrPlisgoFSUserData;
+
+class PlisgoFSUserDataFile : public PlisgoFSFile
+{
+public:
+	virtual IPtrPlisgoFSUserData	CreateData();
+protected:
+	static ULONG64&					GetPrivate(IPtrPlisgoFSData& rData);
+};
+
+
+class PlisgoFSDataFileReadOnly : public PlisgoFSUserDataFile
 {
 public:
 	PlisgoFSDataFileReadOnly(	void*	pData,
@@ -287,17 +318,17 @@ public:
 		return true;
 	}
 
-	virtual int				Open(	DWORD		nDesiredAccess,
-									DWORD		nShareMode,
-									DWORD		nCreationDisposition,
-									DWORD		nFlagsAndAttributes,
-									ULONGLONG*	pInstanceData);
+	virtual int				Open(	DWORD				nDesiredAccess,
+									DWORD				nShareMode,
+									DWORD				nCreationDisposition,
+									DWORD				nFlagsAndAttributes,
+									IPtrPlisgoFSData&	rData);
 
-	virtual int				Read(	LPVOID		pBuffer,
-									DWORD		nNumberOfBytesToRead,
-									LPDWORD		pnNumberOfBytesRead,
-									LONGLONG	nOffset,
-									ULONGLONG*	pInstanceData);
+	virtual int				Read(	LPVOID				pBuffer,
+									DWORD				nNumberOfBytesToRead,
+									LPDWORD				pnNumberOfBytesRead,
+									LONGLONG			nOffset,
+									IPtrPlisgoFSData&	rData);
 
 private:
 	BYTE*			m_pData;
@@ -308,8 +339,7 @@ private:
 };
 
 
-
-class PlisgoFSDataFile : public PlisgoFSFile
+class PlisgoFSDataFile : public PlisgoFSUserDataFile
 {
 public:
 	PlisgoFSDataFile(	BYTE*				pData,
@@ -318,8 +348,10 @@ public:
 						bool				bCopy = false);
 
 	PlisgoFSDataFile();
-
 	~PlisgoFSDataFile();
+
+	virtual IPtrPlisgoFSUserData	CreateData();
+
 
 	bool					IsValid() const									{ return !m_bVolatile; }
 
@@ -331,27 +363,27 @@ public:
 
 	virtual bool			GetFileTimes(FILETIME& rCreation, FILETIME& rLastAccess, FILETIME& rLastWrite) const;
 	
-	virtual int				Open(	DWORD		nDesiredAccess,
-									DWORD		nShareMode,
-									DWORD		nCreationDisposition,
-									DWORD		nFlagsAndAttributes,
-									ULONGLONG*	pInstanceData);
+	virtual int				Open(	DWORD				nDesiredAccess,
+									DWORD				nShareMode,
+									DWORD				nCreationDisposition,
+									DWORD				nFlagsAndAttributes,
+									IPtrPlisgoFSData&	rData);
 
-	virtual int				Read(	LPVOID		pBuffer,
-									DWORD		nNumberOfBytesToRead,
-									LPDWORD		pnNumberOfBytesRead,
-									LONGLONG	nOffset,
-									ULONGLONG*	pInstanceData);
+	virtual int				Read(	LPVOID				pBuffer,
+									DWORD				nNumberOfBytesToRead,
+									LPDWORD				pnNumberOfBytesRead,
+									LONGLONG			nOffset,
+									IPtrPlisgoFSData&	rData);
 
-	virtual int				Write(	LPCVOID		pBuffer,
-									DWORD		nNumberOfBytesToWrite,
-									LPDWORD		pnNumberOfBytesWritten,
-									LONGLONG	nOffset,
-									ULONGLONG*	pInstanceData);
+	virtual int				Write(	LPCVOID				pBuffer,
+									DWORD				nNumberOfBytesToWrite,
+									LPDWORD				pnNumberOfBytesWritten,
+									LONGLONG			nOffset,
+									IPtrPlisgoFSData&	rData);
 
-	virtual int				SetEndOfFile(LONGLONG nEndPos, ULONGLONG* pInstanceData);
+	virtual int				SetEndOfFile(LONGLONG nEndPos, IPtrPlisgoFSData& rData);
 
-	virtual int				Close(ULONGLONG* pInstanceData);
+	virtual int				Close(IPtrPlisgoFSData& rData);
 
 	bool					IsReadOnly() const							{ return m_bReadOnly; }
 	void					SetReadOnly(bool bReadOnly);
@@ -377,12 +409,14 @@ private:
 };
 
 
-class PlisgoFSStringReadOnly : public  PlisgoFSFile
+class PlisgoFSStringReadOnly : public PlisgoFSUserDataFile
 {
 public:
 	PlisgoFSStringReadOnly();
 	PlisgoFSStringReadOnly(	const std::wstring& sData);
 	PlisgoFSStringReadOnly(	const std::string& sData);
+
+	virtual IPtrPlisgoFSUserData	CreateData();
 
 	bool				IsValid() const									{ return !m_bVolatile; }
 	void				SetVolatile(bool bVolatile)						{ m_bVolatile = bVolatile; }
@@ -393,22 +427,22 @@ public:
 	virtual DWORD		GetAttributes() const							{ return FILE_ATTRIBUTE_READONLY; }
 	virtual LONGLONG	GetSize() const									{ return m_sData.size(); }
 
-	virtual int			Open(	DWORD		nDesiredAccess,
-								DWORD		nShareMode,
-								DWORD		nCreationDisposition,
-								DWORD		nFlagsAndAttributes,
-								ULONGLONG*	pInstanceData);
+	virtual int			Open(	DWORD				nDesiredAccess,
+								DWORD				nShareMode,
+								DWORD				nCreationDisposition,
+								DWORD				nFlagsAndAttributes,
+								IPtrPlisgoFSData&	rData);
 
-	virtual int			Read(	LPVOID		pBuffer,
-								DWORD		nNumberOfBytesToRead,
-								LPDWORD		pnNumberOfBytesRead,
-								LONGLONG	nOffset,
-								ULONGLONG*	pInstanceData);
+	virtual int			Read(	LPVOID				pBuffer,
+								DWORD				nNumberOfBytesToRead,
+								LPDWORD				pnNumberOfBytesRead,
+								LONGLONG			nOffset,
+								IPtrPlisgoFSData&	rData);
 
-	virtual int			LockFile(	LONGLONG, LONGLONG ,ULONGLONG*	)	{ return 0; }
-	virtual int			UnlockFile(	LONGLONG, LONGLONG ,ULONGLONG*	)	{ return 0; }
+	virtual int			LockFile(	LONGLONG, LONGLONG ,IPtrPlisgoFSData&	)	{ return 0; }
+	virtual int			UnlockFile(	LONGLONG, LONGLONG ,IPtrPlisgoFSData&	)	{ return 0; }
 
-	virtual int			Close(ULONGLONG* pInstanceData);
+	virtual int			Close(IPtrPlisgoFSData&	)								{ return 0; }
 
 	virtual bool		GetFileTimes(FILETIME& rCreation, FILETIME& rLastAccess, FILETIME& rLastWrite) const
 	{
@@ -454,35 +488,35 @@ public:
 	virtual DWORD		GetAttributes() const							{ return ((m_bReadOnly)?FILE_ATTRIBUTE_READONLY:0); }
 	virtual LONGLONG	GetSize() const;
 
-	virtual int			Open(	DWORD		nDesiredAccess,
-								DWORD		nShareMode,
-								DWORD		nCreationDisposition,
-								DWORD		nFlagsAndAttributes,
-								ULONGLONG*	pInstanceData);
+	virtual int			Open(	DWORD				nDesiredAccess,
+								DWORD				nShareMode,
+								DWORD				nCreationDisposition,
+								DWORD				nFlagsAndAttributes,
+								IPtrPlisgoFSData&	rData);
 
-	virtual int			Read(	LPVOID		pBuffer,
-								DWORD		nNumberOfBytesToRead,
-								LPDWORD		pnNumberOfBytesRead,
-								LONGLONG	nOffset,
-								ULONGLONG*	pInstanceData);
+	virtual int			Read(	LPVOID				pBuffer,
+								DWORD				nNumberOfBytesToRead,
+								LPDWORD				pnNumberOfBytesRead,
+								LONGLONG			nOffset,
+								IPtrPlisgoFSData&	rData);
 
-	virtual int			Write(	LPCVOID		pBuffer,
-								DWORD		nNumberOfBytesToWrite,
-								LPDWORD		pnNumberOfBytesWritten,
-								LONGLONG	nOffset,
-								ULONGLONG*	pInstanceData);
+	virtual int			Write(	LPCVOID				pBuffer,
+								DWORD				nNumberOfBytesToWrite,
+								LPDWORD				pnNumberOfBytesWritten,
+								LONGLONG			nOffset,
+								IPtrPlisgoFSData&	rData);
 
-	virtual int			LockFile(	LONGLONG	nByteOffset,
-									LONGLONG	nByteLength,
-									ULONGLONG*	pInstanceData);
+	virtual int			LockFile(	LONGLONG			nByteOffset,
+									LONGLONG			nByteLength,
+									IPtrPlisgoFSData&	rData);
 
-	virtual int			UnlockFile(	LONGLONG	nByteOffset,
-									LONGLONG	nByteLength,
-									ULONGLONG*	pInstanceData);
+	virtual int			UnlockFile(	LONGLONG			nByteOffset,
+									LONGLONG			nByteLength,
+									IPtrPlisgoFSData&	rData);
 
-	virtual int			SetEndOfFile(LONGLONG nEndPos, ULONGLONG* pInstanceData);
+	virtual int			SetEndOfFile(LONGLONG nEndPos, IPtrPlisgoFSData& rData);
 
-	virtual int			Close(ULONGLONG* pInstanceData);
+	virtual int			Close(IPtrPlisgoFSData&	rData);
 
 	bool				IsReadOnly() const							{ return m_bReadOnly; }
 	void				SetReadOnly(bool bReadOnly);
@@ -497,9 +531,7 @@ private:
 };
 
 
-
-
-class PlisgoFSRealFile : public PlisgoFSFile
+class PlisgoFSRealFile : public PlisgoFSUserDataFile
 {
 public:
 
@@ -513,48 +545,48 @@ public:
 	virtual bool			GetFileTimes(FILETIME& rCreation, FILETIME& rLastAccess, FILETIME& rLastWrite) const;
 
 
-	virtual int				Open(	DWORD		nDesiredAccess,
-									DWORD		nShareMode,
-									DWORD		nCreationDisposition,
-									DWORD		nFlagsAndAttributes,
-									ULONGLONG*	pInstanceData);
+	virtual int				Open(	DWORD				nDesiredAccess,
+									DWORD				nShareMode,
+									DWORD				nCreationDisposition,
+									DWORD				nFlagsAndAttributes,
+									IPtrPlisgoFSData&	rData);
 
-	virtual int				Read(	LPVOID		pBuffer,
-									DWORD		nNumberOfBytesToRead,
-									LPDWORD		pnNumberOfBytesRead,
-									LONGLONG	nOffset,
-									ULONGLONG*	pInstanceData);
+	virtual int				Read(	LPVOID				pBuffer,
+									DWORD				nNumberOfBytesToRead,
+									LPDWORD				pnNumberOfBytesRead,
+									LONGLONG			nOffset,
+									IPtrPlisgoFSData&	rData);
 
-	virtual int				Write(	LPCVOID		pBuffer,
-									DWORD		nNumberOfBytesToWrite,
-									LPDWORD		pnNumberOfBytesWritten,
-									LONGLONG	nOffset,
-									ULONGLONG*	pInstanceData);
+	virtual int				Write(	LPCVOID				pBuffer,
+									DWORD				nNumberOfBytesToWrite,
+									LPDWORD				pnNumberOfBytesWritten,
+									LONGLONG			nOffset,
+									IPtrPlisgoFSData&	rData);
 
-	virtual int				LockFile(	LONGLONG	nByteOffset,
-										LONGLONG	nByteLength,
-										ULONGLONG*	pInstanceData);
+	virtual int				LockFile(	LONGLONG			nByteOffset,
+										LONGLONG			nByteLength,
+										IPtrPlisgoFSData&	rData);
 
-	virtual int				UnlockFile(	LONGLONG	nByteOffset,
-										LONGLONG	nByteLength,
-										ULONGLONG*	pInstanceData);
+	virtual int				UnlockFile(	LONGLONG			nByteOffset,
+										LONGLONG			nByteLength,
+										IPtrPlisgoFSData&	rData);
 
-	virtual int				GetHandleInfo(LPBY_HANDLE_FILE_INFORMATION pInfo, ULONGLONG* pInstanceData);
+	virtual int				GetHandleInfo(LPBY_HANDLE_FILE_INFORMATION pInfo, IPtrPlisgoFSData&	rData);
 
-	virtual int				FlushBuffers(ULONGLONG* pInstanceData);
+	virtual int				FlushBuffers(IPtrPlisgoFSData&	rData);
 
-	virtual int				SetEndOfFile(LONGLONG nEndPos, ULONGLONG* pInstanceData);
+	virtual int				SetEndOfFile(LONGLONG nEndPos, IPtrPlisgoFSData&	rData);
 
-	virtual int				GetDeleteError(ULONGLONG* /*pInstanceData*/) const	{ return 0; }
+	virtual int				GetDeleteError(IPtrPlisgoFSData&) const	{ return 0; }
 
-	virtual int				Close(ULONGLONG* pInstanceData);
+	virtual int				Close(IPtrPlisgoFSData&	rData);
 
-	virtual int				SetFileTimes(	const FILETIME* pCreation,
-											const FILETIME* pLastAccess,
-											const FILETIME*	pLastWrite,
-											ULONGLONG*		pInstanceData);
+	virtual int				SetFileTimes(	const FILETIME*		pCreation,
+											const FILETIME*		pLastAccess,
+											const FILETIME*		pLastWrite,
+											IPtrPlisgoFSData&	rData);
 
-	virtual int				SetAttributes(DWORD	nFileAttributes, ULONGLONG* pInstanceData);
+	virtual int				SetAttributes(DWORD	nFileAttributes, IPtrPlisgoFSData&	rData);
 
 	const std::wstring&		GetRealPath() const		{ return m_sRealFile; }
 
@@ -577,24 +609,24 @@ public:
 
 	virtual bool				GetFileTimes(FILETIME& rCreation, FILETIME& rLastAccess, FILETIME& rLastWrite) const;
 
-	virtual int					SetFileTimes(	const FILETIME* pCreation,
-												const FILETIME* pLastAccess,
-												const FILETIME*	pLastWrite,
-												ULONGLONG*		pInstanceData);
+	virtual int					SetFileTimes(	const FILETIME*		pCreation,
+												const FILETIME*		pLastAccess,
+												const FILETIME*		pLastWrite,
+												IPtrPlisgoFSData&	rData);
 
-	virtual int					SetAttributes(DWORD	nFileAttributes, ULONGLONG* pInstanceData);
+	virtual int					SetAttributes(DWORD	nFileAttributes, IPtrPlisgoFSData&	rData);
 
 	virtual int 				GetChildren(ChildNames& rChildren) const;
 	virtual IPtrPlisgoFSFile	GetChild(LPCWSTR sName) const;
 
 	virtual int					AddChild(LPCWSTR sName, IPtrPlisgoFSFile file);
-	virtual int					CreateChild(IPtrPlisgoFSFile& rChild, LPCWSTR sName, DWORD nAttr, ULONGLONG* pInstanceData);
+	virtual int					CreateChild(IPtrPlisgoFSFile& rChild, LPCWSTR sName, DWORD nAttr, IPtrPlisgoFSData&	rData);
 
 	virtual int					Repath(LPCWSTR sOldName, LPCWSTR sNewName, bool bReplaceExisting, PlisgoFSFolder* pNewParent);
 
 	const std::wstring&			GetRealPath() const		{ return m_sRealPath; }
 
-	virtual int					GetDeleteError(ULONGLONG* pInstanceData) const;
+	virtual int					GetDeleteError(IPtrPlisgoFSData& rData) const;
 
 	virtual int					GetRemoveChildError(LPCWSTR sName) const;
 
@@ -639,45 +671,45 @@ public:
 
 	virtual LONGLONG			GetSize() const							{ return m_file->GetSize(); }
 
-	virtual int					Open(	DWORD		nDesiredAccess,
-										DWORD		nShareMode,
-										DWORD		nCreationDisposition,
-										DWORD		nFlagsAndAttributes,
-										ULONGLONG*	pInstanceData)		{ return m_file->Open(nDesiredAccess, nShareMode, nCreationDisposition, nFlagsAndAttributes, pInstanceData); }
+	virtual int					Open(	DWORD				nDesiredAccess,
+										DWORD				nShareMode,
+										DWORD				nCreationDisposition,
+										DWORD				nFlagsAndAttributes,
+										IPtrPlisgoFSData&	rData)		{ return m_file->Open(nDesiredAccess, nShareMode, nCreationDisposition, nFlagsAndAttributes, rData); }
 
-	virtual int					Read(	LPVOID		pBuffer,
-										DWORD		nNumberOfBytesToRead,
-										LPDWORD		pnNumberOfBytesRead,
-										LONGLONG	nOffset,
-										ULONGLONG*	pInstanceData)		{ return m_file->Read(pBuffer, nNumberOfBytesToRead, pnNumberOfBytesRead, nOffset, pInstanceData); }
+	virtual int					Read(	LPVOID				pBuffer,
+										DWORD				nNumberOfBytesToRead,
+										LPDWORD				pnNumberOfBytesRead,
+										LONGLONG			nOffset,
+										IPtrPlisgoFSData&	rData)		{ return m_file->Read(pBuffer, nNumberOfBytesToRead, pnNumberOfBytesRead, nOffset, rData); }
 
-	virtual int					Write(	LPCVOID		pBuffer,
-										DWORD		nNumberOfBytesToWrite,
-										LPDWORD		pnNumberOfBytesWritten,
-										LONGLONG	nOffset,
-										ULONGLONG*	pInstanceData)		{ return m_file->Write(pBuffer, nNumberOfBytesToWrite, pnNumberOfBytesWritten, nOffset, pInstanceData); }
+	virtual int					Write(	LPCVOID				pBuffer,
+										DWORD				nNumberOfBytesToWrite,
+										LPDWORD				pnNumberOfBytesWritten,
+										LONGLONG			nOffset,
+										IPtrPlisgoFSData&	rData)		{ return m_file->Write(pBuffer, nNumberOfBytesToWrite, pnNumberOfBytesWritten, nOffset, rData); }
 
-	virtual int					LockFile(	LONGLONG	nByteOffset,
-											LONGLONG	nByteLength,
-											ULONGLONG*	pInstanceData)	{ return m_file->LockFile(nByteOffset, nByteLength, pInstanceData); }
+	virtual int					LockFile(	LONGLONG			nByteOffset,
+											LONGLONG			nByteLength,
+											IPtrPlisgoFSData&	rData)	{ return m_file->LockFile(nByteOffset, nByteLength, rData); }
 
-	virtual int					UnlockFile(	LONGLONG	nByteOffset,
-											LONGLONG	nByteLength,
-											ULONGLONG*	pInstanceData)	{ return m_file->UnlockFile(nByteOffset, nByteLength, pInstanceData); }
+	virtual int					UnlockFile(	LONGLONG			nByteOffset,
+											LONGLONG			nByteLength,
+											IPtrPlisgoFSData&	rData)	{ return m_file->UnlockFile(nByteOffset, nByteLength, rData); }
 
-	virtual int					FlushBuffers(ULONGLONG* pInstanceData)	{ return m_file->FlushBuffers(pInstanceData); }
+	virtual int					FlushBuffers(IPtrPlisgoFSData&	rData)	{ return m_file->FlushBuffers(rData); }
 
-	virtual int					SetEndOfFile(LONGLONG nEndPos, ULONGLONG* pInstanceData)	{ return m_file->SetEndOfFile(nEndPos, pInstanceData); }
+	virtual int					SetEndOfFile(LONGLONG nEndPos, IPtrPlisgoFSData& rData)	{ return m_file->SetEndOfFile(nEndPos, rData); }
 
-	virtual int					Close(ULONGLONG* pInstanceData)			{ return m_file->Close(pInstanceData); }
+	virtual int					Close(IPtrPlisgoFSData& rData)			{ return m_file->Close(rData); }
 
-	virtual int					SetFileTimes(	const FILETIME* pCreation,
-												const FILETIME* pLastAccess,
-												const FILETIME* pLastWrite,
-												ULONGLONG*		pInstanceData)	{ return m_file->SetFileTimes(pCreation, pLastAccess, pLastWrite, pInstanceData ); }
+	virtual int					SetFileTimes(	const FILETIME*		pCreation,
+												const FILETIME*		pLastAccess,
+												const FILETIME*		pLastWrite,
+												IPtrPlisgoFSData&	rData)	{ return m_file->SetFileTimes(pCreation, pLastAccess, pLastWrite, rData ); }
 
-	virtual int					SetAttributes(	DWORD		nFileAttributes,
-												ULONGLONG*	pInstanceData)	{ return m_file->SetAttributes(nFileAttributes, pInstanceData ); }
+	virtual int					SetAttributes(	DWORD				nFileAttributes,
+												IPtrPlisgoFSData&	rData)	{ return m_file->SetAttributes(nFileAttributes, rData ); }
 
 
 	virtual PlisgoFSFolder*		GetAsFolder() const							{ return m_file->GetAsFolder(); }

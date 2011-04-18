@@ -34,18 +34,19 @@ public:
 
 	PlisgoMiscClickFile() : PlisgoFSStringFile("0") {}
 
-	virtual void Triggered() = 0;
+	virtual void					Triggered() = 0;
 
-	virtual int	Write(	LPCVOID		pBuffer,
-						DWORD		nNumberOfBytesToWrite,
-						LPDWORD		pnNumberOfBytesWritten,
-						LONGLONG	nOffset,
-						ULONGLONG*	pInstanceData);
+	virtual int						Write(	LPCVOID				pBuffer,
+											DWORD				nNumberOfBytesToWrite,
+											LPDWORD				pnNumberOfBytesWritten,
+											LONGLONG			nOffset,
+											IPtrPlisgoFSData&	rData);
 
-	
-	virtual int	FlushBuffers(ULONGLONG* pInstanceData);
+	virtual int						FlushBuffers(IPtrPlisgoFSData& rData);
 
-	virtual int	Close(ULONGLONG* pInstanceData);
+	virtual int						Close(IPtrPlisgoFSData& rData);
+
+	virtual IPtrPlisgoFSUserData	CreateData();
 };
 
 

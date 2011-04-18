@@ -139,7 +139,7 @@ private:
 	{
 		std::wstring		sPath;
 		IPtrPlisgoFSFile	File;
-		ULONG64				nData;
+		IPtrPlisgoFSData	Data;
 		ULONG32				nFlags;
 	};
 
@@ -156,7 +156,7 @@ private:
 
 		PlisgoFileHandle	CreateNew(	const std::wstring&	rsPath,
 										IPtrPlisgoFSFile	file,
-										ULONG64				nData,
+										IPtrPlisgoFSData	data,
 										ULONG32				nFlags);
 
 		OpenFileDataSP	GetOpenFile(const PlisgoFileHandle& rHandle) const;

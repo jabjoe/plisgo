@@ -34,7 +34,7 @@ PlisgoVFS::OpenFileDataFactory::~OpenFileDataFactory()
 
 PlisgoVFS::PlisgoFileHandle	PlisgoVFS::OpenFileDataFactory::CreateNew(	const std::wstring&	rsPath,
 																		IPtrPlisgoFSFile	file,
-																		ULONG64				nData,
+																		IPtrPlisgoFSData	data,
 																		ULONG32				nFlags)
 {
 	OpenFileDataSP ref;
@@ -74,7 +74,7 @@ PlisgoVFS::PlisgoFileHandle	PlisgoVFS::OpenFileDataFactory::CreateNew(	const std
 
 	ref->sPath	= rsPath;
 	ref->File	= file;
-	ref->nData	= nData;
+	ref->Data	= data;
 	ref->nFlags	= nFlags;
 
 	m_OpenMap[m_nOpenUnique] = nResult;
@@ -119,7 +119,7 @@ void			PlisgoVFS::OpenFileDataFactory::CloseAll(PlisgoVFSOpenLog* pLog)
 
 		assert(rCurrent.get() != NULL);
 
-		rCurrent->File->Close(&rCurrent->nData);
+		rCurrent->File->Close(rCurrent->Data);
 
 		if (pLog != NULL)
 			pLog->CloseFile(rCurrent->sPath);
@@ -528,7 +528,7 @@ int					PlisgoVFS::Open(	PlisgoFileHandle&	rHandle,
 	IPtrPlisgoFSFile	file = TracePath(sPathLowerCase);
 
 	int nError = 0;
-	ULONG64 nOpenInstaceData = 0;
+	IPtrPlisgoFSData openInstaceData;
 
 	{
 		boost::shared_lock<boost::shared_mutex> lock(m_OpenFileMutex);
@@ -553,7 +553,7 @@ int					PlisgoVFS::Open(	PlisgoFileHandle&	rHandle,
 
 				if (pFolder != NULL)
 				{
-					nError = pFolder->CreateChild(file, GetNameFromPath(sPath), nFlagsAndAttributes, &nOpenInstaceData);
+					nError = pFolder->CreateChild(file, GetNameFromPath(sPath), nFlagsAndAttributes, openInstaceData);
 
 					if (nError != 0)
 						return nError;
@@ -568,7 +568,7 @@ int					PlisgoVFS::Open(	PlisgoFileHandle&	rHandle,
 
 					AddToCache(sPathLowerCase, file);
 
-					nError = file->Open(nDesiredAccess, nShareMode, nCreationDisposition, nFlagsAndAttributes, &nOpenInstaceData);
+					nError = file->Open(nDesiredAccess, nShareMode, nCreationDisposition, nFlagsAndAttributes, openInstaceData);
 				}
 				else nError = -ERROR_PATH_NOT_FOUND; //wtf, silly user
 			}
@@ -576,7 +576,7 @@ int					PlisgoVFS::Open(	PlisgoFileHandle&	rHandle,
 		}
 		else nError = -ERROR_FILE_NOT_FOUND;
 	}
-	else nError = file->Open(nDesiredAccess, nShareMode, nCreationDisposition, nFlagsAndAttributes, &nOpenInstaceData);
+	else nError = file->Open(nDesiredAccess, nShareMode, nCreationDisposition, nFlagsAndAttributes, openInstaceData);
 
 	if (nError != 0)
 	{		
@@ -600,11 +600,11 @@ int					PlisgoVFS::Open(	PlisgoFileHandle&	rHandle,
 
 	rHandle = m_OpenFileFactory.CreateNew(	sPathLowerCase,
 											file,
-											nOpenInstaceData,
+											openInstaceData,
 											nOpenFlag);
 	if (rHandle == 0)
 	{
-		file->Close(&nOpenInstaceData);
+		file->Close(openInstaceData);
 
 		if (m_pLog != NULL)
 			m_pLog->OpenFileFailed(sPathLowerCase, -ERROR_TOO_MANY_OPEN_FILES);
@@ -634,7 +634,7 @@ int					PlisgoVFS::Read(	PlisgoFileHandle&	rHandle,
 										nNumberOfBytesToRead,
 										pnNumberOfBytesRead,
 										nOffset,
-										&openFileData->nData);
+										openFileData->Data);
 }
 
 
@@ -653,7 +653,7 @@ int					PlisgoVFS::Write(	PlisgoFileHandle&	rHandle,
 										nNumberOfBytesToWrite,
 										pnNumberOfBytesWritten,
 										nOffset,
-										&openFileData->nData);
+										openFileData->Data);
 }
 
 
@@ -668,7 +668,7 @@ int					PlisgoVFS::LockFile(PlisgoFileHandle&	rHandle,
 
 	return openFileData->File->LockFile(	nByteOffset,
 											nByteLength,
-											&openFileData->nData);
+											openFileData->Data);
 }
 
 
@@ -683,7 +683,7 @@ int					PlisgoVFS::UnlockFile(	PlisgoFileHandle&	rHandle,
 
 	return openFileData->File->UnlockFile(	nByteOffset,
 											nByteLength,
-											&openFileData->nData);
+											openFileData->Data);
 }
 
 
@@ -694,7 +694,7 @@ int					PlisgoVFS::FlushBuffers(PlisgoFileHandle&	rHandle)
 	if (!GetOpenFileData(openFileData, rHandle))
 		return -ERROR_INVALID_HANDLE;
 
-	return openFileData->File->FlushBuffers(&openFileData->nData);
+	return openFileData->File->FlushBuffers(openFileData->Data);
 }
 
 
@@ -705,7 +705,7 @@ int					PlisgoVFS::SetEndOfFile(PlisgoFileHandle&	rHandle, LONGLONG nEndPos)
 	if (!GetOpenFileData(openFileData, rHandle))
 		return -ERROR_INVALID_HANDLE;
 
-	return openFileData->File->SetEndOfFile(nEndPos, &openFileData->nData);
+	return openFileData->File->SetEndOfFile(nEndPos, openFileData->Data);
 }
 
 
@@ -721,7 +721,7 @@ int					PlisgoVFS::Close(PlisgoFileHandle&	rHandle, bool bDeleteOnClose)
 
 	assert(openFileData.use_count() == 2); //1 for this call, 1 for open handle list
 
-	int nError = openFileData->File->Close(&openFileData->nData);
+	int nError = openFileData->File->Close(openFileData->Data);
 
 	const std::wstring& rsPath = openFileData->sPath;
 
@@ -800,7 +800,7 @@ int					PlisgoVFS::GetDeleteError(PlisgoFileHandle&	rHandle) const
 	if (nError != 0)
 		return nError;
 
-	nError = openFileData->File->GetDeleteError(&openFileData->nData);
+	nError = openFileData->File->GetDeleteError(openFileData->Data);
 
 	if (nError != 0)
 		return nError;
@@ -822,7 +822,7 @@ int					PlisgoVFS::SetFileTimes(	PlisgoFileHandle&	rHandle,
 	if (!GetOpenFileData(openFileData, rHandle))
 		return -ERROR_INVALID_HANDLE;
 
-	return openFileData->File->SetFileTimes(pCreation, pLastAccess, pLastWrite, &openFileData->nData);
+	return openFileData->File->SetFileTimes(pCreation, pLastAccess, pLastWrite, openFileData->Data);
 }
 
 
@@ -834,7 +834,7 @@ int					PlisgoVFS::SetAttributes(	PlisgoFileHandle&	rHandle,
 	if (!GetOpenFileData(openFileData, rHandle))
 		return -ERROR_INVALID_HANDLE;
 
-	return openFileData->File->SetAttributes(nFileAttributes, &openFileData->nData);
+	return openFileData->File->SetAttributes(nFileAttributes, openFileData->Data);
 }
 
 
@@ -845,7 +845,7 @@ int					PlisgoVFS::GetHandleInfo(PlisgoFileHandle&	rHandle, LPBY_HANDLE_FILE_INF
 	if (!GetOpenFileData(openFileData, rHandle))
 		return -ERROR_INVALID_HANDLE;
 
-	return openFileData->File->GetHandleInfo(pInfo, &openFileData->nData);
+	return openFileData->File->GetHandleInfo(pInfo, openFileData->Data);
 }
 
 	
