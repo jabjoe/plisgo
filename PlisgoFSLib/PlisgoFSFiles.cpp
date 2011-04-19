@@ -435,10 +435,9 @@ protected:
 	static PlisgoFSDataRW* GetData(IPtrPlisgoFSData& rData)
 	{
 		assert(rData.get() != NULL);
+		assert(dynamic_cast<PlisgoFSUserData*>(rData.get()) != NULL);
 
-		PlisgoFSDataRW* pRW = dynamic_cast<PlisgoFSDataRW*>(rData.get());
-
-		assert(pRW != NULL);
+		PlisgoFSDataRW* pRW = reinterpret_cast<PlisgoFSDataRW*>(rData.get());
 
 		return pRW;
 	}
