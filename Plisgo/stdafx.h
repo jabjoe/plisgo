@@ -197,6 +197,26 @@ inline void			ToWide(std::wstring& rDst, const char* sSrc)
 }
 
 
+inline void			FromWide(std::string& rsDst, LPCWSTR sSrc)
+{
+	if (sSrc == NULL)
+	{
+		rsDst.clear();
+		return;
+	}
+
+	int nLen = (int)wcslen(sSrc);
+
+	int nSize = WideCharToMultiByte(CP_UTF8, 0, sSrc, nLen, NULL, 0, NULL, NULL);
+	
+	rsDst.assign(nSize+1, ' ');
+
+	nSize = WideCharToMultiByte(CP_UTF8, 0, sSrc, nLen, const_cast<char*>(rsDst.c_str()), (int)rsDst.length(), NULL, NULL);
+
+	rsDst.resize(nSize);
+}
+
+
 #define TOPOWEROFTWO(_x) ((_x%2)?_x+1:_x)
 
 

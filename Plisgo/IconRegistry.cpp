@@ -46,15 +46,8 @@ static bool		GetPlisgoFileLock(std::string& rsLockFile)
 
 	GetPlisgoTempFolder(sPlisgoFolder);
 
-	int nLen = (int)wcslen(sPlisgoFolder);
+	FromWide(rsLockFile, sPlisgoFolder);
 
-	int nSize = WideCharToMultiByte(CP_UTF8, 0, sPlisgoFolder, nLen, NULL, 0, NULL, NULL);
-	
-	rsLockFile.assign(nSize+1, ' ');
-
-	nSize = WideCharToMultiByte(CP_UTF8, 0, sPlisgoFolder, nLen, const_cast<char*>(rsLockFile.c_str()), (int)rsLockFile.length(), NULL, NULL);
-
-	rsLockFile.resize(nSize);
 	rsLockFile += "\\lock";
 
 	if (GetFileAttributesA(rsLockFile.c_str()) == INVALID_FILE_ATTRIBUTES)

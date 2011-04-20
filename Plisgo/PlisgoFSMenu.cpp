@@ -45,28 +45,15 @@ PlisgoFSMenu::PlisgoFSMenu(IPtrFSIconRegistry FSIcons, const std::wstring& rsPat
 		{
 			m_bCanUseClick = true; //We has the lock
 
+			std::string sSelection;
+
 			for(WStringList::const_iterator it = rSelection.begin(); it != rSelection.end(); ++it)
 			{
-				LPCWSTR sPos = it->c_str();
-				int nLength = (int)it->length();
-		
+				FromWide(sSelection, it->c_str());
+
 				DWORD nWritten = 0;
 
-				while(nLength)
-				{
-					char sBuffer[MAX_PATH];
-
-					int nConverted = WideCharToMultiByte(CP_UTF8, 0, sPos, nLength, sBuffer, MAX_PATH-1, NULL, NULL);
-
-					nWritten = 0;
-
-					WriteFile(m_hSelectionFile, sBuffer, nConverted, &nWritten, NULL);
-
-					nLength -= nWritten;
-					sPos += nWritten;
-				}
-
-				nWritten = 0;
+				WriteFile(m_hSelectionFile, sSelection.c_str(), sSelection.length(), &nWritten, NULL);
 
 				WriteFile(m_hSelectionFile, "\r\n", 2, &nWritten, NULL);
 			}

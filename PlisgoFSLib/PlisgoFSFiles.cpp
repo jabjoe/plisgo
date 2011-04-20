@@ -437,9 +437,7 @@ protected:
 		assert(rData.get() != NULL);
 		assert(dynamic_cast<PlisgoFSUserData*>(rData.get()) != NULL);
 
-		PlisgoFSDataRW* pRW = reinterpret_cast<PlisgoFSDataRW*>(rData.get());
-
-		return pRW;
+		return reinterpret_cast<PlisgoFSDataRW*>(rData.get());
 	}
 
 	bool			IsWrite() const { return (m_nPrivate&GENERIC_WRITE) == GENERIC_WRITE; }
@@ -1166,12 +1164,9 @@ protected:
 	static PlisgoFSHandleData*	GetData(IPtrPlisgoFSData& rData)
 	{
 		assert(rData.get() != NULL);
+		assert(dynamic_cast<PlisgoFSUserData*>(rData.get()) != NULL);
 
-		PlisgoFSHandleData* pHandle  = dynamic_cast<PlisgoFSHandleData*>(rData.get());
-
-		assert(pHandle != NULL);
-
-		return pHandle;
+		return reinterpret_cast<PlisgoFSHandleData*>(rData.get());
 	}
 
 	int				Close()
