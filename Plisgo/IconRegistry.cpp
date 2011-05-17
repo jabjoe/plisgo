@@ -496,7 +496,7 @@ bool	FSIconRegistry::CombiImageListIcon::CreateIconLocation(IconLocation& rIconL
 	if (pIconRegistry->GetCreatedIconPath(rBurntIconLocation.sPath, iconSrcs))
 		bResult = WriteToIconFile(rBurntIconLocation.sPath, &subIcons[0], (int)subIcons.size(), false);
 
-	for(std::vector<HICON>::const_iterator it = subIcons.begin()+1; it != subIcons.end(); ++it)
+	for(std::vector<HICON>::const_iterator it = subIcons.begin(); it != subIcons.end(); ++it)
 		DestroyIcon(*it);
 
 	rIconLocation = rBurntIconLocation;
