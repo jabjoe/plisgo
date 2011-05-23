@@ -316,22 +316,6 @@ IPtrPlisgoFSFile	PlisgoFSFileList::GetFile(LPCWSTR sName) const
 }
 
 
-IPtrPlisgoFSFile	PlisgoFSFileList::GetFile(UINT nIndex) const
-{
-	boost::shared_lock<boost::shared_mutex> lock(m_Mutex);
-
-	if (nIndex >= m_Files.size())
-		return IPtrPlisgoFSFile();
-
-	PlisgoFSFileMap::const_iterator it = m_Files.begin();
-
-	while(nIndex--)
-		++it;
-
-	return it->second;
-}
-
-
 UINT				PlisgoFSFileList::GetLength() const
 {
 	boost::shared_lock<boost::shared_mutex> lock(m_Mutex);
@@ -345,6 +329,14 @@ void				PlisgoFSFileList::Clear()
 	boost::unique_lock<boost::shared_mutex> lock(m_Mutex);
 
 	m_Files.clear();
+}
+
+
+void				PlisgoFSFileList::GetCopy(PlisgoFSFileMap& rCpy)
+{
+	boost::shared_lock<boost::shared_mutex> lock(m_Mutex);
+
+	rCpy = m_Files;
 }
 
 /*

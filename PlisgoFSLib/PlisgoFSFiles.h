@@ -213,9 +213,10 @@ public:
 	void				RemoveFile(LPCWSTR sName);
 	int					GetFileNames(PlisgoFSFolder::ChildNames& rFileNames) const;
 	IPtrPlisgoFSFile	GetFile(LPCWSTR sName) const;
-	IPtrPlisgoFSFile	GetFile(UINT nIndex) const;
 	UINT				GetLength() const;
 	void				Clear();
+
+	void				GetCopy(PlisgoFSFileMap& rCpy);
 
 private:
 	
