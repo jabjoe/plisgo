@@ -53,7 +53,7 @@ PlisgoFSMenu::PlisgoFSMenu(IPtrFSIconRegistry FSIcons, const std::wstring& rsPat
 
 				DWORD nWritten = 0;
 
-				WriteFile(m_hSelectionFile, sSelection.c_str(), sSelection.length(), &nWritten, NULL);
+				WriteFile(m_hSelectionFile, sSelection.c_str(), (DWORD)sSelection.length(), &nWritten, NULL);
 
 				WriteFile(m_hSelectionFile, "\r\n", 2, &nWritten, NULL);
 			}
