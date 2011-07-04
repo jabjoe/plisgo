@@ -7,7 +7,7 @@ Introduction
 =============
 
 
-Plisgo is an Explorer namespace which creates custom overlays, icons, thumbnails, menus and columns  from a virtual filesystem. It affectively redirects the namespace definition to the filesystem.
+Plisgo is an Explorer namespace which creates custom overlays, icons, thumbnails, menus and columns from a virtual filesystem. It affectively redirects the namespace definition to the filesystem.
 
 
 The reason why you would do this are many, but here are a few.
