@@ -536,9 +536,11 @@ HRESULT			CPlisgoFolder::GetAttributesOf(LPCITEMIDLIST pIDL, LPDWORD rgfInOut)
 	*rgfInOut = SFGAO_STORAGE | SFGAO_STORAGEANCESTOR | SFGAO_FILESYSTEM | SFGAO_HASPROPSHEET | SFGAO_DROPTARGET |
 		SFGAO_CANRENAME | SFGAO_CANDELETE | SFGAO_CANLINK | SFGAO_CANCOPY | SFGAO_CANMOVE;
 
+	//Work round for the time being. To do namespaces, the folder much be marked readonly, even if it isn't. The filesystem will stop you really creating anything.
+/*
 	if (nAttr&FILE_ATTRIBUTE_READONLY)
 		*rgfInOut |= SFGAO_READONLY;
-
+*/
 	if (nAttr&FILE_ATTRIBUTE_DIRECTORY)
 		*rgfInOut |= SFGAO_FILESYSANCESTOR|SFGAO_FOLDER|SFGAO_HASSUBFOLDER|SFGAO_BROWSABLE; //Too much work to check every folder for sub folders
 
@@ -584,7 +586,12 @@ HRESULT			CPlisgoFolder::GetIconOf( LPCITEMIDLIST pIDL, UINT nFlags, LPINT lpIco
 	if (!m_PlisgoFSFolder->GetPathIconLocation(Location, m_sPath + L"\\" += sName,  bOpen))
 		return E_FAIL;
 
-	int nSysIndex = Shell_GetCachedImageIndex(Location.sPath.c_str(), Location.nIndex, 0);
+	int nSysIndex;
+	
+	if (IsVistaOrAbove())
+		nSysIndex = Shell_GetCachedImageIndexW(Location.sPath.c_str(), Location.nIndex, 0);
+	else
+		nSysIndex = Shell_GetCachedImageIndex(Location.sPath.c_str(), Location.nIndex, 0); //See the undef above, read up, it's a mess
 
 	if (nSysIndex == -1)
 		return E_FAIL;

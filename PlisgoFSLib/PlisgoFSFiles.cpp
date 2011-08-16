@@ -117,7 +117,7 @@ static int				CopyPlisgoChild(PlisgoFSFolder* pDstFolder, LPCWSTR sName, IPtrPli
 
 	IPtrPlisgoFSData dstData;
 
-	int nError = pDstFolder->CreateChild(dstFile, sName, rSrcFile->GetAttributes(), dstData);
+	int nError = pDstFolder->CreateChild(dstFile, sName, GENERIC_WRITE, 0, rSrcFile->GetAttributes(), dstData);
 
 	if (nError != 0)
 		return nError;
@@ -342,7 +342,7 @@ void				PlisgoFSFileList::GetCopy(PlisgoFSFileMap& rCpy)
 /*
 ****************************************************************************
 */
-int		PlisgoFSStorageFolder::CreateChild(IPtrPlisgoFSFile& rChild, LPCWSTR sName, DWORD nAttr, IPtrPlisgoFSData&	rData)
+int		PlisgoFSStorageFolder::CreateChild(IPtrPlisgoFSFile& rChild, LPCWSTR sName, DWORD nDesiredAccess, DWORD nShareMode, DWORD nAttr, IPtrPlisgoFSData& rData)
 {
 	if (sName == NULL)
 		return -ERROR_INVALID_NAME;
@@ -357,7 +357,7 @@ int		PlisgoFSStorageFolder::CreateChild(IPtrPlisgoFSFile& rChild, LPCWSTR sName,
 
 		rChild.reset(pChild);
 
-		int nError = pChild->Open(GENERIC_ALL, FILE_SHARE_READ|FILE_SHARE_WRITE, OPEN_EXISTING, nAttr, rData);
+		int nError = pChild->Open(nDesiredAccess, nShareMode, OPEN_EXISTING, nAttr, rData);
 
 		if (nError != 0)
 			return nError;
@@ -1547,7 +1547,7 @@ int					PlisgoFSRealFolder::AddChild(LPCWSTR sName, IPtrPlisgoFSFile file)
 }
 
 
-int					PlisgoFSRealFolder::CreateChild(IPtrPlisgoFSFile& rChild, LPCWSTR sName, DWORD nAttr, IPtrPlisgoFSData&)
+int					PlisgoFSRealFolder::CreateChild(IPtrPlisgoFSFile& rChild, LPCWSTR sName, DWORD nDesiredAccess, DWORD nShareMode, DWORD nAttr, IPtrPlisgoFSData& rData)
 {
 	std::wstring sPath = m_sRealPath;
 	sPath += L"\\";
@@ -1575,17 +1575,12 @@ int					PlisgoFSRealFolder::CreateChild(IPtrPlisgoFSFile& rChild, LPCWSTR sName,
 	}
 	else
 	{
-		HANDLE hHandle = CreateFileW(	sPath.c_str(),
-										GENERIC_READ|GENERIC_WRITE, FILE_SHARE_READ|FILE_SHARE_WRITE,
-										NULL, CREATE_NEW,
-										nAttr, NULL); 
-
-		if (hHandle == NULL || hHandle == INVALID_HANDLE_VALUE)
-			return -(int)GetLastError();
-
-		CloseHandle(hHandle);
-
 		rChild.reset(new PlisgoFSRealFile(sPath));
+
+		int nError = rChild->Open(nDesiredAccess, nShareMode, CREATE_NEW, nAttr, rData);
+		
+		if (nError != 0)
+			return nError;
 	}
 
 	return 0;

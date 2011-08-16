@@ -72,7 +72,7 @@ void	IShellInfoFetcher::DoMounts(IPtrRootPlisgoFSFolder plisgoFS, IPtrPlisgoVFS&
 	{
 		IPtrPlisgoFSData data;
 
-		pFolder->CreateChild(mount, L".plisgofs", FILE_ATTRIBUTE_READONLY, data);
+		pFolder->CreateChild(mount, L".plisgofs", FILE_WRITE_ATTRIBUTES ,0, FILE_ATTRIBUTE_READONLY, data);
 
 		if (mount.get() == NULL)
 			return; //Er wtf, it isn't there, and you won't let me put it there?
@@ -90,7 +90,7 @@ void	IShellInfoFetcher::DoMounts(IPtrRootPlisgoFSFolder plisgoFS, IPtrPlisgoVFS&
 	{
 		IPtrPlisgoFSData data;
 
-		pFolder->CreateChild(mount, L"Desktop.ini", FILE_ATTRIBUTE_READONLY, data);
+		pFolder->CreateChild(mount, L"Desktop.ini", FILE_WRITE_ATTRIBUTES ,0, FILE_ATTRIBUTE_READONLY, data);
 
 		if (mount.get() == NULL)
 		{

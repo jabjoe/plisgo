@@ -50,13 +50,13 @@ bool	LoadDWORDFromReg(HKEY hRootKey, LPCWSTR sKey, LPCWSTR sName, DWORD& rnValue
 
 	int		nNumber		= 0;
 	DWORD	nBufSize	= sizeof(nNumber);
-	bool	bResult		= (RegQueryValueEx(hKey, sName, 0, NULL, (BYTE*)&nNumber, &nBufSize) == ERROR_SUCCESS);
+	LONG	nResult		= RegQueryValueEx(hKey, sName, 0, NULL, (BYTE*)&nNumber, &nBufSize);
 
 	RegCloseKey(hKey);
 
 	rnValue = nNumber;
 
-	return bResult;
+	return (nResult == ERROR_SUCCESS);
 }
 
 
@@ -71,11 +71,11 @@ bool	StoreDWORDFromReg(HKEY hRootKey, LPCWSTR sKey, LPCWSTR sName, DWORD nValue,
 	if (RegCreateKeyEx(hRootKey, sKey, 0, NULL, REG_OPTION_NON_VOLATILE, nFlags, NULL, &hKey, NULL) != ERROR_SUCCESS)
 		return false;
 
-	bool bResult = (RegSetValueEx(hRootKey, sName, 0, REG_DWORD, (BYTE*)&nValue, sizeof(nValue)) == ERROR_SUCCESS);
+	LONG	nResult = RegSetValueEx(hKey, sName, 0, REG_DWORD, (BYTE*)&nValue, sizeof(nValue));
 
 	RegCloseKey(hKey);
 
-	return bResult;
+	return (nResult == ERROR_SUCCESS);
 }
 
 
