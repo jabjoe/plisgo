@@ -41,6 +41,8 @@
 #define _WIN32_IE 0x0600	// Change this to the appropriate value to target other versions of IE.
 #endif
 
+#pragma warning(disable:4996)
+
 #include <windows.h>
 #include <stdio.h>
 #include <stdlib.h>
