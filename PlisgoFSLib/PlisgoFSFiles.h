@@ -660,6 +660,8 @@ public:
 
 	PlisgoFSEncapsulatedFile(IPtrPlisgoFSFile& rFile)
 	{
+		assert(rFile.get() != NULL);
+
 		m_file = rFile;
 	}
 
