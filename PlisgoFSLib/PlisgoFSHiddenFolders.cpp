@@ -25,6 +25,8 @@
 #include "PlisgoFSHiddenFolders.h"
 #include "PlisgoFSMenuItem.h"
 
+#include <boost/smart_ptr/detail/spinlock.hpp>
+
 #include <Unknwn.h>
 #include <gdiplus.h>
 
@@ -129,27 +131,14 @@ public:
 		m_pRoot			= pRoot;
 	}
 
-	virtual bool				GetEntryFile(	IPtrPlisgoFSFile& rDstFile, std::wstring& rsDstName,
-												IPtrPlisgoFSFile& rSrcFile, const std::wstring& rsSrcName) const = 0;
+	virtual bool				GetEntryFile(	IPtrPlisgoFSFile& rDstFile, IPtrPlisgoFSFile& rSrcFile, const std::wstring& rsSrcName) const = 0;
 
-	virtual bool				GetEntryRealName(std::wstring& rsDstName, const std::wstring& rsSrcName) const
-	{
-		rsDstName = rsSrcName;
-
-		return true;
-	}
 
 	virtual IPtrPlisgoFSFile	GetChild(LPCWSTR sNameUnknownCase) const
 	{
-		std::wstring sShellName = sNameUnknownCase;
-		std::wstring sRealName;
-
-		if (!GetEntryRealName(sRealName, sShellName))
-			return IPtrPlisgoFSFile();
-
 		std::wstring sRealFile	= m_sSubjectPath;
 
-		sRealFile+= sRealName;
+		sRealFile+= sNameUnknownCase;
 
 		IPtrPlisgoFSFile file = m_pRoot->GetVFS()->TracePath(sRealFile.c_str());
 
@@ -158,7 +147,7 @@ public:
 
 		IPtrPlisgoFSFile result;
 
-		GetEntryFile(result, sShellName, file, sRealName);
+		GetEntryFile(result, file, sNameUnknownCase);
 
 		return result;
 	}
@@ -190,11 +179,8 @@ public:
 		m_nColumnIndex = nColumn;
 	}
 
-	virtual bool		GetEntryFile(	IPtrPlisgoFSFile& rDstFile, std::wstring& rsDstName,
-										IPtrPlisgoFSFile& rSrcFile, const std::wstring& rsSrcName) const
+	virtual bool		GetEntryFile(	IPtrPlisgoFSFile& rDstFile, IPtrPlisgoFSFile& rSrcFile, const std::wstring& rsSrcName) const
 	{
-		rsDstName = rsSrcName;
-
 		std::wstring sText;
 
 		if (!m_pRoot->GetShellInfoFetcher()->GetColumnEntry(rSrcFile, m_nColumnIndex, sText))
@@ -223,10 +209,8 @@ public:
 						RootPlisgoFSFolder* pRoot)	: StubShellInfoFolder(rsSubjectPath, pRoot) {}
 
 
-	virtual bool		GetEntryFile(	IPtrPlisgoFSFile& rDstFile, std::wstring& rsDstName,
-										IPtrPlisgoFSFile& rSrcFile, const std::wstring& rsSrcName) const
+	virtual bool		GetEntryFile(	IPtrPlisgoFSFile& rDstFile, IPtrPlisgoFSFile& rSrcFile, const std::wstring& rsSrcName) const
 	{
-		rsDstName = rsSrcName;
 		IconLocation icon;
 
 		if (!m_pRoot->GetShellInfoFetcher()->GetOverlayIcon(rSrcFile, icon))
@@ -256,10 +240,8 @@ public:
 	CustomIconsFolder(	const std::wstring& rsSubjectPath,
 						RootPlisgoFSFolder* pRoot)	: StubShellInfoFolder(rsSubjectPath, pRoot) {}
 
-	virtual bool			GetEntryFile(	IPtrPlisgoFSFile& rDstFile, std::wstring& rsDstName,
-											IPtrPlisgoFSFile& rSrcFile, const std::wstring& rsSrcName) const
+	virtual bool			GetEntryFile(	IPtrPlisgoFSFile& rDstFile, IPtrPlisgoFSFile& rSrcFile, const std::wstring& rsSrcName) const
 	{
-		rsDstName = rsSrcName;
 		IconLocation icon;
 
 		if (!m_pRoot->GetShellInfoFetcher()->GetCustomIcon(rSrcFile, icon))
@@ -297,72 +279,105 @@ class ThumbnailsFolder : public StubShellInfoFolder
 public:
 
 	ThumbnailsFolder(	const std::wstring& rsSubjectPath,
-						RootPlisgoFSFolder* pRoot)	: StubShellInfoFolder(rsSubjectPath, pRoot) {}
-
-
-	virtual bool			GetEntryFile(	IPtrPlisgoFSFile& rDstFile, std::wstring& rsDstName,
-											IPtrPlisgoFSFile& rSrcFile, const std::wstring& rsSrcName) const
+		RootPlisgoFSFolder* pRoot) : StubShellInfoFolder(rsSubjectPath, pRoot)
 	{
-		rsDstName = rsSrcName;
-
-		std::wstring sExt;
-
-		if (!m_pRoot->GetShellInfoFetcher()->GetThumbnail(rSrcFile, sExt, rDstFile))
-			return false;
-
-		if (sExt.length() && sExt[0] != L'.')
-			rsDstName += L".";
-
-		rsDstName += sExt;
-
-		rDstFile.reset(new VolatileEncapsulatedFile(rDstFile));
-
-		return true;
+		m_lock.v_ = 0;
+		m_birth = 0;
 	}
 
-	virtual bool			GetEntryRealName(std::wstring& rsDstName, const std::wstring& rsSrcName) const
+
+	void Refresh()
 	{
-		rsDstName = rsSrcName;
+		m_Children.clear();
+		m_ChildFiles.clear();
 
-		const size_t nDot = rsSrcName.rfind(L'.');
+		int nError =  m_pRoot->GetVFS()->GetChildren(m_sSubjectPath.c_str(), m_Children);
 
-		if (nDot == -1)
-			return false;
+		if (nError == 0)
+		{
+			for(ChildNames::iterator it = m_Children.begin(); it != m_Children.end();)
+			{
+				std::wstring sExt;
 
-		rsDstName.resize(nDot);
+				IPtrPlisgoFSFile srcFile = m_pRoot->GetVFS()->TracePath((m_sSubjectPath + *it).c_str());
+				IPtrPlisgoFSFile dstFile;
 
-		return true;
+				if (m_pRoot->GetShellInfoFetcher()->GetThumbnail(srcFile, sExt, dstFile))
+				{
+					if (sExt.length())
+					{
+						if (sExt[0] != L'.')
+							*it += L".";
+
+						*it += sExt;
+					}
+
+					m_ChildFiles[*it].reset(new VolatileEncapsulatedFile(dstFile));
+
+					++it;
+				}
+				else it = m_Children.erase(it);
+			}
+
+			time (&m_birth);
+		}
 	}
+
+
+	virtual IPtrPlisgoFSFile	GetChild(LPCWSTR sNameUnknownCase) const
+	{
+		boost::detail::spinlock::scoped_lock lock(m_lock);
+
+		if (!IsFresh())
+			const_cast<ThumbnailsFolder*>(this)->Refresh();
+
+		PlisgoFSFileMap::const_iterator it = m_ChildFiles.find(sNameUnknownCase);
+
+		if (it != m_ChildFiles.end())
+			return it->second;
+
+		return IPtrPlisgoFSFile();
+	}
+
+
+	virtual bool			GetEntryFile(	IPtrPlisgoFSFile& , IPtrPlisgoFSFile& , const std::wstring& ) const { return false; }
 
 	virtual int				GetChildren(ChildNames& rChildren) const
 	{
-		//This ONLY should happen if some crazy user has browsed in. If it becomes more then that, I'll speed it up.
+		boost::detail::spinlock::scoped_lock lock(m_lock);
 
-		int nError =  m_pRoot->GetVFS()->GetChildren(m_sSubjectPath.c_str(), rChildren);
+		if (!IsFresh())
+			const_cast<ThumbnailsFolder*>(this)->Refresh();
 
-		if (nError != 0)
-			return nError;
-
-		for(ChildNames::iterator it = rChildren.begin(); it != rChildren.end();)
-		{
-			std::wstring sExt;
-
-			IPtrPlisgoFSFile srcFile = m_pRoot->GetVFS()->TracePath((m_sSubjectPath + *it).c_str());
-			IPtrPlisgoFSFile dstFile;
-
-			if (m_pRoot->GetShellInfoFetcher()->GetThumbnail(srcFile, sExt, dstFile))
-			{
-				if (sExt[0] != L'.')
-					*it += L".";
-
-				*it += sExt;
-				++it;
-			}
-			else it = rChildren.erase(it);
-		}
+		rChildren = m_Children;
 
 		return 0;
 	}
+
+	virtual bool				IsValid() const
+	{
+		return IsFresh();
+	}
+
+	bool						IsFresh() const
+	{
+		time_t now;
+
+		time(&now);
+
+		double diff = fabs(difftime(now, m_birth));
+
+		bool bResult = (diff < 10);
+
+		return bResult;
+	}
+
+
+private:
+	PlisgoFSFileMap					m_ChildFiles;
+	ChildNames						m_Children;
+	time_t							m_birth;
+	mutable boost::detail::spinlock	m_lock;
 };
 
 
@@ -398,8 +413,7 @@ public:
 						RootPlisgoFSFolder* pRoot) : StubShellInfoFolder(rsSubjectPath, pRoot)
 	{}
 
-	virtual bool			GetEntryFile(	IPtrPlisgoFSFile& rDstFile, std::wstring& rsDstName,
-											IPtrPlisgoFSFile& rSrcFile, const std::wstring& rsSrcName) const
+	virtual bool			GetEntryFile(	IPtrPlisgoFSFile& rDstFile, IPtrPlisgoFSFile& rSrcFile, const std::wstring& rsSrcName) const
 	{
 		if (rSrcFile.get() == NULL)
 			return false;
@@ -411,7 +425,6 @@ public:
 			return false;
 
 		rDstFile	= CreateChildShellInfoFolder(rsSrcName);
-		rsDstName	= rsSrcName;
 
 		return true;
 	}
