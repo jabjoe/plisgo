@@ -713,6 +713,9 @@ int					PlisgoVFS::Close(PlisgoFileHandle&	rHandle, bool bDeleteOnClose)
 
 	assert(openFileData.use_count() == 2); //1 for this call, 1 for open handle list
 
+	if (openFileData.use_count() != 2) 
+		return 0; //Someone else will close it
+
 	int nError = openFileData->File->Close(openFileData->Data);
 
 	const std::wstring& rsPath = openFileData->sPath;
