@@ -28,6 +28,9 @@
 * This is part of a Plisgo/Dokan example.
 * Written by Joe Burmeister (plisgo@eurocom.co.uk)
 */
+
+#pragma warning(disable:4996)
+
 #include <windows.h>
 #include <stdio.h>
 #include <stdlib.h>
