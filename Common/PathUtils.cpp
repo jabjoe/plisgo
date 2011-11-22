@@ -23,6 +23,7 @@
 
 #include "Utils.h"
 #include "PathUtils.h"
+#include <fstream>
 
 
 
@@ -244,72 +245,27 @@ void		EnsureFullPath(std::wstring& rsFile)
 }
 
 
-
-
 bool	ReadTextFromFile(std::wstring& rsResult, LPCWSTR sFile)
 {
-	HANDLE hFile = CreateFileW(sFile, FILE_READ_DATA, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
+	std::wifstream textFile(sFile);
 
-	if (hFile == NULL || hFile == INVALID_HANDLE_VALUE)
+	if(!textFile.is_open())
 		return false;
-	
-	bool bResult = false;
 
-	LARGE_INTEGER nSize;
+	std::getline(textFile, rsResult);
 
-	nSize.LowPart = GetFileSize(hFile, (LPDWORD)&nSize.HighPart);
-
-	if (nSize.HighPart == 0 && nSize.LowPart < 1024*1024) //Check it's not bigger than a meg
-	{
-		rsResult.reserve((unsigned int)nSize.QuadPart);
-
-		CHAR buffer[MAX_PATH];
-
-		DWORD nRead = 0;
-
-
-		while(ReadFile(hFile, buffer, MAX_PATH-1, &nRead, NULL) && nRead > 0)
-		{
-			DWORD nWRead = MultiByteToWideChar(CP_UTF8, 0, buffer, (int)nRead, NULL, 0);
-
-			WCHAR* wBuffer = (WCHAR*)_malloca(sizeof(WCHAR)*(nWRead+1));
-
-			nWRead = MultiByteToWideChar(CP_UTF8, 0, buffer, (int)nRead, wBuffer, nWRead);
-
-			rsResult.append(wBuffer, nWRead);
-			bResult = true;
-
-			_freea(wBuffer);
-		}
-	}
-
-	CloseHandle(hFile);
-
-	return bResult;
+	return true;
 }
 
 
 bool	ReadIntFromFile(int& rnResult, LPCWSTR sFile)
 {
-	HANDLE hFile = CreateFileW(sFile, FILE_READ_DATA, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
+	std::ifstream textFile(sFile);
 
-	if (hFile == NULL || hFile == INVALID_HANDLE_VALUE)
+	if(!textFile.is_open())
 		return false;
 
-	CHAR buffer[MAX_PATH];
-
-	DWORD nRead = 0;
-
-	bool bResult = (ReadFile(hFile, buffer, MAX_PATH-1, &nRead, NULL) == TRUE);
-
-	if (bResult)
-	{
-		buffer[nRead] = 0;
-
-		rnResult = atoi(buffer);
-	}
-
-	CloseHandle(hFile);
+	textFile >> rnResult;
 
 	return true;
 }
@@ -317,25 +273,12 @@ bool	ReadIntFromFile(int& rnResult, LPCWSTR sFile)
 
 bool	ReadDoubleFromFile(double& rnResult, LPCWSTR sFile)
 {
-	HANDLE hFile = CreateFileW(sFile, FILE_READ_DATA, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
+	std::ifstream textFile(sFile);
 
-	if (hFile == NULL || hFile == INVALID_HANDLE_VALUE)
+	if(!textFile.is_open())
 		return false;
 
-	CHAR buffer[MAX_PATH];
-
-	DWORD nRead = 0;
-
-	bool bResult = (ReadFile(hFile, buffer, MAX_PATH-1, &nRead, NULL) == TRUE);
-
-	if (bResult)
-	{
-		buffer[nRead] = 0;
-
-		rnResult = atof(buffer);
-	}
-
-	CloseHandle(hFile);
+	textFile >> rnResult;
 
 	return true;
 }
