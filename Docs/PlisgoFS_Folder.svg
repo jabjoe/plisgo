@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <!-- Created with Inkscape (http://www.inkscape.org/) -->
+
 <svg
    xmlns:dc="http://purl.org/dc/elements/1.1/"
    xmlns:cc="http://creativecommons.org/ns#"
@@ -14,10 +15,9 @@
    height="1052.3622"
    id="svg2"
    sodipodi:version="0.32"
-   inkscape:version="0.46"
+   inkscape:version="0.48.1 "
    sodipodi:docname="PlisgoFS_Folder.svg"
    inkscape:output_extension="org.inkscape.output.svg.inkscape"
-   sodipodi:docbase="E:\Work\PlisgoFS\docs"
    sodipodi:modified="true">
   <metadata
      id="metadata221">
@@ -42,20 +42,23 @@
      bordercolor="#666666"
      pagecolor="#ffffff"
      id="base"
-     inkscape:zoom="0.71838385"
-     inkscape:cx="695.20834"
-     inkscape:cy="548.57918"
-     inkscape:window-x="-4"
-     inkscape:window-y="-4"
+     inkscape:zoom="2"
+     inkscape:cx="359.63767"
+     inkscape:cy="801.842"
+     inkscape:window-x="0"
+     inkscape:window-y="9"
      inkscape:current-layer="svg2"
      showgrid="true"
      showguides="false"
-     inkscape:snap-global="false">
+     inkscape:snap-global="false"
+     inkscape:window-maximized="0">
     <inkscape:grid
        type="xygrid"
        id="grid2604"
        visible="true"
-       enabled="false" />
+       enabled="true"
+       empspacing="5"
+       snapvisiblegridlinesonly="true" />
   </sodipodi:namedview>
   <defs
      id="defs4">
@@ -83,24 +86,28 @@
   </defs>
   <path
      id="path2385"
-     style="fill:none;fill-rule:evenodd;stroke:#5c5c5c;stroke-width:0.94812727px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     d="M 89.325936,316.39494 L 104.52594,316.39494" />
+     style="fill:none;stroke:#5c5c5c;stroke-width:0.94812727px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
+     d="m 89.325936,336.39494 15.200004,0"
+     inkscape:connector-curvature="0" />
   <path
      id="path3291"
      style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:0.93427598px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
      d="M 70.68857,125.79862 L 85.926668,125.79862" />
   <path
      id="path2505"
-     style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:1.01055551px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     d="M 70.263054,60.520338 L 70.263054,905.37664" />
+     style="fill:none;stroke:#000000;stroke-width:1.01055551px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
+     d="m 70.263054,60.520338 0,858.856302"
+     inkscape:connector-curvature="0"
+     sodipodi:nodetypes="cc" />
   <image
-     id="image2501"
-     style="font-family:Arial"
-     height="29"
-     width="29"
-     y="42.362183"
+     sodipodi:absref="folder.png"
+     xlink:href="folder.png"
      x="55.307617"
-     xlink:href="folder.png" />
+     y="42.362183"
+     width="29"
+     height="29"
+     style="font-family:Arial"
+     id="image2501" />
   <rect
      id="rect2507"
      style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;font-family:Arial"
@@ -147,111 +154,118 @@
        x="104.30762">.plisgofs</tspan></text>
   <path
      id="path4797"
-     style="fill:none;fill-rule:evenodd;stroke:#5c5c5c;stroke-width:1.01897037px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     d="M 89.704929,136.45603 L 89.704929,597.43957" />
+     style="fill:none;stroke:#5c5c5c;stroke-width:1.01897037px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
+     d="m 89.704929,136.45603 0,481.90615"
+     inkscape:connector-curvature="0"
+     sodipodi:nodetypes="cc" />
   <image
-     id="image3289"
-     style="fill-opacity:1;stroke:none;stroke-opacity:1;font-family:Arial"
-     height="29"
-     width="29"
-     y="112.36218"
+     sodipodi:absref="folder.png"
+     xlink:href="folder.png"
      x="74.307617"
-     xlink:href="folder.png" />
+     y="112.36218"
+     width="29"
+     height="29"
+     style="fill-opacity:1;stroke:none;stroke-opacity:1;font-family:Arial"
+     id="image3289" />
   <text
      xml:space="preserve"
      id="text4861"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     y="321.92087"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;font-family:Arial"
+     y="341.92087"
      x="125.7"><tspan
        id="tspan4883"
-       style="font-size:10px;fill:#5c5c5c;fill-opacity:1;stroke:none;stroke-opacity:1;font-family:Arial"
-       y="321.92087"
+       style="font-size:10px;fill:#5c5c5c;fill-opacity:1;stroke:none;font-family:Arial"
+       y="341.92087"
        x="125.7">.menu_0</tspan></text>
   <rect
      id="rect4865"
-     style="fill:#ff8000;fill-opacity:1;stroke:#5c5c5c;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;font-family:Arial"
-     y="331.92087"
-     x="120.7"
-     height="15"
-     width="15" />
-  <text
-     xml:space="preserve"
-     id="text4867"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     y="341.92087"
-     x="140.7"><tspan
-       id="tspan4869"
-       style="font-size:10px;fill:#5c5c5c;fill-opacity:1;stroke:none;stroke-opacity:1;font-family:Arial"
-       y="341.92087"
-       x="140.7">.clicked</tspan></text>
-  <rect
-     id="rect4871"
-     style="fill:#ff8000;fill-opacity:1;stroke:#5c5c5c;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;font-family:Arial"
+     style="fill:#ff8000;fill-opacity:1;stroke:#5c5c5c;stroke-width:1;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;font-family:Arial"
      y="351.92087"
      x="120.7"
      height="15"
      width="15" />
   <text
      xml:space="preserve"
+     id="text4867"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;font-family:Arial"
+     y="361.92087"
+     x="140.7"><tspan
+       id="tspan4869"
+       style="font-size:10px;fill:#5c5c5c;fill-opacity:1;stroke:none;font-family:Arial"
+       y="361.92087"
+       x="140.7">.clicked</tspan></text>
+  <rect
+     id="rect4871"
+     style="fill:#ff8000;fill-opacity:1;stroke:#5c5c5c;stroke-width:1;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;font-family:Arial"
+     y="371.92087"
+     x="120.7"
+     height="15"
+     width="15" />
+  <text
+     xml:space="preserve"
      id="text4873"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     y="361.92084"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;font-family:Arial"
+     y="381.92084"
      x="140.7"><tspan
        id="tspan4875"
-       style="font-size:10px;fill:#5c5c5c;fill-opacity:1;stroke:none;stroke-opacity:1;font-family:Arial"
-       y="361.92084"
+       style="font-size:10px;fill:#5c5c5c;fill-opacity:1;stroke:none;font-family:Arial"
+       y="381.92084"
        x="140.7">.icon</tspan></text>
   <rect
      id="rect4877"
-     style="fill:#ff8000;fill-opacity:1;stroke:#5c5c5c;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;font-family:Arial"
-     y="371.92084"
+     style="fill:#ff8000;fill-opacity:1;stroke:#5c5c5c;stroke-width:1;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;font-family:Arial"
+     y="391.92084"
      x="120.7"
      height="15"
      width="15" />
   <text
      xml:space="preserve"
      id="text4879"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     y="381.92087"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;font-family:Arial"
+     y="401.92087"
      x="140.7"><tspan
        id="tspan4881"
-       style="font-size:10px;fill:#5c5c5c;fill-opacity:1;stroke:none;stroke-opacity:1;font-family:Arial"
-       y="381.92087"
+       style="font-size:10px;fill:#5c5c5c;fill-opacity:1;stroke:none;font-family:Arial"
+       y="401.92087"
        x="140.7">.text</tspan></text>
   <path
      id="path4887"
-     style="fill:none;fill-rule:evenodd;stroke:#5c5c5c;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     d="M 110.7,446.92087 L 130.7,446.92087" />
+     style="fill:none;stroke:#5c5c5c;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
+     d="m 110.7,466.92087 20,0"
+     inkscape:connector-curvature="0" />
   <image
-     id="image4889"
-     style="fill-opacity:1;stroke:#5c5c5c;stroke-opacity:1;font-family:Arial"
-     height="29"
-     width="29"
-     y="433.56833"
+     sodipodi:absref="folder.png"
+     xlink:href="folder.png"
      x="117.25708"
-     xlink:href="folder.png" />
+     y="453.56833"
+     width="29"
+     height="29"
+     style="fill-opacity:1;stroke:#5c5c5c;stroke-opacity:1;font-family:Arial"
+     id="image4889" />
   <text
      xml:space="preserve"
      id="text4891"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     y="451.92087"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;font-family:Arial"
+     y="471.92087"
      x="145.7"><tspan
        id="tspan4893"
-       style="font-size:10px;fill:#5c5c5c;fill-opacity:1;stroke:none;stroke-opacity:1;font-family:Arial"
-       y="451.92087"
+       style="font-size:10px;fill:#5c5c5c;fill-opacity:1;stroke:none;font-family:Arial"
+       y="471.92087"
        x="145.7">.menu_0</tspan></text>
   <path
      id="path4913"
-     style="fill:none;fill-rule:evenodd;stroke:#5c5c5c;stroke-width:1.09036469px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     d="M 110.5829,322.16211 L 110.5829,446.88576" />
+     style="fill:none;stroke:#5c5c5c;stroke-width:1.09036469px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
+     d="m 110.5829,342.16211 0,124.72365"
+     inkscape:connector-curvature="0" />
   <image
-     id="image4859"
-     style="fill-opacity:1;stroke:#5c5c5c;stroke-opacity:1;font-family:Arial"
-     height="29"
-     width="29"
-     y="302.92087"
+     sodipodi:absref="folder.png"
+     xlink:href="folder.png"
      x="95.699997"
-     xlink:href="folder.png" />
+     y="322.92087"
+     width="29"
+     height="29"
+     style="fill-opacity:1;stroke:#5c5c5c;stroke-opacity:1;font-family:Arial"
+     id="image4859" />
   <text
      xml:space="preserve"
      id="text5041"
@@ -285,52 +299,52 @@
   <text
      xml:space="preserve"
      id="text5109"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     y="321.92087"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;font-family:Arial"
+     y="341.92087"
      x="236.33183"><tspan
        id="tspan5111"
        style="font-size:10px;font-family:Arial"
-       y="321.92087"
+       y="341.92087"
        x="236.33183">this folder provides context menus for the files in the folder</tspan></text>
   <text
      xml:space="preserve"
      id="text5113"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     y="341.92087"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;font-family:Arial"
+     y="361.92087"
      x="236.17558"><tspan
        id="tspan5115"
        style="font-size:10px;font-family:Arial"
-       y="341.92087"
+       y="361.92087"
        x="236.17558">written to when menu item clicked.</tspan></text>
   <text
      xml:space="preserve"
      id="text5117"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     y="361.92084"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;font-family:Arial"
+     y="381.92084"
      x="235.84843"><tspan
        id="tspan5119"
        style="font-size:10px;font-family:Arial"
-       y="361.92084"
+       y="381.92084"
        x="235.84843">menu item icon and icon list indices for menu item</tspan></text>
   <text
      xml:space="preserve"
      id="text5121"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     y="381.92087"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;font-family:Arial"
+     y="401.92087"
      x="235.84843"><tspan
        id="tspan5123"
        style="font-size:10px;font-family:Arial"
-       y="381.92087"
+       y="401.92087"
        x="235.84843">menu item text. No text mean the item is just devider.</tspan></text>
   <text
      xml:space="preserve"
      id="text5125"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     y="451.92087"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;font-family:Arial"
+     y="471.92087"
      x="236.2"><tspan
        id="tspan5127"
        style="font-size:10px;font-family:Arial"
-       y="451.92087"
+       y="471.92087"
        x="236.2">sub menu like above</tspan></text>
   <text
      xml:space="preserve"
@@ -381,197 +395,199 @@
        x="236.13184">text of the name of filesystem. </tspan></text>
   <rect
      id="rect2652"
-     style="fill:#ffff00;fill-opacity:1;stroke:#5c5c5c;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;font-family:Arial"
-     y="160.86218"
+     style="fill:#ffff00;fill-opacity:1;stroke:#5c5c5c;stroke-width:1;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;font-family:Arial"
+     y="180.86218"
      x="99.807617"
      height="15"
      width="15" />
   <text
      xml:space="preserve"
      id="text2654"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     y="171.36221"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;font-family:Arial"
+     y="191.36221"
      x="119.30762"><tspan
        id="tspan2656"
-       style="font-size:10px;fill:#5c5c5c;fill-opacity:1;stroke:none;stroke-opacity:1;font-family:Arial"
-       y="171.36221"
+       style="font-size:10px;fill:#5c5c5c;fill-opacity:1;stroke:none;font-family:Arial"
+       y="191.36221"
        x="119.30762">.version</tspan></text>
   <text
      xml:space="preserve"
      id="text2658"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     y="171.36221"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;font-family:Arial"
+     y="191.36221"
      x="236.13184"><tspan
        id="tspan2660"
        style="font-size:10px;font-family:Arial"
-       y="171.36221"
+       y="191.36221"
        x="236.13184">text of plisgofs API version. </tspan></text>
   <rect
      id="rect2454"
-     style="fill:#00ffff;fill-opacity:1;stroke:#5c5c5c;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;font-family:Arial"
-     y="180.86218"
+     style="fill:#00ffff;fill-opacity:1;stroke:#5c5c5c;stroke-width:1;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;font-family:Arial"
+     y="200.86218"
      x="99.765625"
      height="15"
      width="15" />
   <text
      xml:space="preserve"
      id="text2456"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     y="190.86221"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;font-family:Arial"
+     y="210.86221"
      x="119.76563"><tspan
        id="tspan2458"
-       style="font-size:10px;fill:#5c5c5c;fill-opacity:1;stroke:none;stroke-opacity:1;font-family:Arial"
-       y="190.86221"
+       style="font-size:10px;fill:#5c5c5c;fill-opacity:1;stroke:none;font-family:Arial"
+       y="210.86221"
        x="119.76563">.column_header_%</tspan></text>
   <text
      xml:space="preserve"
      id="text2460"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     y="190.86221"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;font-family:Arial"
+     y="210.86221"
      x="235.64844"><tspan
        id="tspan2462"
        style="font-size:10px;font-family:Arial"
-       y="190.86221"
+       y="210.86221"
        x="235.64844">header text for custom column %</tspan></text>
   <rect
      id="rect2391"
-     style="fill:#0080ff;fill-opacity:1;stroke:#5c5c5c;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;font-family:Arial"
-     y="260.42087"
+     style="fill:#0080ff;fill-opacity:1;stroke:#5c5c5c;stroke-width:1;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;font-family:Arial"
+     y="280.42087"
      x="99.849609"
      height="15"
      width="15" />
   <text
      xml:space="preserve"
      id="text2393"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     y="270.4209"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;font-family:Arial"
+     y="290.4209"
      x="119.84961"><tspan
        id="tspan2395"
-       style="font-size:10px;fill:#5c5c5c;fill-opacity:1;stroke:none;stroke-opacity:1;font-family:Arial"
-       y="270.4209"
+       style="font-size:10px;fill:#5c5c5c;fill-opacity:1;stroke:none;font-family:Arial"
+       y="290.4209"
        x="119.84961">.icons_%_16.bmp</tspan></text>
   <text
      xml:space="preserve"
      id="text2397"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     y="270.4209"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;font-family:Arial"
+     y="290.4209"
      x="235.64355"><tspan
        id="tspan2399"
        style="font-size:10px;font-family:Arial"
-       y="270.4209"
+       y="290.4209"
        x="235.64355">image list of overlay/menu/file icons %. 16x16 version. Icon used is created from nearest size version.</tspan></text>
   <rect
      id="rect2405"
-     style="fill:#ff8000;fill-opacity:1;stroke:#5c5c5c;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;font-family:Arial"
-     y="391.92087"
-     x="120.7"
-     height="15"
-     width="15" />
-  <text
-     xml:space="preserve"
-     id="text2407"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     y="401.92087"
-     x="140.7"><tspan
-       id="tspan2409"
-       style="font-size:10px;fill:#5c5c5c;fill-opacity:1;stroke:none;stroke-opacity:1;font-family:Arial"
-       y="401.92087"
-       x="140.7">.selection</tspan></text>
-  <rect
-     id="rect2411"
-     style="fill:#ff8000;fill-opacity:1;stroke:#5c5c5c;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;font-family:Arial"
+     style="fill:#ff8000;fill-opacity:1;stroke:#5c5c5c;stroke-width:1;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;font-family:Arial"
      y="411.92087"
      x="120.7"
      height="15"
      width="15" />
   <text
      xml:space="preserve"
-     id="text2413"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
+     id="text2407"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;font-family:Arial"
      y="421.92087"
      x="140.7"><tspan
-       id="tspan2415"
-       style="font-size:10px;fill:#5c5c5c;fill-opacity:1;stroke:none;stroke-opacity:1;font-family:Arial"
+       id="tspan2409"
+       style="font-size:10px;fill:#5c5c5c;fill-opacity:1;stroke:none;font-family:Arial"
        y="421.92087"
+       x="140.7">.selection</tspan></text>
+  <rect
+     id="rect2411"
+     style="fill:#ff8000;fill-opacity:1;stroke:#5c5c5c;stroke-width:1;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;font-family:Arial"
+     y="431.92087"
+     x="120.7"
+     height="15"
+     width="15" />
+  <text
+     xml:space="preserve"
+     id="text2413"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;font-family:Arial"
+     y="441.92087"
+     x="140.7"><tspan
+       id="tspan2415"
+       style="font-size:10px;fill:#5c5c5c;fill-opacity:1;stroke:none;font-family:Arial"
+       y="441.92087"
        x="140.7">.enabled</tspan></text>
   <text
      xml:space="preserve"
      id="text2417"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     y="401.92087"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;font-family:Arial"
+     y="421.92087"
      x="236.47832"><tspan
        id="tspan2419"
        style="font-size:10px;font-family:Arial"
-       y="401.92087"
+       y="421.92087"
        x="236.47832">written to with file selection querying for (paths relative to root). Held on while menu is open/alive.</tspan></text>
   <text
      xml:space="preserve"
      id="text2421"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     y="421.92087"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;font-family:Arial"
+     y="441.92087"
      x="235.84843"><tspan
        id="tspan2423"
        style="font-size:10px;font-family:Arial"
-       y="421.92087"
+       y="441.92087"
        x="235.84843">menu item enabled/disable. Contains &quot;1&quot; or &quot;0&quot;.</tspan></text>
   <path
      id="path4915"
-     style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     d="M 70.5,906.42087 L 90.5,906.42087" />
+     style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
+     d="m 70.5,919.42115 20,0"
+     inkscape:connector-curvature="0" />
   <text
      xml:space="preserve"
      id="text4919"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     y="910.4209"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;font-family:Arial"
+     y="923.4212"
      x="105.99997"><tspan
        id="tspan4921"
        style="font-size:10px;font-family:Arial"
-       y="910.4209"
+       y="923.4212"
        x="105.99997">some folder</tspan></text>
   <image
-     id="image4917"
-     style="fill-opacity:1;stroke:none;stroke-opacity:1;font-family:Arial"
-     height="29"
-     width="29"
-     y="891.4209"
+     sodipodi:absref="folder.png"
+     xlink:href="folder.png"
      x="75.999985"
-     xlink:href="folder.png" />
+     y="904.4212"
+     width="29"
+     height="29"
+     style="fill-opacity:1;stroke:none;font-family:Arial"
+     id="image4917" />
   <rect
      id="rect4925"
-     style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;font-family:Arial"
-     y="920.4209"
+     style="fill:none;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;font-family:Arial"
+     y="933.4212"
      x="101"
      height="15"
      width="15" />
   <text
      xml:space="preserve"
      id="text4927"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     y="930.4209"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;font-family:Arial"
+     y="943.4212"
      x="121"><tspan
        id="tspan4929"
        style="font-size:10px;font-family:Arial"
-       y="930.4209"
+       y="943.4212"
        x="121">music.wav</tspan></text>
   <text
      xml:space="preserve"
      id="text5129"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     y="910.4209"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;font-family:Arial"
+     y="922.4209"
      x="236.5"><tspan
        id="tspan5131"
        style="font-size:10px;font-family:Arial"
-       y="910.4209"
+       y="922.4209"
        x="236.5">standard folder</tspan></text>
   <text
      xml:space="preserve"
      id="text5133"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     y="930.4209"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;font-family:Arial"
+     y="942.4209"
      x="236.5"><tspan
        id="tspan5135"
        style="font-size:10px;font-family:Arial"
-       y="930.4209"
+       y="942.4209"
        x="236.5">standard file</tspan></text>
   <text
      xml:space="preserve"
@@ -584,199 +600,201 @@
        x="199.40625">Hidden PlisgoFS folder API</tspan></text>
   <path
      id="path2491"
-     style="fill:none;fill-rule:evenodd;stroke:#5c5c5c;stroke-width:0.94812727px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     d="M 90,480.59055 L 105.2,480.59055" />
+     style="fill:none;stroke:#5c5c5c;stroke-width:0.94812727px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
+     d="m 90,500.59055 15.2,0"
+     inkscape:connector-curvature="0" />
   <text
      xml:space="preserve"
      id="text2493"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     y="486.42087"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;font-family:Arial"
+     y="506.42087"
      x="125.18523"><tspan
        id="tspan2495"
        style="font-size:10px;fill:#5c5c5c;fill-opacity:1;font-family:Arial"
-       y="486.42087"
+       y="506.42087"
        x="125.18523">.type_icons</tspan></text>
   <image
-     id="image2497"
-     style="fill-opacity:1;stroke:none;stroke-opacity:1;font-family:Arial"
-     height="29"
-     width="29"
-     y="467.42087"
+     sodipodi:absref="folder.png"
+     xlink:href="folder.png"
      x="95.185226"
-     xlink:href="folder.png" />
+     y="487.42087"
+     width="29"
+     height="29"
+     style="fill-opacity:1;stroke:none;font-family:Arial"
+     id="image2497" />
   <text
      xml:space="preserve"
      id="text2499"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     y="485.70114"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;font-family:Arial"
+     y="505.70114"
      x="236.11699"><tspan
        id="tspan2501"
        style="font-size:10px;font-family:Arial"
-       y="485.70114"
+       y="505.70114"
        x="236.11699">custom icons for folders and file extentions.</tspan></text>
   <rect
      id="rect2503"
-     style="fill:#8000ff;fill-opacity:1;stroke:#5c5c5c;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;font-family:Arial"
-     y="497.09055"
+     style="fill:#8000ff;fill-opacity:1;stroke:#5c5c5c;stroke-width:1;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;font-family:Arial"
+     y="517.09058"
      x="120.7"
      height="15"
      width="15" />
   <text
      xml:space="preserve"
      id="text2505"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     y="507.47336"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;font-family:Arial"
+     y="527.47339"
      x="140.02422"><tspan
        id="tspan2507"
        style="font-size:10px;fill:#5c5c5c;fill-opacity:1;font-family:Arial"
-       y="507.47336"
+       y="527.47339"
        x="140.02422">.txt</tspan></text>
   <text
      xml:space="preserve"
      id="text2509"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     y="508.97336"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;font-family:Arial"
+     y="528.97339"
      x="237.52422"><tspan
        id="tspan2511"
        style="font-size:10px;font-family:Arial"
-       y="508.97336"
+       y="528.97339"
        x="237.52422">custom icon for .txt extension, icon and icon list indices, or &quot;&lt;path&gt;;index&quot;  </tspan></text>
   <rect
      id="rect2399"
-     style="fill:#ff8000;fill-opacity:1;stroke:none;stroke-width:0.98836136;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;font-family:Arial"
-     y="260.41504"
+     style="fill:#ff8000;fill-opacity:1;stroke:none;font-family:Arial"
+     y="280.41504"
      x="100.26009"
      height="15.011639"
      width="5.2457366" />
   <rect
      id="rect2401"
-     style="fill:#8000ff;fill-opacity:1;stroke:none;stroke-width:0.94099998;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;font-family:Arial"
-     y="260.39151"
+     style="fill:#8000ff;fill-opacity:1;stroke:none;font-family:Arial"
+     y="280.39151"
      x="105"
      height="15.058681"
      width="4.9799714" />
   <rect
      id="rect3372"
-     style="fill:#0080ff;fill-opacity:1;stroke:none;stroke-width:0.94099998;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;font-family:Arial"
-     y="260.36218"
+     style="fill:#0080ff;fill-opacity:1;stroke:none;font-family:Arial"
+     y="280.36218"
      x="110"
      height="15.058681"
      width="4.7433991" />
   <rect
      id="rect3378"
-     style="fill:none;fill-opacity:1;stroke:#5c5c5c;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;font-family:Arial"
-     y="260.42087"
+     style="fill:none;stroke:#5c5c5c;stroke-width:1;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;font-family:Arial"
+     y="280.42087"
      x="99.849609"
      height="15"
      width="15" />
   <rect
      id="rect2349"
-     style="fill:#0080ff;fill-opacity:1;stroke:#5c5c5c;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;font-family:Arial"
-     y="281.89154"
+     style="fill:#0080ff;fill-opacity:1;stroke:#5c5c5c;stroke-width:1;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;font-family:Arial"
+     y="301.89154"
      x="100"
      height="15"
      width="15" />
   <text
      xml:space="preserve"
      id="text2351"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     y="291.89157"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;font-family:Arial"
+     y="311.89157"
      x="120"><tspan
        id="tspan2353"
-       style="font-size:10px;fill:#5c5c5c;fill-opacity:1;stroke:none;stroke-opacity:1;font-family:Arial"
-       y="291.89157"
+       style="font-size:10px;fill:#5c5c5c;fill-opacity:1;stroke:none;font-family:Arial"
+       y="311.89157"
        x="120">.icons_%_48.bmp</tspan></text>
   <text
      xml:space="preserve"
      id="text2355"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     y="291.89157"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;font-family:Arial"
+     y="311.89157"
      x="235.64355"><tspan
        id="tspan2357"
        style="font-size:10px;font-family:Arial"
-       y="291.89157"
+       y="311.89157"
        x="235.64355">image list of overlay/menu/file icons %. 48x48 version. Icon used is created from nearest size version.</tspan></text>
   <rect
      id="rect2359"
-     style="fill:#ff8000;fill-opacity:1;stroke:none;stroke-width:0.98836136;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;font-family:Arial"
-     y="281.88571"
+     style="fill:#ff8000;fill-opacity:1;stroke:none;font-family:Arial"
+     y="301.88571"
      x="100.41048"
      height="15.011639"
      width="5.2457366" />
   <rect
      id="rect2361"
-     style="fill:#8000ff;fill-opacity:1;stroke:none;stroke-width:0.94099998;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;font-family:Arial"
-     y="281.86218"
+     style="fill:#8000ff;fill-opacity:1;stroke:none;font-family:Arial"
+     y="301.86218"
      x="105.15039"
      height="15.058681"
      width="4.9799714" />
   <rect
      id="rect2363"
-     style="fill:#0080ff;fill-opacity:1;stroke:none;stroke-width:0.94099998;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;font-family:Arial"
-     y="281.83286"
+     style="fill:#0080ff;fill-opacity:1;stroke:none;font-family:Arial"
+     y="301.83286"
      x="110.15039"
      height="15.058681"
      width="4.7433991" />
   <rect
      id="rect2365"
-     style="fill:none;fill-opacity:1;stroke:#5c5c5c;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;font-family:Arial"
-     y="281.89154"
+     style="fill:none;stroke:#5c5c5c;stroke-width:1;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;font-family:Arial"
+     y="301.89154"
      x="100"
      height="15"
      width="15" />
   <rect
      id="rect2380"
-     style="fill:#8000ff;fill-opacity:1;stroke:#5c5c5c;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;font-family:Arial"
-     y="519.09058"
+     style="fill:#8000ff;fill-opacity:1;stroke:#5c5c5c;stroke-width:1;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;font-family:Arial"
+     y="539.09058"
      x="120.7"
      height="15"
      width="15" />
   <text
      xml:space="preserve"
      id="text2382"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     y="529.09058"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;font-family:Arial"
+     y="549.09058"
      x="140.7"><tspan
        id="tspan2384"
-       style="font-size:10px;fill:#5c5c5c;fill-opacity:1;stroke:none;stroke-opacity:1;font-family:Arial"
-       y="529.09058"
+       style="font-size:10px;fill:#5c5c5c;fill-opacity:1;stroke:none;font-family:Arial"
+       y="549.09058"
        x="140.7">.folder_icon_closed</tspan></text>
   <text
      xml:space="preserve"
      id="text2386"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     y="529.09058"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;font-family:Arial"
+     y="549.09058"
      x="237.23515"><tspan
        id="tspan2388"
        style="font-size:10px;font-family:Arial"
-       y="529.09058"
+       y="549.09058"
        x="237.23515">custom icon for closed folders, icon and icon list indices, or &quot;&lt;path&gt;;index&quot;  </tspan></text>
   <rect
      id="rect2368"
-     style="fill:#8000ff;fill-opacity:1;stroke:#5c5c5c;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;font-family:Arial"
-     y="541.09058"
+     style="fill:#8000ff;fill-opacity:1;stroke:#5c5c5c;stroke-width:1;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;font-family:Arial"
+     y="561.09058"
      x="120.7"
      height="15"
      width="15" />
   <text
      xml:space="preserve"
      id="text2372"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     y="551.09058"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;font-family:Arial"
+     y="571.09058"
      x="140.7"><tspan
        id="tspan2374"
-       style="font-size:10px;fill:#5c5c5c;fill-opacity:1;stroke:none;stroke-opacity:1;font-family:Arial"
-       y="551.09058"
+       style="font-size:10px;fill:#5c5c5c;fill-opacity:1;stroke:none;font-family:Arial"
+       y="571.09058"
        x="140.7">.folder_icon_open</tspan></text>
   <text
      xml:space="preserve"
      id="text2376"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     y="551.09058"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;font-family:Arial"
+     y="571.09058"
      x="237.23515"><tspan
        id="tspan2378"
        style="font-size:10px;font-family:Arial"
-       y="551.09058"
+       y="571.09058"
        x="237.23515">custom icon for open folders, icon and icon list indices, or &quot;&lt;path&gt;;index&quot;  </tspan></text>
   <rect
      id="rect3309"
@@ -822,239 +840,247 @@
      width="35" />
   <path
      id="path2412"
-     style="fill:none;fill-rule:evenodd;stroke:#5c5c5c;stroke-width:0.94812727px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     d="M 110,624.59059 L 125.2,624.59059" />
+     style="fill:none;stroke:#5c5c5c;stroke-width:0.94812727px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
+     d="m 110,644.59059 15.2,0"
+     inkscape:connector-curvature="0" />
   <text
      xml:space="preserve"
      id="text2415"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     y="630.4209"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;font-family:Arial"
+     y="650.4209"
      x="145.18523"><tspan
        id="tspan2417"
        style="font-size:10px;fill:#5c5c5c;fill-opacity:1;font-family:Arial"
-       y="630.4209"
+       y="650.4209"
        x="145.18523">.column_%</tspan></text>
   <image
-     id="image2419"
-     style="fill-opacity:1;stroke:none;stroke-opacity:1;font-family:Arial"
-     height="29"
-     width="29"
-     y="611.4209"
+     sodipodi:absref="folder.png"
+     xlink:href="folder.png"
      x="115.18523"
-     xlink:href="folder.png" />
+     y="631.4209"
+     width="29"
+     height="29"
+     style="fill-opacity:1;stroke:none;font-family:Arial"
+     id="image2419" />
   <text
      xml:space="preserve"
      id="text2422"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     y="629.70129"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;font-family:Arial"
+     y="649.70129"
      x="256.117"><tspan
        id="tspan2424"
        style="font-size:10px;font-family:Arial"
-       y="629.70129"
+       y="649.70129"
        x="256.117">text for column %. Contains text files of the same name they are the text for.</tspan></text>
   <rect
      id="rect2426"
-     style="fill:#00ffff;fill-opacity:1;stroke:#5c5c5c;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;font-family:Arial"
-     y="641.9209"
+     style="fill:#00ffff;fill-opacity:1;stroke:#5c5c5c;stroke-width:1;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;font-family:Arial"
+     y="661.9209"
      x="140"
      height="15"
      width="15" />
   <text
      xml:space="preserve"
      id="text2428"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     y="651.9209"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;font-family:Arial"
+     y="671.9209"
      x="160"><tspan
        id="tspan2430"
        style="font-size:10px;fill:#5c5c5c;fill-opacity:1;font-family:Arial"
-       y="651.9209"
+       y="671.9209"
        x="160">test.txt</tspan></text>
   <text
      xml:space="preserve"
      id="text2432"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     y="651.9209"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;font-family:Arial"
+     y="671.9209"
      x="256.69238"><tspan
        id="tspan2434"
        style="font-size:10px;font-family:Arial"
-       y="651.9209"
+       y="671.9209"
        x="256.69238">column text for test.txt file</tspan></text>
   <text
      xml:space="preserve"
      id="text2461"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     y="678.4209"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;font-family:Arial"
+     y="698.4209"
      x="145.18523"><tspan
        id="tspan2463"
        style="font-size:10px;fill:#5c5c5c;fill-opacity:1;font-family:Arial"
-       y="678.4209"
+       y="698.4209"
        x="145.18523">.overlay_icons</tspan></text>
   <path
-     d="M 110,674.59059 L 125.2,674.59059"
-     style="fill:none;fill-rule:evenodd;stroke:#5c5c5c;stroke-width:0.94812727px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     id="path2589" />
+     d="m 110,694.59059 15.2,0"
+     style="fill:none;stroke:#5c5c5c;stroke-width:0.94812727px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
+     id="path2589"
+     inkscape:connector-curvature="0" />
   <image
-     id="image2465"
-     style="fill-opacity:1;stroke:none;stroke-opacity:1;font-family:Arial"
-     height="29"
-     width="29"
-     y="659.4209"
+     sodipodi:absref="folder.png"
+     xlink:href="folder.png"
      x="115.18523"
-     xlink:href="folder.png" />
+     y="679.4209"
+     width="29"
+     height="29"
+     style="fill-opacity:1;stroke:none;font-family:Arial"
+     id="image2465" />
   <text
      xml:space="preserve"
      id="text2467"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     y="677.70129"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;font-family:Arial"
+     y="697.70129"
      x="256.117"><tspan
        id="tspan2469"
        style="font-size:10px;font-family:Arial"
-       y="677.70129"
+       y="697.70129"
        x="256.117">Any overlays icons. Contains text files of the same name they are for. Text is icon list index and index in list.</tspan></text>
   <rect
      id="rect2471"
-     style="fill:#0080ff;fill-opacity:1;stroke:#5c5c5c;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;font-family:Arial"
-     y="689.9209"
+     style="fill:#0080ff;fill-opacity:1;stroke:#5c5c5c;stroke-width:1;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;font-family:Arial"
+     y="709.9209"
      x="140"
      height="15"
      width="15" />
   <text
      xml:space="preserve"
      id="text2473"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     y="699.9209"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;font-family:Arial"
+     y="719.9209"
      x="160"><tspan
        id="tspan2475"
        style="font-size:10px;fill:#5c5c5c;fill-opacity:1;font-family:Arial"
-       y="699.9209"
+       y="719.9209"
        x="160">test.txt</tspan></text>
   <text
      xml:space="preserve"
      id="text2477"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     y="699.9209"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;font-family:Arial"
+     y="719.9209"
      x="256.69238"><tspan
        id="tspan2479"
        style="font-size:10px;font-family:Arial"
-       y="699.9209"
+       y="719.9209"
        x="256.69238">text for test.txt file overlay</tspan></text>
   <path
      id="path3450"
-     style="fill:none;fill-rule:evenodd;stroke:#5c5c5c;stroke-width:0.94812727px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     d="M 110,722.59059 L 125.2,722.59059" />
+     style="fill:none;stroke:#5c5c5c;stroke-width:0.94812727px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
+     d="m 110,742.59059 15.2,0"
+     inkscape:connector-curvature="0" />
   <text
      xml:space="preserve"
      id="text3452"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     y="728.4209"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;font-family:Arial"
+     y="748.4209"
      x="145.18523"><tspan
        id="tspan3454"
        style="font-size:10px;fill:#5c5c5c;fill-opacity:1;font-family:Arial"
-       y="728.4209"
+       y="748.4209"
        x="145.18523">.custom_icons</tspan></text>
   <image
-     id="image3456"
-     style="fill-opacity:1;stroke:none;stroke-opacity:1;font-family:Arial"
-     height="29"
-     width="29"
-     y="709.4209"
+     sodipodi:absref="folder.png"
+     xlink:href="folder.png"
      x="115.18523"
-     xlink:href="folder.png" />
+     y="729.4209"
+     width="29"
+     height="29"
+     style="fill-opacity:1;stroke:none;font-family:Arial"
+     id="image3456" />
   <text
      xml:space="preserve"
      id="text3458"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     y="727.70129"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;font-family:Arial"
+     y="747.70129"
      x="256.117"><tspan
        id="tspan3460"
        style="font-size:10px;font-family:Arial"
-       y="727.70129"
+       y="747.70129"
        x="256.117">Any custom icons. Contains text files of the same name they are for. Text is icon list index and index in list.</tspan></text>
   <rect
      id="rect3462"
-     style="fill:#8000ff;fill-opacity:1;stroke:#5c5c5c;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;font-family:Arial"
-     y="739.9209"
+     style="fill:#8000ff;fill-opacity:1;stroke:#5c5c5c;stroke-width:1;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;font-family:Arial"
+     y="759.9209"
      x="140"
      height="15"
      width="15" />
   <text
      xml:space="preserve"
      id="text3464"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     y="749.9209"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;font-family:Arial"
+     y="769.9209"
      x="160"><tspan
        id="tspan3466"
        style="font-size:10px;fill:#5c5c5c;fill-opacity:1;font-family:Arial"
-       y="749.9209"
+       y="769.9209"
        x="160">test.txt</tspan></text>
   <text
      xml:space="preserve"
      id="text3468"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     y="749.9209"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;font-family:Arial"
+     y="769.9209"
      x="256.69238"><tspan
        id="tspan3470"
        style="font-size:10px;font-family:Arial"
-       y="749.9209"
+       y="769.9209"
        x="256.69238">text for test.txt file custom icon</tspan></text>
   <text
      xml:space="preserve"
      id="text3536"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     y="775.4209"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;font-family:Arial"
+     y="795.4209"
      x="145"><tspan
        id="tspan3538"
        style="font-size:10px;fill:#5c5c5c;fill-opacity:1;font-family:Arial"
-       y="775.4209"
+       y="795.4209"
        x="145">.thumbnails</tspan></text>
   <path
      id="path3540"
-     style="fill:none;fill-rule:evenodd;stroke:#5c5c5c;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     d="M 110.28516,769.92089 L 130.28516,769.92089" />
+     style="fill:none;stroke:#5c5c5c;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
+     d="m 110.28516,789.92089 20,0"
+     inkscape:connector-curvature="0" />
   <image
-     id="image3542"
-     style="fill-opacity:1;stroke:none;stroke-opacity:1;font-family:Arial"
-     height="29"
-     width="29"
-     y="756.4209"
+     sodipodi:absref="folder.png"
+     xlink:href="folder.png"
      x="115"
-     xlink:href="folder.png" />
+     y="776.4209"
+     width="29"
+     height="29"
+     style="fill-opacity:1;stroke:none;font-family:Arial"
+     id="image3542" />
   <text
      xml:space="preserve"
      id="text3544"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     y="773.81641"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;font-family:Arial"
+     y="793.81641"
      x="256.14844"><tspan
        id="tspan3546"
        style="font-size:10px;font-family:Arial"
-       y="773.81641"
+       y="793.81641"
        x="256.14844">Any thumbnail files.</tspan></text>
   <rect
      id="rect3548"
-     style="fill:#ff00ff;fill-opacity:1;stroke:#5c5c5c;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;font-family:Arial"
-     y="787.9209"
+     style="fill:#ff00ff;fill-opacity:1;stroke:#5c5c5c;stroke-width:1;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;font-family:Arial"
+     y="807.9209"
      x="140"
      height="15"
      width="15" />
   <text
      xml:space="preserve"
      id="text3550"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     y="797.9209"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;font-family:Arial"
+     y="817.9209"
      x="160"><tspan
        id="tspan3552"
        style="font-size:10px;fill:#5c5c5c;fill-opacity:1;font-family:Arial"
-       y="797.9209"
+       y="817.9209"
        x="160">test.txt.jpg</tspan></text>
   <text
      xml:space="preserve"
      id="text3554"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     y="797.9209"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;font-family:Arial"
+     y="817.9209"
      x="256.69238"><tspan
        id="tspan3556"
        style="font-size:10px;font-family:Arial"
-       y="797.9209"
+       y="817.9209"
        x="256.69238">thumbnail for test.txt. To support multiple formats, formats extension is added to filename.</tspan></text>
   <text
      xml:space="preserve"
@@ -1112,231 +1138,270 @@
        x="547.87695">Thumbnail System</tspan></text>
   <text
      x="125"
-     y="603.4209"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
+     y="623.4209"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;font-family:Arial"
      id="text2618"
      xml:space="preserve"><tspan
        x="125"
-       y="603.4209"
+       y="623.4209"
        style="font-size:10px;fill:#5c5c5c;fill-opacity:1;font-family:Arial"
        id="tspan2620">.shellinfo</tspan></text>
   <path
-     d="M 90.28516,597.92087 L 110.28516,597.92087"
-     style="fill:none;fill-rule:evenodd;stroke:#5c5c5c;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     id="path2622" />
+     d="m 89.285,617.92087 21.00016,0"
+     style="fill:none;stroke:#5c5c5c;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
+     id="path2622"
+     inkscape:connector-curvature="0"
+     sodipodi:nodetypes="cc" />
   <path
-     d="M 109.08751,602.98672 L 109.08751,820.84015"
-     style="fill:none;fill-rule:evenodd;stroke:#5c5c5c;stroke-width:0.94924694px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     id="path3408" />
+     d="m 109.97462,622.98672 0,217.85343"
+     style="fill:none;stroke:#5c5c5c;stroke-width:0.94924694px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
+     id="path3408"
+     inkscape:connector-curvature="0" />
   <image
+     sodipodi:absref="folder.png"
      xlink:href="folder.png"
-     x="95"
-     y="584.4209"
-     width="29"
+     id="image2624"
+     style="fill-opacity:1;stroke:none;font-family:Arial"
      height="29"
-     style="fill-opacity:1;stroke:none;stroke-opacity:1;font-family:Arial"
-     id="image2624" />
+     width="29"
+     y="604.4209"
+     x="95" />
   <text
      x="236.14844"
-     y="601.81641"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
+     y="621.81641"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;font-family:Arial"
      id="text2626"
      xml:space="preserve"><tspan
        x="236.14844"
-       y="601.81641"
+       y="621.81641"
        style="font-size:10px;font-family:Arial"
        id="tspan2628">contains tree of custom shell information</tspan></text>
   <path
-     d="M 108.70581,821.05868 L 128.70581,821.05868"
-     style="fill:none;fill-rule:evenodd;stroke:#5c5c5c;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     id="path3410" />
+     d="m 108.70581,841.05868 20,0"
+     style="fill:none;stroke:#5c5c5c;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
+     id="path3410"
+     inkscape:connector-curvature="0" />
   <text
      x="146.20578"
-     y="825.05872"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
+     y="845.05872"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;font-family:Arial"
      id="text3412"
      xml:space="preserve"><tspan
        x="146.20578"
-       y="825.05872"
+       y="845.05872"
        style="font-size:10px;fill:#5c5c5c;fill-opacity:1;font-family:Arial"
        id="tspan3414">some folder</tspan></text>
   <path
      id="path2615"
-     style="fill:none;fill-rule:evenodd;stroke:#5c5c5c;stroke-width:1.0117377px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     d="M 130.14389,822.50815 L 130.14389,849.09712" />
+     style="fill:none;stroke:#5c5c5c;stroke-width:1.0117377px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
+     d="m 130.14389,842.50815 0,26.58897"
+     inkscape:connector-curvature="0" />
   <image
+     sodipodi:absref="folder.png"
      xlink:href="folder.png"
-     x="116.2058"
-     y="806.05872"
-     width="29"
+     id="image3416"
+     style="fill-opacity:1;stroke:none;font-family:Arial"
      height="29"
-     style="fill-opacity:1;stroke:none;stroke-opacity:1;font-family:Arial"
-     id="image3416" />
+     width="29"
+     y="826.05872"
+     x="116.2058" />
   <path
-     d="M 130,848.59059 L 145.2,848.59059"
-     style="fill:none;fill-rule:evenodd;stroke:#5c5c5c;stroke-width:0.94812727px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     id="path2591" />
+     d="m 130,868.59059 15.2,0"
+     style="fill:none;stroke:#5c5c5c;stroke-width:0.94812727px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
+     id="path2591"
+     inkscape:connector-curvature="0" />
   <text
      x="169.18523"
-     y="854.4209"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
+     y="874.4209"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;font-family:Arial"
      id="text2593"
      xml:space="preserve"><tspan
        x="169.18523"
-       y="854.4209"
+       y="874.4209"
        style="font-size:10px;fill:#5c5c5c;fill-opacity:1;font-family:Arial"
        id="tspan2595">.column_%</tspan></text>
   <image
+     sodipodi:absref="folder.png"
      xlink:href="folder.png"
-     x="139.18523"
-     y="835.4209"
-     width="29"
+     id="image2597"
+     style="fill-opacity:1;stroke:none;font-family:Arial"
      height="29"
-     style="fill-opacity:1;stroke:none;stroke-opacity:1;font-family:Arial"
-     id="image2597" />
+     width="29"
+     y="855.4209"
+     x="139.18523" />
   <text
      x="280.117"
-     y="853.70129"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
+     y="873.70129"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;font-family:Arial"
      id="text2599"
      xml:space="preserve"><tspan
        x="280.117"
-       y="853.70129"
+       y="873.70129"
        style="font-size:10px;font-family:Arial"
        id="tspan2601">text for column %. Contains text files of the same name they are the text for.</tspan></text>
   <rect
      width="15"
      height="15"
      x="164"
-     y="865.9209"
-     style="fill:#00ffff;fill-opacity:1;stroke:#5c5c5c;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;font-family:Arial"
+     y="887.9209"
+     style="fill:#00ffff;fill-opacity:1;stroke:#5c5c5c;stroke-width:1;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;font-family:Arial"
      id="rect2603" />
   <text
      x="184"
-     y="875.9209"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
+     y="897.9209"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;font-family:Arial"
      id="text2605"
      xml:space="preserve"><tspan
        x="184"
-       y="875.9209"
+       y="897.9209"
        style="font-size:10px;fill:#5c5c5c;fill-opacity:1;font-family:Arial"
        id="tspan2607">music.wav</tspan></text>
   <text
      x="280.69238"
-     y="875.9209"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
+     y="895.9209"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;font-family:Arial"
      id="text2609"
      xml:space="preserve"><tspan
        x="280.69238"
-       y="875.9209"
+       y="895.9209"
        style="font-size:10px;font-family:Arial"
        id="tspan2611">column text for music.wav file</tspan></text>
   <rect
      id="rect2593"
-     style="fill:#00ffff;fill-opacity:1;stroke:#5c5c5c;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;font-family:Arial"
-     y="200.36218"
+     style="fill:#00ffff;fill-opacity:1;stroke:#5c5c5c;stroke-width:1;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;font-family:Arial"
+     y="220.36218"
      x="100"
      height="15"
      width="15" />
   <text
      xml:space="preserve"
      id="text2595"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     y="210.36221"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;font-family:Arial"
+     y="230.36221"
      x="120"><tspan
        id="tspan2597"
-       style="font-size:10px;fill:#5c5c5c;fill-opacity:1;stroke:none;stroke-opacity:1;font-family:Arial"
-       y="210.36221"
+       style="font-size:10px;fill:#5c5c5c;fill-opacity:1;stroke:none;font-family:Arial"
+       y="230.36221"
        x="120">.column_alignment_%</tspan></text>
   <text
      xml:space="preserve"
      id="text2600"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     y="210.36221"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;font-family:Arial"
+     y="230.36221"
      x="235.88281"><tspan
        id="tspan2602"
        style="font-size:10px;font-family:Arial"
-       y="210.36221"
+       y="230.36221"
        x="235.88281">alignment for custom column % &quot;l&quot; for left, &quot;r&quot; for right, center is default.</tspan></text>
   <rect
      width="15"
      height="15"
      x="100"
-     y="220.36218"
-     style="fill:#00ffff;fill-opacity:1;stroke:#5c5c5c;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;font-family:Arial"
+     y="240.36218"
+     style="fill:#00ffff;fill-opacity:1;stroke:#5c5c5c;stroke-width:1;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;font-family:Arial"
      id="rect2599" />
   <text
      x="120"
-     y="230.36221"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
+     y="250.36221"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;font-family:Arial"
      id="text2601"
      xml:space="preserve"><tspan
        x="120"
-       y="230.36221"
-       style="font-size:10px;fill:#5c5c5c;fill-opacity:1;stroke:none;stroke-opacity:1;font-family:Arial"
+       y="250.36221"
+       style="font-size:10px;fill:#5c5c5c;fill-opacity:1;stroke:none;font-family:Arial"
        id="tspan2603">.column_type_%</tspan></text>
   <text
      x="235.88281"
-     y="230.36221"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
+     y="250.36221"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;font-family:Arial"
      id="text2606"
      xml:space="preserve"><tspan
        x="235.88281"
-       y="230.36221"
+       y="250.36221"
        style="font-size:10px;font-family:Arial"
        id="tspan2608">type of custom column % &quot;i&quot; for integers, &quot;f&quot; for floats, text is default.</tspan></text>
   <rect
      width="15"
      height="15"
      x="120.7"
-     y="563.09058"
-     style="fill:#8000ff;fill-opacity:1;stroke:#5c5c5c;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;font-family:Arial"
+     y="583.09058"
+     style="fill:#8000ff;fill-opacity:1;stroke:#5c5c5c;stroke-width:1;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;font-family:Arial"
      id="rect2604" />
   <text
      x="140.7"
-     y="573.09058"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
+     y="593.09058"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;font-family:Arial"
      id="text2607"
      xml:space="preserve"><tspan
        x="140.7"
-       y="573.09058"
-       style="font-size:10px;fill:#5c5c5c;fill-opacity:1;stroke:none;stroke-opacity:1;font-family:Arial"
+       y="593.09058"
+       style="font-size:10px;fill:#5c5c5c;fill-opacity:1;stroke:none;font-family:Arial"
        id="tspan2609">.default_file</tspan></text>
   <text
      x="237.23515"
-     y="573.09058"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
+     y="593.09058"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;font-family:Arial"
      id="text2611"
      xml:space="preserve"><tspan
        x="237.23515"
-       y="573.09058"
+       y="593.09058"
        style="font-size:10px;font-family:Arial"
        id="tspan2613">custom icon for default file, icon and icon list indices, or &quot;&lt;path&gt;;index&quot;  </tspan></text>
   <rect
      id="rect2616"
-     style="fill:#00ffff;fill-opacity:1;stroke:#5c5c5c;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;font-family:Arial"
-     y="240.36218"
+     style="fill:#00ffff;fill-opacity:1;stroke:#5c5c5c;stroke-width:1;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;font-family:Arial"
+     y="260.36218"
      x="100"
      height="15"
      width="15" />
   <text
      xml:space="preserve"
      id="text2619"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     y="250.36221"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;font-family:Arial"
+     y="270.36221"
      x="120"><tspan
        id="tspan2621"
-       style="font-size:10px;fill:#5c5c5c;fill-opacity:1;stroke:none;stroke-opacity:1;font-family:Arial"
-       y="250.36221"
+       style="font-size:10px;fill:#5c5c5c;fill-opacity:1;stroke:none;font-family:Arial"
+       y="270.36221"
        x="120">.column_width_%</tspan></text>
   <text
      xml:space="preserve"
      id="text2623"
-     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
-     y="250.36221"
+     style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;font-family:Arial"
+     y="270.36221"
      x="235.88281"><tspan
        id="tspan2625"
        style="font-size:10px;font-family:Arial"
-       y="250.36221"
+       y="270.36221"
        x="235.88281">default int of width (in characters) of custom column.</tspan></text>
+  <g
+     id="g3228">
+    <rect
+       id="rect3218"
+       style="fill:#ffff00;fill-opacity:1;stroke:#5c5c5c;stroke-width:1;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;font-family:Arial"
+       y="160.86218"
+       x="99.807617"
+       height="15"
+       width="15" />
+    <text
+       xml:space="preserve"
+       id="text3220"
+       style="font-size:40px;font-style:normal;font-weight:normal;fill:#5c5c5c;fill-opacity:1;stroke:none;font-family:Arial"
+       y="171.36218"
+       x="119.30762"><tspan
+         id="tspan3222"
+         style="font-size:10px;fill:#5c5c5c;fill-opacity:1;stroke:none;font-family:Arial"
+         y="171.36218"
+         x="119.30762">.fsversion</tspan></text>
+    <text
+       xml:space="preserve"
+       id="text3224"
+       style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;font-family:Arial"
+       y="171.36218"
+       x="236.13184"><tspan
+         id="tspan3226"
+         style="font-size:10px;font-family:Arial"
+         y="171.36218"
+         x="236.13184">text of the version of filesystem. Increment on icon changes for cache's sake. </tspan></text>
+  </g>
 </svg>

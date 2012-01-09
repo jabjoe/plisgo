@@ -534,6 +534,10 @@
 	</References>
 	<Files>
 		<File
+			RelativePath=".\HashMapTypes.h"
+			>
+		</File>
+		<File
 			RelativePath=".\IconUtils.cpp"
 			>
 		</File>
@@ -555,6 +559,10 @@
 		</File>
 		<File
 			RelativePath=".\RegUtils.h"
+			>
+		</File>
+		<File
+			RelativePath=".\Utils.cpp"
 			>
 		</File>
 		<File

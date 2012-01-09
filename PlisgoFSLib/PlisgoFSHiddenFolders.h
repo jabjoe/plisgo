@@ -178,6 +178,8 @@ public:
 	bool						HasCustomDefaultIcon() const;
 	bool						HasCustomFolderIcons() const;
 
+	void						SetFSVersion(int nVersion);
+
 
 	IShellInfoFetcher*			GetShellInfoFetcher() const { return m_IShellInfoFetcher.get(); }
 	IPtrPlisgoVFS				GetVFS() const				{ return m_VFS.lock(); }

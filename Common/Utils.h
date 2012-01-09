@@ -36,4 +36,8 @@ extern HINSTANCE g_hInstance;
 
 #define GETOFFSET(_struct, _member)	((size_t)&((_struct*)NULL)->_member)
 
-extern bool		IsInWOW64();
+#define	ALIGNED_SIZE(_)			((_%16)?(_+16-(_%16)):_)
+
+extern bool			IsInWOW64();
+
+extern const char*	GetUserName();

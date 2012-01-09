@@ -29,11 +29,20 @@
 
 // CPlisgoFolder
 
+//The calls Shell_GetCachedImageIndexW or Shell_GetCachedImageIndexA didn't exist in XP.
+//A different DLL for 32bit XP and 32 Vista+ is a pain.
+//So we are only going to support 32bit XP. For 64bit, it's Vista or above and we use Shell_GetCachedImageIndexW
+#ifdef _M_IX86 
 #undef Shell_GetCachedImageIndex 
+#endif
 
 const CLSID	CLSID_PlisgoFolder		= {0xADA19F85,0xEEB6,0x46F2,{0xB8,0xB2,0x2B,0xD9,0x77,0x93,0x4A,0x79}};
 
 const IID	IID_IShellFolderView	= {0x37A378C0,0xF82D,0x11CE,{0xAE,0x65,0x08,0x00,0x2B,0x2E,0x12,0x62}};
+
+static const GUID IID_HACK_IShellView3			= {0xEC39FA88,0xF8AF,0x41CF,{0x84,0x21,0x38,0xBE,0xD2,0x8F,0x46,0x73}};
+
+static const GUID IID_HACK_IShellFolder3		= {0x2EC06C64,0x1296,0x4F53,{0x89,0xE5,0xEC,0xCE,0x4E,0xFC,0x21,0x89}};
 
 #define MAX_STD_COLUMN 8
 
@@ -185,9 +194,6 @@ HRESULT		 CPlisgoFolder::CreatePlisgoExtractIcon(LPCITEMIDLIST pIDL, void** ppRe
 }
 
 
-static const GUID IID_HACK_IShellView3 = {0xEC39FA88,0xF8AF,0x41CF,{0x84,0x21,0x38,0xBE,0xD2,0x8F,0x46,0x73}};
-
-
 
 	// IShellFolderViewCB
 HRESULT	CPlisgoFolder::MessageSFVCB(UINT	uMsg,
@@ -244,9 +250,10 @@ STDMETHODIMP CPlisgoFolder::CreateViewObject(HWND hWnd, REFIID rIID, void** ppRe
 	if (ppResult == NULL)
 		return E_INVALIDARG;
 
-	if (rIID == IID_IShellView	||
-		rIID == IID_IShellView2 ||
-		rIID == IID_HACK_IShellView3)
+	if (rIID == IID_HACK_IShellView3)
+		return E_NOTIMPL;
+
+	if (rIID == IID_IShellView || rIID == IID_IShellView2)
 	{
 		SFV_CREATE csfv = {0};
 		
@@ -301,6 +308,10 @@ STDMETHODIMP CPlisgoFolder::EnumObjects(HWND hWnd, DWORD nFlags, LPENUMIDLIST* p
 
 HRESULT		 CPlisgoFolder::CreateIPlisgoFolder(LPCITEMIDLIST pIDL, LPBC pBC, REFIID rIID, void** ppResult)
 {
+	if (rIID == IID_HACK_IShellFolder3)
+		return E_NOTIMPL;
+
+
 	//Only if a folder is being asked for
 	if (rIID == IID_IShellFolder ||
 		rIID == IID_IShellFolder2 ||
@@ -587,12 +598,9 @@ HRESULT			CPlisgoFolder::GetIconOf( LPCITEMIDLIST pIDL, UINT nFlags, LPINT lpIco
 		return E_FAIL;
 
 	int nSysIndex;
-	
-	if (IsVistaOrAbove())
-		nSysIndex = Shell_GetCachedImageIndexW(Location.sPath.c_str(), Location.nIndex, 0);
-	else
-		nSysIndex = Shell_GetCachedImageIndex(Location.sPath.c_str(), Location.nIndex, 0); //See the undef above, read up, it's a mess
 
+	nSysIndex = Shell_GetCachedImageIndex(Location.sPath.c_str(), Location.nIndex, 0); //Look at the top...
+		
 	if (nSysIndex == -1)
 		return E_FAIL;
 

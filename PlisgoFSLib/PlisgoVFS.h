@@ -119,6 +119,9 @@ public:
 	void						CloseAllOpenFiles(); //When the drive dies rather then closes, this lets you clean up.
 	void						ClearCache();
 
+	size_t						ClearOlderThan(int nSeconds);
+
+
 protected:
 	
 	IPtrPlisgoFSFile			TracePath(const std::wstring& rsLowerPath, IPtrPlisgoFSFile* pParent = NULL) const;
@@ -134,6 +137,7 @@ private:
 
 	void						RestartCache();
 
+	void						AddToCacheLocked(const std::wstring& rsLowerPath, IPtrPlisgoFSFile file, bool bKeep);
 
 	struct OpenFileData
 	{
@@ -173,6 +177,18 @@ private:
 	};
 
 
+	struct Cached
+	{
+		IPtrPlisgoFSFile	file;
+		std::wstring		sPath;
+		ULONG64				nTime;
+		Cached*				pNext;
+		Cached*				pPrev;
+	};
+
+	void												RemoveCached(const std::wstring& rsKey);
+	void												RemoveCached(Cached* pCached);
+
 	IPtrPlisgoFSFolder									m_Root;
 
 	mutable boost::shared_mutex							m_OpenFileMutex;
@@ -180,20 +196,19 @@ private:
 
 	mutable boost::unordered_map<std::wstring, bool>	m_PendingDeletes;
 
-	struct Cached
-	{
-		IPtrPlisgoFSFile	file;
-		ULONG64				nTime;
-	};
-
-	typedef std::pair<std::wstring, Cached>																							CacheEntryPair;
-	typedef boost::fast_pool_allocator< CacheEntryPair >																			CacheEntryPairPool;
-	typedef boost::unordered_map<std::wstring, Cached, boost::hash<std::wstring>, std::equal_to<std::wstring>, CacheEntryPairPool >	CacheEntryMap;
+	typedef std::pair<std::wstring, Cached*>																							CacheEntryPair;
+	typedef boost::fast_pool_allocator< CacheEntryPair >																				CacheEntryPairPool;
+	typedef boost::unordered_map<std::wstring, Cached*, boost::hash<std::wstring>, std::equal_to<std::wstring>, CacheEntryPairPool >	CacheEntryMap;
+	typedef boost::object_pool< Cached >																						CacheEntryPool;
 
 	mutable boost::shared_mutex							m_CacheEntryMutex;
 	CacheEntryMap										m_CacheEntryMap;
+	CacheEntryPool										m_CacheEntryPool;
 
-	typedef TreeCache<IPtrPlisgoFSFile>					MountTree;
+	Cached*												m_pOldest;
+	Cached*												m_pNewest;
+
+	typedef TreeCache<std::wstring,IPtrPlisgoFSFile>	MountTree;
 
 	MountTree											m_MountTree;
 	PlisgoVFSOpenLog*									m_pLog;

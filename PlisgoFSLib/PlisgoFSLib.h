@@ -40,7 +40,8 @@
 #include <boost/algorithm/string/trim.hpp>
 #include <boost/pool/object_pool.hpp>
 #include <boost/pool/pool_alloc.hpp>
-#include <boost/unordered_map.hpp>
+
+#include "../Common/HashMapTypes.h"
 
 
 #define PLISGO_MIN_APIVERSION  2
@@ -126,14 +127,6 @@ inline LPCWSTR				GetNameFromPath(LPCWSTR sPath)
 }
 
 
-inline LPCWSTR				GetNameFromPath(const std::wstring& rsPath)
-{
-	const size_t nSlash = rsPath.rfind(L'\\');
-
-	return &rsPath.c_str()[nSlash+1];
-}
-
-
 inline LPCWSTR				GetParentFromPath(LPCWSTR sPath, LPCWSTR sName)
 {
 	LPCWSTR sParent = sName-2; //Skip past slash
@@ -147,8 +140,8 @@ inline LPCWSTR				GetParentFromPath(LPCWSTR sPath, LPCWSTR sName)
 	return sParent;
 }
 
-
-inline void					MakePathHashSafe(std::wstring& rsPath)
+template<typename WStrType>
+inline void					MakePathHashSafe(WStrType& rsPath)
 {
 	std::transform(rsPath.begin(),rsPath.end(),rsPath.begin(),tolower);
 

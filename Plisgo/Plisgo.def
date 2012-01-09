@@ -8,3 +8,4 @@ EXPORTS
 	DllRegisterServer		PRIVATE
 	DllUnregisterServer		PRIVATE
 	GetMaxPlisgoAPIVersion	PRIVATE
+	CleanPlisgoTempFolders	PRIVATE

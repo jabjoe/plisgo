@@ -545,6 +545,16 @@ bool				RootPlisgoFSFolder::HasCustomDefaultIcon() const	{ boost::shared_lock<bo
 bool				RootPlisgoFSFolder::HasCustomFolderIcons() const	{ boost::shared_lock<boost::shared_mutex> lock(m_Mutex); return m_bHasCustomFolderIcons; }
 
 
+void				RootPlisgoFSFolder::SetFSVersion(int nVersion)
+{
+	boost::unique_lock<boost::shared_mutex> lock(m_Mutex);
+
+	boost::format fmt = boost::format("%1%") %nVersion;
+
+	AddChild(L".fsversion", IPtrPlisgoFSFile(new PlisgoFSStringReadOnly(fmt.str())));
+}
+
+
 bool				RootPlisgoFSFolder::AddIcons(HINSTANCE hExeHandle, int nListIndex, LPCWSTR sName, LPCWSTR sType, LPCWSTR sExt)
 {
 	boost::unique_lock<boost::shared_mutex> lock(m_Mutex);

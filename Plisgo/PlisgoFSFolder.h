@@ -37,7 +37,7 @@ public:
 	bool				IsValid() const;
 
 	LPCWSTR				GetFSName() const								{ return m_sFSName.c_str(); }
-	ULONG				GetFSVersion() const							{ return m_nFSVersion; }
+	ULONG				GetAPIVersion() const							{ return m_nAPIVersion; }
 	const std::wstring& GetPath() const									{ return m_sPath; }
 	const std::wstring& GetPlisgoPath() const							{ return m_sPlisgoPath; }
 
@@ -119,6 +119,7 @@ private:
 
 	std::wstring							m_sFSName;
 	int										m_nFSVersion;
+	int										m_nAPIVersion;
 	std::wstring							m_sPath;
 	std::wstring							m_sPlisgoPath;
 	bool									m_DisabledStandardColumn[8];

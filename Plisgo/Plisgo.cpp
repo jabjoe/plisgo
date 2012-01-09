@@ -24,7 +24,8 @@
 #include "stdafx.h"
 #include "resource.h"
 #include "dllmain.h"
-
+#include "Userenv.h"
+#include "../Common/RegUtils.h"
 
 // Used to determine whether the DLL can be unloaded by OLE
 STDAPI DllCanUnloadNow(void)
@@ -40,18 +41,121 @@ STDAPI DllGetClassObject(REFCLSID rclsid, REFIID riid, LPVOID* ppv)
 }
 
 
+static bool __stdcall CollectSIDsCB(LPCWSTR sKey, WStringList* pList)
+{
+	pList->push_back(sKey);
+
+	return true;
+}
+
+
+void CleanPlisgoTempFolders()
+{
+	WStringList sids;
+
+	EnumRegKey(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\ProfileList", (EnumRegKeyCB)CollectSIDsCB, &sids);
+
+	std::wstring sProfileKey = L"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\ProfileList\\";
+	size_t sProfileKeyBaseLen = sProfileKey.length();
+
+	std::wstring sEnviromentKey;
+
+	std::wstring sProfileFolder;
+	std::wstring sTempKey;
+
+	WCHAR sWindows[MAX_PATH] = {0};
+
+	GetWindowsDirectory(sWindows, MAX_PATH);
+
+	WCHAR sDrive[3];
+
+	wcsncpy_s(sDrive, 3, sWindows, 2);
+
+
+	for(WStringList::const_iterator it = sids.begin(); it != sids.end(); ++it)
+	{
+		sProfileKey.resize(sProfileKeyBaseLen);
+		sProfileKey += *it;
+
+		sProfileFolder.clear();
+
+		if (LoadStringFromReg(HKEY_LOCAL_MACHINE, sProfileKey.c_str(), L"ProfileImagePath", sProfileFolder))
+		{
+			sEnviromentKey = *it;
+			sEnviromentKey += L"\\Environment";
+
+			if (LoadStringFromReg(HKEY_USERS, sEnviromentKey.c_str(), L"TEMP", sTempKey))
+			{
+				boost::algorithm::ireplace_all(sTempKey, L"%USERPROFILE%", sProfileFolder);
+				boost::algorithm::ireplace_all(sTempKey, L"%SYSTEMROOT%", sWindows);
+				boost::algorithm::ireplace_all(sTempKey, L"%SYSTEMDRIVE%", sDrive);
+
+				sTempKey += L"\\plisgo*";
+				sTempKey += L'\0'; //Add double termination for SHFileOperation
+
+				SHFILEOPSTRUCTW fileOp = {0};
+
+				fileOp.wFunc = FO_DELETE;
+				fileOp.pFrom = sTempKey.c_str();
+				fileOp.fFlags = FOF_SILENT | FOF_NOCONFIRMATION | FOF_NOERRORUI ;
+
+				SHFileOperationW(&fileOp);
+			}
+		}
+	}
+}
+
+
 // DllRegisterServer - Adds entries to the system registry
 STDAPI DllRegisterServer(void)
 {
     // registers object, typelib and all interfaces in typelib
-   return _Module.RegisterServer(FALSE);
+   HRESULT hr = _Module.RegisterServer(FALSE);
+
+   if (hr == S_OK)
+   {
+	   WCHAR sDLLPath[MAX_PATH];
+
+	   HMODULE h = GetModuleHandleW(L"Plisgo.dll");
+
+	   GetModuleFileNameW(h, sDLLPath, MAX_PATH);
+
+	   WCHAR sSystemPath[MAX_PATH];
+
+	   GetSystemDirectory(sSystemPath, MAX_PATH);
+
+	   std::wstring sEntry = sSystemPath;
+	   
+	   sEntry += L"\\rundll32.exe \"";
+	   sEntry += sDLLPath;
+	   sEntry += L"\",CleanPlisgoTempFolders";
+
+	   SaveStringToReg(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", L"PlisgoClean", sEntry);
+   }
+
+   return hr;
 }
 
 
 // DllUnregisterServer - Removes entries from the system registry
 STDAPI DllUnregisterServer(void)
 {
-	return _Module.UnregisterServer(FALSE);
+	HRESULT hr = _Module.UnregisterServer(FALSE);
+
+	if (hr == S_OK)
+	{
+		HKEY hRegHandle = NULL;
+		
+		RegOpenKeyEx(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", 0, KEY_ALL_ACCESS, &hRegHandle);
+		
+		if (hRegHandle != NULL && hRegHandle != INVALID_HANDLE_VALUE)
+		{
+			RegDeleteValue(hRegHandle, L"PlisgoClean");
+			RegCloseKey(hRegHandle);
+		}
+	}
+
+	return hr;
 }
 
 

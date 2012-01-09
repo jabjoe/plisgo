@@ -140,6 +140,9 @@ PlisgoVFS::PlisgoVFS(IPtrPlisgoFSFolder root, PlisgoVFSOpenLog* pLog)
 	assert(root.get() != NULL);
 	m_Root = root;
 	m_pLog = pLog;
+
+	m_pNewest = NULL;
+	m_pOldest = NULL;
 }
 
 
@@ -212,6 +215,18 @@ void				PlisgoVFS::GetMounts(std::map<std::wstring,IPtrPlisgoFSFile>& rMounts)
 }
 
 
+void				PlisgoVFS::RemoveCached(const std::wstring& rsKey)
+{
+	CacheEntryMap::iterator it = m_CacheEntryMap.find(rsKey);
+
+	if (it == m_CacheEntryMap.end())
+		return;
+
+	RemoveCached(it->second);
+
+	m_CacheEntryMap.erase(it);
+}
+
 
 bool				PlisgoVFS::GetCached(const std::wstring& rsPath, IPtrPlisgoFSFile& rFile) const
 {
@@ -222,27 +237,31 @@ bool				PlisgoVFS::GetCached(const std::wstring& rsPath, IPtrPlisgoFSFile& rFile
 	if (it == m_CacheEntryMap.end())
 		return false;
 
-	const Cached& rCached = it->second;
+	const Cached* pCached = it->second;
 
-	rFile = rCached.file;
+	rFile = pCached->file;
 
 	if (rFile.get() == NULL || !rFile->IsValid())
 	{
+		//You will see this double check a lot, this is because things can change while getting the write lock
 		boost::upgrade_to_unique_lock<boost::shared_mutex> writeLock(readLock);
 
-		//Use key instead of iterator in case been cleared already between read/write lock transition.
-		const_cast<PlisgoVFS*>(this)->m_CacheEntryMap.erase(rsPath);
+		it = m_CacheEntryMap.find(rsPath);
 
-		return false;
-	}
-	else
-	{
-		//This might be worth returning to. Aging entries so we can flush them out.
-/*
-		ULONG64	nNow;
+		if (it == m_CacheEntryMap.end())
+			return false;
+		
+		pCached = it->second;
 
-		GetSystemTimeAsFileTime((FILETIME*)&nNow);
-*/
+		rFile = pCached->file;
+
+		if (rFile.get() == NULL || !rFile->IsValid())
+		{
+			const_cast<PlisgoVFS*>(this)->RemoveCached(rsPath);
+
+			return false;
+		}
+		else return true; //For break point
 	}
 	
 	return true;
@@ -741,7 +760,7 @@ int					PlisgoVFS::Close(PlisgoFileHandle&	rHandle, bool bDeleteOnClose)
 
 			if (nError == 0)
 			{
-				m_CacheEntryMap.erase(openFileData->sPath);
+				RemoveCached(openFileData->sPath);
 
 				m_MountTree.RemoveBranch(openFileData->sPath);
 
@@ -790,7 +809,7 @@ int					PlisgoVFS::GetDeleteError(PlisgoFileHandle&	rHandle) const
 
 	boost::unique_lock<boost::shared_mutex>	lock(m_OpenFileMutex);
 
-	int nError = pFolder->GetRemoveChildError(GetNameFromPath(openFileData->sPath));
+	int nError = pFolder->GetRemoveChildError(GetNameFromPath(openFileData->sPath.c_str()));
 
 	if (nError != 0)
 		return nError;
@@ -858,12 +877,58 @@ void				PlisgoVFS::AddToCache(const std::wstring& rsLowerPath, IPtrPlisgoFSFile 
 	{
 		boost::unique_lock<boost::shared_mutex> writeLock(m_CacheEntryMutex);
 
-		Cached& rCached = m_CacheEntryMap[rsLowerPath];
-
-		rCached.file = file;
-		
-		GetSystemTimeAsFileTime((FILETIME*)&rCached.nTime);
+		AddToCacheLocked(rsLowerPath, file, false);
 	}
+}
+
+
+void				PlisgoVFS::AddToCacheLocked(const std::wstring& rsLowerPath, IPtrPlisgoFSFile file, bool bKeep)
+{
+	Cached*& rpCached = m_CacheEntryMap[rsLowerPath];
+
+	if (rpCached != NULL)
+		RemoveCached(rpCached);
+
+	rpCached		= m_CacheEntryPool.construct();
+	rpCached->file	= file;
+	rpCached->sPath	= rsLowerPath;
+	
+	if (bKeep)
+		rpCached->nTime = -1;//From the future, so is never too old!
+	else
+		GetSystemTimeAsFileTime((FILETIME*)&rpCached->nTime);
+
+	if (m_pOldest == NULL)
+		m_pOldest = rpCached;
+
+	if (m_pNewest != NULL)
+		m_pNewest->pNext = rpCached;
+
+	rpCached->pPrev = m_pNewest;
+	rpCached->pNext = NULL;
+
+	m_pNewest = rpCached;
+}
+
+
+void				PlisgoVFS::RemoveCached(Cached* pCached)
+{
+	if (pCached == NULL)
+		return;
+
+	if (pCached->pNext != NULL)
+		pCached->pNext->pPrev = pCached->pPrev;
+
+	if (pCached->pPrev != NULL)
+		pCached->pPrev->pNext = pCached->pNext;
+
+	if (pCached == m_pNewest)
+		m_pNewest = pCached->pPrev;
+
+	if (pCached == m_pOldest)
+		m_pOldest = m_pOldest->pNext;
+
+	m_CacheEntryPool.destroy(pCached);
 }
 
 	
@@ -879,6 +944,9 @@ void				PlisgoVFS::RestartCache()
 {
 	//m_CacheEntryMutex should be write-locked
 
+	for(CacheEntryMap::iterator it = m_CacheEntryMap.begin(); it != m_CacheEntryMap.end(); ++it)
+		RemoveCached(it->second);
+
 	m_CacheEntryMap.clear();
 
 	MountTree::FullKeyMap fullKeyMap;
@@ -886,12 +954,47 @@ void				PlisgoVFS::RestartCache()
 	m_MountTree.GetFullKeyMap(fullKeyMap);
 
 	for(MountTree::FullKeyMap::const_iterator it = fullKeyMap.begin(); it != fullKeyMap.end(); ++it)
-	{
-		const std::wstring& rsPath = it->first;
+		AddToCacheLocked(it->first, it->second, true);
+}
 
-		Cached& rCached = m_CacheEntryMap[rsPath];
-		
-		rCached.file = it->second;
-		rCached.nTime = -1; //From the future, so is never too old!
+
+size_t				PlisgoVFS::ClearOlderThan(int nSeconds)
+{
+	boost::unique_lock<boost::shared_mutex> writeLock(m_CacheEntryMutex);
+	
+	ULONG64 nNow;
+	
+	GetSystemTimeAsFileTime((FILETIME*)&nNow);
+
+	Cached* pEntry = m_pOldest;
+
+	size_t nRemoved = 0;
+
+
+	while(pEntry != NULL)
+	{
+		if (pEntry->nTime == -1)
+		{
+			pEntry = pEntry->pNext;
+			continue;
+		}
+
+		int nAgeSecs = (int)((nNow - pEntry->nTime) / 10000000); //NTSECOND
+
+		if (nAgeSecs > nSeconds)
+		{
+			Cached* pNext = pEntry->pNext;
+
+			m_CacheEntryMap.erase(pEntry->sPath);
+
+			RemoveCached(pEntry);
+
+			++nRemoved;
+
+			pEntry = pNext;
+		}
+		else break;
 	}
+
+	return nRemoved;
 }

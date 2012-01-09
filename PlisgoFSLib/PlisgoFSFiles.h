@@ -167,34 +167,8 @@ public:
 typedef boost::shared_ptr<PlisgoFSFolder>	IPtrPlisgoFSFolder;
 
 
-struct iequal_to : std::binary_function<std::wstring, std::wstring, bool>
-{
-    bool operator()(std::wstring const& x,
-        std::wstring const& y) const
-    {
-        return boost::algorithm::iequals(x, y, std::locale());
-    }
-};
 
-struct ihash : std::unary_function<std::wstring, std::size_t>
-{
-    std::size_t operator()(std::wstring const& x) const
-    {
-        std::size_t seed = 0;
-        std::locale locale;
-
-        for(std::wstring::const_iterator it = x.begin();
-            it != x.end(); ++it)
-        {
-            boost::hash_combine(seed, std::toupper(*it, locale));
-        }
-
-        return seed;
-    }
-};
-
-
-class PlisgoFSFileMap : public boost::unordered_map<std::wstring, IPtrPlisgoFSFile, ihash, iequal_to>
+class PlisgoFSFileMap : public WStringIMap<IPtrPlisgoFSFile>
 {
 public:
 	

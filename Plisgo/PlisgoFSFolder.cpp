@@ -139,19 +139,23 @@ void PlisgoFSRoot::Init(const std::wstring& rsPath)
 
 	m_sPlisgoPath = m_sPath + L".plisgofs\\";
 
-	m_nFSVersion = -1;
+	m_nAPIVersion = -1;
 
 	std::wstring sNameFile = m_sPlisgoPath + L".fsname";
 
 	if (!ReadTextFromFile(m_sFSName, sNameFile.c_str()) ||
-		!ReadIntFromFile(m_nFSVersion, (m_sPlisgoPath + L".version").c_str()) || m_nFSVersion < 2) //v1 is no longer supported
+		!ReadIntFromFile(m_nAPIVersion, (m_sPlisgoPath + L".version").c_str()) || m_nAPIVersion < 2) //v1 is no longer supported
 	{
 		m_sFSName.resize(0);
 
 		return;
 	}
+
+	m_nFSVersion = 1;
+
+	ReadIntFromFile(m_nFSVersion, (m_sPlisgoPath + L".fsversion").c_str());
 	
-	boost::algorithm::trim_if(m_sFSName, boost::is_cntrl());
+	boost::trim_if(m_sFSName, boost::is_cntrl());
 
 	WIN32_FILE_ATTRIBUTE_DATA data = {0};
 
@@ -501,10 +505,7 @@ bool	PlisgoFSRoot::GetPathIconLocation(IconLocation& rIconLocation, const std::w
 			return pIconRegistry->GetFileIconLocation(rIconLocation, rsPath);
 	}
 
-	bool bBaseRetrieved = false;
-
-	if (!bBaseRetrieved)
-		bBaseRetrieved = GetCustomIconIconLocation(rIconLocation, sShellInfoFolder, sName);
+	bool bBaseRetrieved = GetCustomIconIconLocation(rIconLocation, sShellInfoFolder, sName);
 
 	if (!bBaseRetrieved)
 	{
@@ -536,37 +537,16 @@ bool	PlisgoFSRoot::GetPathIconLocation(IconLocation& rIconLocation, const std::w
 
 	IconLocation overlay;
 
-	if (m_IconRegistry->ReadIconLocation(overlay, sShellInfoFolder + L".overlay_icons\\" + sName))
+	if (!m_IconRegistry->ReadIconLocation(overlay, (sShellInfoFolder + L".overlay_icons\\") += sName))
+		pIconRegistry->GetDefaultOverlayIconLocation(overlay, sName);
+	
+
+	if (overlay.IsValid())
 	{
 		IconLocation base = rIconLocation;
 
 		if (!pIconRegistry->MakeOverlaid(rIconLocation, base, overlay))
 			rIconLocation = base;
-	}
-	else
-	{
-		LPCWSTR sExt = NULL;
-
-		size_t nPos = sName.rfind(L'.');
-
-		if (nPos != -1)
-			sExt = &sName.c_str()[nPos];
-
-		if (sExt != NULL && (ExtIsShortcut(sExt) || ExtIsShortcutUrl(sExt)))
-		{
-			IconLocation overlay;
-
-			overlay.sPath = L"shell32.dll";
-
-			EnsureFullPath(overlay.sPath);
-
-			overlay.nIndex = 29;
-
-			IconLocation base = rIconLocation;
-
-			if (!pIconRegistry->MakeOverlaid(rIconLocation, base, overlay))
-				rIconLocation = base;
-		}
 	}
 
 	return true;
@@ -587,23 +567,23 @@ bool	PlisgoFSRoot::IsValid() const
 	if (!GetFileAttributesEx(sNameFile.c_str(), GetFileExInfoStandard, (void*)&data))
 		return false;
 
-	if (m_nFSVersion > 2) //It was 3 that string files started storing time
+	if (m_nAPIVersion > 2) //It was 3 that string files started storing time
 		if (m_NameTime != (ULONG64&)data.ftCreationTime)
 			return false;
 
-	int nVersion = -1;
+	int nAPIVersion = -1;
 	std::wstring sName;
 
 	if (!ReadTextFromFile(sName, sNameFile.c_str()) ||
-		!ReadIntFromFile(nVersion, (m_sPlisgoPath + L".version").c_str()))
+		!ReadIntFromFile(nAPIVersion, (m_sPlisgoPath + L".version").c_str()))
 	{
 		return false;
 	}
 
-	if (nVersion != m_nFSVersion)
+	if (nAPIVersion != m_nAPIVersion)
 		return false;
 
-	boost::algorithm::trim_if(sName, boost::is_cntrl());
+	boost::trim_if(sName, boost::is_cntrl());
 
 	if (!boost::algorithm::iequals(sName, m_sFSName))
 		return false;

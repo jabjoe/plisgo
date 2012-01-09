@@ -33,7 +33,6 @@ int gShellIDList = RegisterClipboardFormat(CFSTR_SHELLIDLIST);
 #define HIDA_GetPIDLItem(pida, i) (LPCITEMIDLIST)(((LPBYTE)pida)+(pida)->aoffset[i+1])
 
 #define EXPLORER_FLAGS	PROCESS_QUERY_INFORMATION|PROCESS_VM_OPERATION|PROCESS_VM_READ|PROCESS_VM_WRITE
-#define	ALIGNED_SIZE(_)			((_%16)?(_+16-(_%16)):_)
 #define ALIGNED_ITEM_SIZE		(ALIGNED_SIZE(sizeof(TVITEM)))
 
 
@@ -310,7 +309,7 @@ static void DirtyChildren(HWND hWnd, HTREEITEM hFolder, std::wstring& rsFolderPa
 
 			if (rPathDoneMap.find(rsFolderPath) == rPathDoneMap.end())
 			{
-				SHChangeNotify(SHCNE_UPDATEITEM, SHCNF_PATHW, rsFolderPath.c_str(), NULL);
+				SHChangeNotify(SHCNE_UPDATEITEM, SHCNF_PATHW|SHCNF_FLUSH, rsFolderPath.c_str(), NULL);
 
 				rPathDoneMap[rsFolderPath] = true;
 			}
@@ -395,7 +394,7 @@ void __cdecl AsyncClickPacketCB( AsyncClickPacket* pPacket )
 	{
 		it->insert(0, sBasePath);
 
-		SHChangeNotify(SHCNE_UPDATEITEM, SHCNF_PATHW, it->c_str(), NULL);
+		SHChangeNotify(SHCNE_UPDATEITEM, SHCNF_PATHW|SHCNF_FLUSH, it->c_str(), NULL);
 
 		if (GetFileAttributes(it->c_str()) & FILE_ATTRIBUTE_DIRECTORY)
 		{
@@ -440,7 +439,10 @@ void __cdecl AsyncClickPacketCB( AsyncClickPacket* pPacket )
 
 	const std::wstring sRoot = selection[0].substr(0, nSlash);
 
-	SHChangeNotify(SHCNE_UPDATEITEM, SHCNF_PATHW, sRoot.c_str(), NULL);
+	SHChangeNotify(SHCNE_UPDATEITEM, SHCNF_PATHW|SHCNF_FLUSH, sRoot.c_str(), NULL);
+
+	//Force flush
+	SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST|SHCNF_FLUSH, NULL, NULL); 
 }
 
 

@@ -23,8 +23,11 @@
 
 
 bool	LoadDWORDFromReg(HKEY hRootKey, LPCWSTR sKey, LPCWSTR sName, DWORD& rnValue, bool bDoWOW64 = false);
-bool	StoreDWORDFromReg(HKEY hRootKey, LPCWSTR sKey, LPCWSTR sName, DWORD nValue, bool bDoWOW64 = false);
+bool	SaveDWORDToReg(HKEY hRootKey, LPCWSTR sKey, LPCWSTR sName, DWORD nValue, bool bDoWOW64 = false);
 
 bool	LoadStringFromReg(HKEY hRootKey, LPCWSTR sKey, LPCWSTR sName, std::wstring& rsValue, bool bDoWOW64 = false);
-bool	StoreStringFromReg(HKEY hRootKey, LPCWSTR sKey, LPCWSTR sName, const std::wstring& rsValue, bool bDoWOW64 = false);
+bool	SaveStringToReg(HKEY hRootKey, LPCWSTR sKey, LPCWSTR sName, const std::wstring& rsValue, bool bDoWOW64 = false);
 
+typedef bool (__stdcall *EnumRegKeyCB)(LPCWSTR sKey, void* pData);
+
+bool	EnumRegKey(HKEY hRootKey, LPCWSTR sKey, EnumRegKeyCB cd, void* pData, bool bDoWOW64 = false);

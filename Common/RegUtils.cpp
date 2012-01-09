@@ -3,49 +3,26 @@
 #include "RegUtils.h"
 
 
-class IsInWOW64Cache
+bool	OpenKeyQuery(HKEY& rhKey, HKEY hRootKey, LPCWSTR sKey, bool bDoWOW64, bool bEnum = false)
 {
-public:
-	IsInWOW64Cache()
-	{
-		typedef BOOL (WINAPI *LPFN_ISWOW64PROCESS) (HANDLE, PBOOL);
-
-		m_bAnswer = false;
-
-		LPFN_ISWOW64PROCESS fnIsWow64Process = (LPFN_ISWOW64PROCESS)GetProcAddress(GetModuleHandle(L"kernel32"),"IsWow64Process");
-
-		if (fnIsWow64Process != NULL)
-		{
-			BOOL bIs64 = FALSE;
-
-			if (fnIsWow64Process(GetCurrentProcess(), &bIs64) && bIs64)
-				m_bAnswer = true;
-		}
-	}
-
-	bool	WellWhat()	{ return m_bAnswer; }
-private:
-	bool	m_bAnswer;
-};
-
-
-bool		IsInWOW64()
-{
-	static IsInWOW64Cache cache;
-
-	return cache.WellWhat();
-}
-
-
-bool	LoadDWORDFromReg(HKEY hRootKey, LPCWSTR sKey, LPCWSTR sName, DWORD& rnValue, bool bDoWOW64 )
-{
-	HKEY	hKey	= NULL;
 	DWORD	nFlags	= KEY_QUERY_VALUE;
 
 	if (bDoWOW64)
 		nFlags |= KEY_WOW64_64KEY;
 
-	if (RegOpenKeyEx(hRootKey, sKey, 0, nFlags, &hKey) != ERROR_SUCCESS)
+	if (bEnum)
+		nFlags |= KEY_ENUMERATE_SUB_KEYS;
+
+	return (RegOpenKeyEx(hRootKey, sKey, 0, nFlags, &rhKey) == ERROR_SUCCESS);
+}
+
+
+
+bool	LoadDWORDFromReg(HKEY hRootKey, LPCWSTR sKey, LPCWSTR sName, DWORD& rnValue, bool bDoWOW64 )
+{
+	HKEY	hKey = NULL;
+
+	if (!OpenKeyQuery(hKey, hRootKey, sKey, bDoWOW64))
 		return false;
 
 	int		nNumber		= 0;
@@ -60,7 +37,7 @@ bool	LoadDWORDFromReg(HKEY hRootKey, LPCWSTR sKey, LPCWSTR sName, DWORD& rnValue
 }
 
 
-bool	StoreDWORDFromReg(HKEY hRootKey, LPCWSTR sKey, LPCWSTR sName, DWORD nValue, bool bDoWOW64 )
+bool	SaveDWORDToReg(HKEY hRootKey, LPCWSTR sKey, LPCWSTR sName, DWORD nValue, bool bDoWOW64 )
 {
 	HKEY	hKey	= NULL;
 	DWORD	nFlags	= KEY_WRITE;
@@ -81,13 +58,9 @@ bool	StoreDWORDFromReg(HKEY hRootKey, LPCWSTR sKey, LPCWSTR sName, DWORD nValue,
 
 bool	LoadStringFromReg(HKEY hRootKey, LPCWSTR sKey, LPCWSTR sName, std::wstring& rsValue, bool bDoWOW64 )
 {
-	HKEY	hKey	= NULL;
-	DWORD	nFlags	= KEY_QUERY_VALUE;
+	HKEY	hKey = NULL;
 
-	if (bDoWOW64)
-		nFlags |= KEY_WOW64_64KEY;
-
-	if (RegOpenKeyEx(hRootKey, sKey, 0, nFlags, &hKey) != ERROR_SUCCESS)
+	if (!OpenKeyQuery(hKey, hRootKey, sKey, bDoWOW64))
 		return false;
 
 	bool	bResult		= false;
@@ -103,7 +76,7 @@ bool	LoadStringFromReg(HKEY hRootKey, LPCWSTR sKey, LPCWSTR sName, std::wstring&
 
 		//Remove any extra terminations
 
-		while(rsValue[rsValue.length()-1] == '\0')
+		while(rsValue.length() && rsValue[rsValue.length()-1] == '\0')
 			rsValue.resize(rsValue.length()-1);
 
 		bResult = true;
@@ -115,7 +88,7 @@ bool	LoadStringFromReg(HKEY hRootKey, LPCWSTR sKey, LPCWSTR sName, std::wstring&
 }
 
 
-bool	StoreStringFromReg(HKEY hRootKey, LPCWSTR sKey, LPCWSTR sName, const std::wstring& rsValue, bool bDoWOW64 )
+bool	SaveStringToReg(HKEY hRootKey, LPCWSTR sKey, LPCWSTR sName, const std::wstring& rsValue, bool bDoWOW64 )
 {
 	HKEY	hKey	= NULL;
 	DWORD	nFlags	= KEY_WRITE;
@@ -133,3 +106,35 @@ bool	StoreStringFromReg(HKEY hRootKey, LPCWSTR sKey, LPCWSTR sName, const std::w
 	return bResult;
 }
 
+
+
+typedef bool (__stdcall *EnumRegKeyCB)(LPCWSTR sKey, void* pData);
+
+bool	EnumRegKey(HKEY hRootKey, LPCWSTR sKey, EnumRegKeyCB cd, void* pData, bool bDoWOW64)
+{
+	HKEY	hKey = NULL;
+
+	if (!OpenKeyQuery(hKey, hRootKey, sKey, bDoWOW64, true))
+		return false;
+
+	DWORD cSubKeys=0; 
+
+	RegQueryInfoKey(hKey,NULL,NULL,NULL,&cSubKeys,NULL,NULL,NULL,NULL,NULL,NULL,NULL);
+
+	WCHAR    sChildKey[MAX_PATH];
+
+	for (DWORD i=0; i<cSubKeys; i++) 
+	{
+		DWORD nChildKey = MAX_PATH;
+
+		LONG nError = RegEnumKeyEx(hKey,i,sChildKey,&nChildKey,NULL,NULL,NULL,NULL);
+
+        if (nError == ERROR_SUCCESS) 
+			if (!cd(sChildKey, pData))
+				break;
+	}
+
+	RegCloseKey(hKey);
+
+	return true;
+}
