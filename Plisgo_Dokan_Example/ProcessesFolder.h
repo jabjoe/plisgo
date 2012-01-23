@@ -67,8 +67,17 @@ public:
 	virtual int					GetChildren(ChildNames& rChildren) const;
 	virtual IPtrPlisgoFSFile	GetChild(LPCWSTR sName) const;
 
+protected:
+
+	bool						IsStale() const;
+
+	void						LoadProcesses();
+
 private:
 	std::wstring					m_sPath;
-	PlisgoFSFileList				m_Extras;
+	ULONG64							m_nProcessSnapTime;
+	mutable boost::shared_mutex		m_Mutex;
+	PlisgoFSFileMap					m_Extras;
+	PlisgoFSFileMap					m_Processes;
 };
 

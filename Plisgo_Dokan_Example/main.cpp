@@ -452,7 +452,7 @@ main(ULONG argc, PCHAR argv[])
 
 	dokanOptions.DriveLetter = L'Q';
 	dokanOptions.GlobalContext = (ULONG64)vfs.get();
-	dokanOptions.Options = DOKAN_OPTION_REMOVABLE;
+	dokanOptions.Options = DOKAN_OPTION_REMOVABLE|DOKAN_OPTION_KEEP_ALIVE;
 
 	int status = DokanMain(&dokanOptions, &dokanOperations);
 

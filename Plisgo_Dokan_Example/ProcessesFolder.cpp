@@ -629,8 +629,10 @@ bool	ProcessesFolderShellInterface::GetThumbnail(IPtrPlisgoFSFile& rFile, std::w
 ProcessesFolder::ProcessesFolder()
 {
 	//Add stubs for mounting of Plisgo GUI files
-	m_Extras.AddFile(L".plisgofs", IPtrPlisgoFSFile(new PlisgoFSStringReadOnly()));
-	m_Extras.AddFile(L"Desktop.ini", IPtrPlisgoFSFile(new PlisgoFSStringReadOnly()));
+	m_Extras[L".plisgofs"] = IPtrPlisgoFSFile(new PlisgoFSStringReadOnly());
+	m_Extras[L"Desktop.ini"] = IPtrPlisgoFSFile(new PlisgoFSStringReadOnly());
+
+	m_nProcessSnapTime = 0;
 
 	hNTDLL_Lib = LoadLibrary(L"Ntdll.dll");
 
@@ -655,34 +657,16 @@ int				ProcessesFolder::GetChildren(ChildNames& rChildren) const
 	if (nError != 0)
 		return nError;
 
-	HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS,0);
+	boost::upgrade_lock<boost::shared_mutex> lock(m_Mutex);
 
-	if (hSnapshot != NULL)
+	if (IsStale())
 	{
-		PROCESSENTRY32 pe;
+		boost::upgrade_to_unique_lock<boost::shared_mutex> rwLock(lock);
 
-		// fill up its size
-		pe.dwSize=sizeof(PROCESSENTRY32);
-
-		if(Process32First(hSnapshot,&pe))
-		{
-			do
-			{
-				WCHAR sName[MAX_PATH];
-
-				wsprintf(sName,L"%i", pe.th32ProcessID);
-
-				rChildren.push_back(sName);
-
-				pe.dwSize=sizeof(PROCESSENTRY32);
-			}
-			while(Process32Next(hSnapshot,&pe));   
-		}
-
-		CloseHandle(hSnapshot);
+		const_cast<ProcessesFolder*>(this)->LoadProcesses();
 	}
 
-	return 0;
+	return m_Processes.GetFileNames(rChildren);
 }
 
 
@@ -693,18 +677,42 @@ IPtrPlisgoFSFile	ProcessesFolder::GetChild(LPCWSTR sName) const
 	if (result.get() != NULL)
 		return result;
 
-	assert(sName != NULL);
+	boost::upgrade_lock<boost::shared_mutex> lock(m_Mutex);
 
-	if (!isdigit(sName[0]))
-		return IPtrPlisgoFSFile();
+	if (IsStale())
+	{
+		boost::upgrade_to_unique_lock<boost::shared_mutex> rwLock(lock);
 
-	const DWORD nProcessID = _wtoi(sName);
+		const_cast<ProcessesFolder*>(this)->LoadProcesses();
+	}
+
+	return m_Processes.GetFile(sName);
+}
+
+
+bool				ProcessesFolder::IsStale() const
+{
+	ULONG64	nNow = 0;
+
+	GetSystemTimeAsFileTime((FILETIME*)&nNow);
+
+	ULONG64 nDeltaSecs = (nNow-m_nProcessSnapTime)/10000000 /*NTSECOND*/;
+
+	return (nDeltaSecs > 5);
+}
+
+
+void				ProcessesFolder::LoadProcesses()
+{
+	m_Processes.clear();
 
 	HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS,0);
 
 	if (hSnapshot != NULL)
 	{
 		PROCESSENTRY32 pe;
+				
+		WCHAR sName[MAX_PATH];
 
 		// fill up its size
 		pe.dwSize=sizeof(PROCESSENTRY32);
@@ -713,12 +721,9 @@ IPtrPlisgoFSFile	ProcessesFolder::GetChild(LPCWSTR sName) const
 		{
 			do
 			{
-				if (pe.th32ProcessID == nProcessID)
-				{
-					result = boost::make_shared<ProcessFolder>(pe);
+				wsprintf(sName,L"%i", pe.th32ProcessID);
 
-					break;
-				}
+				m_Processes[sName] = boost::make_shared<ProcessFolder>(pe);
 
 				pe.dwSize=sizeof(PROCESSENTRY32);
 			}
@@ -728,5 +733,5 @@ IPtrPlisgoFSFile	ProcessesFolder::GetChild(LPCWSTR sName) const
 		CloseHandle(hSnapshot);
 	}
 
-	return result;
+	GetSystemTimeAsFileTime((FILETIME*)&m_nProcessSnapTime);
 }
