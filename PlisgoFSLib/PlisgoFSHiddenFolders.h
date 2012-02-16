@@ -187,6 +187,11 @@ public:
 
 	virtual DWORD				GetAttributes() const		{ return FILE_ATTRIBUTE_DIRECTORY|FILE_ATTRIBUTE_HIDDEN; }
 
+	int							GetThumbnailCacheLife() const	{ return m_nThumbnailCacheLife;}
+	void						SetThumbnailCacheLife( int nSeconds) { m_nThumbnailCacheLife = nSeconds; }
+
+	void						DirtyThumbnailCache( const std::wstring& rsFolderRelativePath );
+
 private:
 	void						EnableCustomShell();
 	IPtrPlisgoFSFile			GetCustomTypeIconsFolder();
@@ -211,6 +216,8 @@ private:
 	UINT						m_nColumnNum;
 
 	bool						m_DisabledStandardColumn[8];
+
+	int							m_nThumbnailCacheLife;
 
 	boost::weak_ptr<PlisgoVFS>	m_VFS;
 	std::wstring				m_sPath;

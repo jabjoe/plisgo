@@ -367,9 +367,15 @@ public:
 
 		double diff = fabs(difftime(now, m_birth));
 
-		bool bResult = (diff < 10);
+		bool bResult = (diff < m_pRoot->GetThumbnailCacheLife());
 
 		return bResult;
+	}
+
+
+	void						Dirty()
+	{
+		m_birth = 0;
 	}
 
 
@@ -530,6 +536,8 @@ RootPlisgoFSFolder::RootPlisgoFSFolder(const std::wstring& rsPath, LPCWSTR sFSNa
 	
 	m_sPath	= rsPath;
 	m_VFS	= rVFS;
+
+	m_nThumbnailCacheLife = 10;
 
 	ZeroMemory(&m_DisabledStandardColumn, sizeof(m_DisabledStandardColumn));
 }
@@ -957,4 +965,39 @@ void				RootPlisgoFSFolder::DisableStandardColumn(StdColumn eStdColumn)
 
 	if (pStrFile != NULL)
 		pStrFile->SetString(sData);
+}
+
+
+void				RootPlisgoFSFolder::DirtyThumbnailCache( const std::wstring& rsFolderRelativePath )
+{	
+	std::wstring sThumbnailFolder = m_sPath;
+	
+	sThumbnailFolder += L"\\.plisgofs\\.shellinfo";
+
+	if (rsFolderRelativePath.length() && rsFolderRelativePath[0] != L'\\')
+		sThumbnailFolder += L"\\";
+
+	sThumbnailFolder += rsFolderRelativePath;
+
+	if (sThumbnailFolder[sThumbnailFolder.length()-1] != L'\\')
+		sThumbnailFolder += L"\\";
+
+	sThumbnailFolder += L".thumbnails";
+
+	IPtrPlisgoVFS vfs = m_VFS.lock();
+
+	if (vfs.get() == NULL)
+		return;
+
+	IPtrPlisgoFSFile file = vfs->TracePath(sThumbnailFolder.c_str());
+
+	if (file.get() == NULL)
+		return;
+
+	ThumbnailsFolder* pThumbnailsFolder = dynamic_cast<ThumbnailsFolder*>(file->GetAsFolder());
+
+	if (pThumbnailsFolder == NULL)
+		return;
+
+	pThumbnailsFolder->Dirty();
 }
